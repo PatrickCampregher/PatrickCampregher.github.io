@@ -134,6 +134,8 @@
     opacity:.85;text-shadow:0 1px 0 rgba(255,246,214,.7),0 0 3px rgba(255,246,214,.6);}
   .cell .ico{font-size:clamp(13px,2.8vw,22px);filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));}
   #board .cell.goal .ico{font-size:clamp(19px,4.4vw,32px);}
+  .cell .ficon{width:80%;height:80%;object-fit:contain;pointer-events:none;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));}
   .cell.cur{z-index:3;box-shadow:inset 0 0 0 3px var(--gold-bright);}
   .cell.cur .num{color:var(--oxblood);}
   .tokens{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;}
@@ -254,6 +256,16 @@
     {t:"Specchio",d:"Chi parla con te deve imitare i tuoi gesti, o beve."}
   ];
 
+  // Custom special fields — edit these field numbers freely.
+  const LUCK_UP=[11,33,51];     // "Increased Luck": +2 on the die for 3 turns
+  const LUCK_DOWN=[8,27,46];    // "Decreased Luck": -2 on the die for 3 turns (can go backward)
+  const LUCK={
+    up:{img:"icons/luck+2.png",title:"Fortuna Aumentata",
+        text:"<b>+2</b> al dado per i prossimi <b>3 turni</b>."},
+    down:{img:"icons/luck-2.png",title:"Sfortuna",
+        text:"<b>&minus;2</b> al dado per i prossimi <b>3 turni</b> &mdash; puoi finire in negativo e <b>tornare indietro</b>."}
+  };
+
   // playerIndex -> slot (0,1,2 = top row; 3,4,5 = bottom row)
   const LAYOUT={
     2:[4,1], 3:[4,0,2], 4:[3,0,2,5], 5:[3,4,5,0,2], 6:[3,4,5,0,1,2]
@@ -306,6 +318,8 @@
   function classify(n){
     if(n===TOTAL) return "goal";
     if(n===1) return "start";
+    if(LUCK_UP.includes(n)) return "luckup";
+    if(LUCK_DOWN.includes(n)) return "luckdown";
     if(GEESE.includes(n)) return "goose";
     if(SPECIALS[n]) return "peril";
     if(PARTY_SQUARES.includes(n)) return "party";
@@ -347,10 +361,20 @@
       const el=document.createElement("div");
       el.className="cell"+(kind?" "+kind:"");
       el.style.gridRow=row; el.style.gridColumn=col;
-      let ico=""; if(n===TOTAL) ico="🏆"; else if(kind==="goose") ico="🦢";
-      else if(SPECIALS[n]) ico=SPECIALS[n].ico; else if(kind==="party") ico="✦";
-      el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'');
-      el.title=n===TOTAL?"Il Giardino dell'Oca":(SPECIALS[n]?SPECIALS[n].title:(kind==="goose"?"L'Oca":(kind==="party"?"Pegno":"Casella "+n)));
+      let inner='<span class="num">'+n+'</span>', ttl="Casella "+n;
+      if(kind==="luckup"||kind==="luckdown"){
+        const L=kind==="luckup"?LUCK.up:LUCK.down;
+        inner+='<img class="ficon" src="'+L.img+'" alt="'+L.title+'" draggable="false">';
+        ttl=L.title;
+      }else{
+        let ico=""; if(n===TOTAL){ ico="🏆"; ttl="Il Giardino dell'Oca"; }
+        else if(kind==="goose"){ ico="🦢"; ttl="L'Oca"; }
+        else if(SPECIALS[n]){ ico=SPECIALS[n].ico; ttl=SPECIALS[n].title; }
+        else if(kind==="party"){ ico="✦"; ttl="Pegno"; }
+        if(ico) inner+='<span class="ico">'+ico+'</span>';
+      }
+      el.innerHTML=inner;
+      el.title=ttl;
       if(track) el.addEventListener("click",()=>openCellInfo(n));
       boardEl.appendChild(el); if(track) cellEls[n]=el;
     }
@@ -427,6 +451,10 @@
     if(n===TOTAL){
       title="Il Giardino dell'Oca 🪿";
       body="Casella <b>63</b>, l'arrivo al centro. Raggiungila con il <b>tiro esatto</b> per vincere; se superi, rimbalzi indietro.";
+    }else if(kind==="luckup"||kind==="luckdown"){
+      const L=kind==="luckup"?LUCK.up:LUCK.down;
+      title=L.title;
+      body="Casella <b>"+n+"</b>. "+L.text;
     }else if(kind==="goose"){
       title="L'Oca 🦢";
       body="Casella <b>"+n+"</b>. Chi vi arriva <b>avanza ancora</b> dello stesso tiro e <b>beve</b> &mdash; e le oche si concatenano.";
@@ -488,7 +516,7 @@
     const inputs=namesBox.querySelectorAll("input");
     for(let i=0;i<chosenCount;i++){
       const nm=(inputs[i].value.trim())||("Giocatore "+(i+1));
-      players.push({idx:i,name:nm,pos:1,skip:0,trapped:null,lastRoll:null});
+      players.push({idx:i,name:nm,pos:1,skip:0,trapped:null,lastRoll:null,mod:0,modTurns:0});
     }
     cur=0; started=true; busy=false; partyIdx=0; gen++;
     $("setup").classList.add("hide"); $("win").classList.remove("show"); closeModal();
@@ -543,15 +571,23 @@
     }
     freeTrappedBy(sum);
 
+    // Apply an active luck modifier to this roll (consumes one of its turns).
+    let eff=sum;
+    if(p.modTurns>0){
+      eff=sum+p.mod;
+      p.modTurns--; if(p.modTurns<=0) p.mod=0;
+    }
+
     const from=p.pos;
-    let pos=p.pos+sum, title="In Marcia", msg="";
+    let pos=p.pos+eff, title="In Marcia", msg="";
+    if(pos<1) pos=1;                                  // can't go before the start
     if(pos===TOTAL){ p.pos=TOTAL; animateMove(p,from,TOTAL,()=>win(p)); return; }
     if(pos>TOTAL){
       const over=pos-TOTAL; pos=TOTAL-over; title="Rimbalzo";
       msg="Superi il traguardo di "+over+"! <b>Rimbalzi</b> alla "+pos+" e <b>bevi</b>.";
     }
     p.pos=pos;
-    animateMove(p,from,pos,()=>handleLanding(p,sum,title,msg));
+    animateMove(p,from,pos,()=>handleLanding(p,eff,title,msg));
   }
 
   function handleLanding(p,sum,title,preMsg,depth){
@@ -586,6 +622,12 @@
     if(PARTY_SQUARES.includes(n)){
       const pr=PARTY_PROMPTS[partyIdx%PARTY_PROMPTS.length]; partyIdx++;
       event("Pegno: "+pr.t+" ✦",(preMsg?preMsg+"<br>":"")+"<b>"+esc(p.name)+"</b> &mdash; "+pr.d);
+      endRoll(); return;
+    }
+    if(LUCK_UP.includes(n) || LUCK_DOWN.includes(n)){
+      const L=LUCK_UP.includes(n)?LUCK.up:LUCK.down;
+      p.mod=LUCK_UP.includes(n)?2:-2; p.modTurns=3;
+      event(L.title,(preMsg?preMsg+"<br>":"")+"<b>"+esc(p.name)+"</b> &mdash; "+L.text);
       endRoll(); return;
     }
     if(preMsg) event(title, preMsg);   // only surface notable events (e.g. bounce / goose push)
