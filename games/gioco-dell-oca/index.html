@@ -238,6 +238,16 @@
 (function(){
   "use strict";
 
+  // Directory of this page, with a guaranteed trailing slash — so asset
+  // URLs work whether opened as ".../gioco-dell-oca/", ".../index.html",
+  // or ".../gioco-dell-oca" (no trailing slash → relative paths break).
+  const BASE=(function(){
+    let p=location.pathname;
+    if(p.endsWith("/")) return p;
+    if(/\.html?$/i.test(p)) return p.replace(/[^/]*$/,"");
+    return p+"/";
+  })();
+
   const SEAL_COLORS=["#7d2a26","#2f6b5b","#b3893b","#3a4f7a","#8a4a86","#9c5a25"];
   const TOTAL=63, COLS=7, ROWS=9;
 
@@ -364,7 +374,7 @@
       let inner='<span class="num">'+n+'</span>', ttl="Casella "+n;
       if(kind==="luckup"||kind==="luckdown"){
         const L=kind==="luckup"?LUCK.up:LUCK.down;
-        inner+='<img class="ficon" src="'+L.img+'" alt="" draggable="false">';
+        inner+='<img class="ficon" src="'+BASE+L.img+'" alt="" draggable="false">';
         ttl=L.title;
       }else{
         let ico=""; if(n===TOTAL){ ico="🏆"; ttl="Il Giardino dell'Oca"; }
