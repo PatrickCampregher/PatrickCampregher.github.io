@@ -449,10 +449,10 @@
       el.className="cell"+(kind?" "+kind:"");
       el.style.gridRow=row; el.style.gridColumn=col;
       let inner='<span class="num">'+n+'</span>', ttl="Casella "+n;
-      if(kind==="luckup"||kind==="luckdown"){
-        const L=kind==="luckup"?LUCK.up:LUCK.down;
-        inner+='<img class="ficon" src="'+BASE+L.img+'" alt="" draggable="false">';
-        ttl=L.title;
+      if(PERK_BY_ID[kind]){
+        const P=PERK_BY_ID[kind];
+        inner+='<img class="ficon" src="'+BASE+P.icon+'" alt="" draggable="false">';
+        ttl=P.title;
       }else{
         let ico=""; if(n===TOTAL){ ico="🏆"; ttl="Il Giardino dell'Oca"; }
         else if(kind==="goose"){ ico="🦢"; ttl="L'Oca"; }
@@ -540,10 +540,10 @@
     if(n===TOTAL){
       title="Il Giardino dell'Oca 🪿";
       body="Casella <b>63</b>, l'arrivo al centro. Raggiungila con il <b>tiro esatto</b> per vincere; se superi, rimbalzi indietro.";
-    }else if(kind==="luckup"||kind==="luckdown"){
-      const L=kind==="luckup"?LUCK.up:LUCK.down;
-      title=L.title;
-      body="Casella <b>"+n+"</b>. "+L.text;
+    }else if(PERK_BY_ID[kind]){
+      const P=PERK_BY_ID[kind];
+      title=P.title;
+      body="Casella <b>"+n+"</b>. "+P.text;
     }else if(kind==="goose"){
       title="L'Oca 🦢";
       body="Casella <b>"+n+"</b>. Chi vi arriva <b>avanza ancora</b> dello stesso tiro e <b>beve</b> &mdash; e le oche si concatenano.";
@@ -742,10 +742,10 @@
       event("Pegno: "+pr.t+" ✦",(preMsg?preMsg+"<br>":"")+"<b>"+esc(p.name)+"</b> &mdash; "+pr.d);
       endRoll(); return;
     }
-    if(LUCK_UP.includes(n) || LUCK_DOWN.includes(n)){
-      const up=LUCK_UP.includes(n), L=up?LUCK.up:LUCK.down;
-      p.fx.push({val:up?2:-2, img:L.img, turns:3});   // stacks with any existing effects
-      event(L.title,(preMsg?preMsg+"<br>":"")+"<b>"+esc(p.name)+"</b> &mdash; "+L.text);
+    const lp=PERKS.find(x=>perkLayout[x.id] && perkLayout[x.id].includes(n));
+    if(lp){
+      p.fx.push({val:lp.fx.val, img:lp.icon, turns:lp.fx.turns});  // stacks with any existing effects
+      event(lp.title,(preMsg?preMsg+"<br>":"")+"<b>"+esc(p.name)+"</b> &mdash; "+lp.text);
       endRoll(); return;
     }
     if(preMsg) event(title, preMsg);   // only surface notable events (e.g. bounce / goose push)
