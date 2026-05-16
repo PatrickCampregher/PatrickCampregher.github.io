@@ -75,6 +75,9 @@
     border:2px solid var(--ink);padding:12px 30px;box-shadow:0 5px 0 var(--shadow);transition:.12s;}
   .btn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--shadow);}
   .btn.gold{background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:var(--ink);}
+  .setup-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+  .btn.small{padding:9px 18px;font-size:clamp(12px,2vw,14px);
+    background:linear-gradient(180deg,var(--paper),var(--paper-dark));color:var(--ink);}
 
   /* ===== GAME ===== */
   .game.show{display:flex;flex-direction:column;flex:1;min-height:0;gap:7px;padding-top:6px;}
@@ -222,6 +225,10 @@
       <p class="pick-label">Quanti siete?</p>
       <div class="count-row" id="countRow"></div>
       <div class="menu-board"><div class="board" id="menuBoard"></div></div>
+      <div class="setup-actions">
+        <button class="btn small" id="settingsBtn" aria-label="Impostazioni perk">⚙ Perk</button>
+        <button class="btn small" id="genBtn">↻ Genera</button>
+      </div>
       <button class="btn gold" id="startBtn">Inizia la Partita</button>
     </section>
 
@@ -760,6 +767,7 @@
     $("setup").classList.remove("hide"); $("restartBtn").hidden=true;
   }
   $("startBtn").addEventListener("click",startGame);
+  $("genBtn").addEventListener("click",()=>{ generateLayout(); buildCells($("menuBoard"),false); });
   $("againBtn").addEventListener("click",toMenu);
   $("restartBtn").addEventListener("click",()=>{ if(confirm("Ricominciare la partita?")) toMenu(); });
 
