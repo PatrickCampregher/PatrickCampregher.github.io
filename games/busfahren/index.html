@@ -358,6 +358,25 @@
     color: var(--bg);
     text-shadow: none;
   }
+
+  /* ===== CARDS ===== */
+  /* Sizing/visuals only. Positioning is added by later tasks. */
+  .card {
+    --card-w: 84px;
+    width: var(--card-w);
+    height: calc(var(--card-w) * 1.4);
+    display: block;
+    border-radius: 9px;
+    background: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    flex: none;
+  }
+  .card svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
 </style>
 </head>
 <body>
@@ -557,6 +576,344 @@
         setTimeout(forceReflow, 600);
       });
     }));
+
+  // ============ CARD MODEL ============
+  // German-suited Watt deck: 4 suits, ranks 7..Ass, plus the Weli jolly.
+  const SUITS = ['schell', 'eichel', 'herz', 'laub'];
+  const RANKS = { '7': 7, '8': 8, '9': 9, '10': 10, unter: 11, ober: 12, koenig: 13, ass: 14 };
+
+  // Short rank label for corner indices.
+  const RANK_LABEL = {
+    '7': '7', '8': '8', '9': '9', '10': '10',
+    unter: 'U', ober: 'O', koenig: 'K', ass: 'A'
+  };
+
+  function buildDeck() {
+    const deck = [];
+    for (const suit of SUITS) {
+      for (const rank of Object.keys(RANKS)) {
+        deck.push({
+          id: suit + '_' + rank,
+          suit,
+          rank,
+          value: RANKS[rank],
+          isWeli: false
+        });
+      }
+    }
+    // The Weli: suitless jolly that always wins (value Infinity).
+    deck.push({ id: 'weli', suit: null, rank: 'weli', value: Infinity, isWeli: true });
+    return deck;
+  }
+
+  // 'rot' = herz + laub · 'schwarz' = eichel + schell · null = Weli (no color).
+  function colorOf(card) {
+    if (card.isWeli) return null;
+    if (card.suit === 'herz' || card.suit === 'laub') return 'rot';
+    if (card.suit === 'eichel' || card.suit === 'schell') return 'schwarz';
+    return null;
+  }
+
+  // Fisher–Yates, in place, returns the same array for convenience.
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = array[i];
+      array[i] = array[j];
+      array[j] = t;
+    }
+    return array;
+  }
+
+  // ============ SVG CARD FACES ============
+  // All drawing happens on a 240 x 336 viewBox (1 : 1.4).
+  const CARD_W = 240, CARD_H = 336;
+  const CARD_RED = '#e23426';
+  const CARD_BLACK = '#1a1430';
+
+  // --- Reusable suit emblems, drawn around the origin, ~ -1..1 box. ---
+  // Each returns SVG path/markup; caller wraps it in a <g transform> to place/scale.
+  function emblemSchell(fill) {
+    // Round sleigh-bell: body, slit, jingle holes, top loop.
+    return (
+      '<g fill="' + fill + '">' +
+      '<path d="M0,-0.86 C0.55,-0.86 0.92,-0.42 0.92,0.18 C0.92,0.5 0.74,0.66 0.74,0.78 ' +
+      'L-0.74,0.78 C-0.74,0.66 -0.92,0.5 -0.92,0.18 C-0.92,-0.42 -0.55,-0.86 0,-0.86 Z"/>' +
+      '<rect x="-0.82" y="0.78" width="1.64" height="0.16" rx="0.06"/>' +
+      '<rect x="-0.16" y="-1.08" width="0.32" height="0.26" rx="0.1"/>' +
+      '<path d="M-0.13,-0.92 a0.13 0.13 0 1 1 0.26 0" fill="none" stroke="' + fill +
+      '" stroke-width="0.12"/>' +
+      '</g>' +
+      '<ellipse cx="0" cy="0.34" rx="0.16" ry="0.2" fill="rgba(0,0,0,0.32)"/>' +
+      '<circle cx="-0.42" cy="-0.16" r="0.09" fill="rgba(255,255,255,0.45)"/>'
+    );
+  }
+  function emblemEichel(fill) {
+    // Acorn: nut body + textured cap + tiny stalk.
+    return (
+      '<g>' +
+      '<path d="M-0.6,-0.12 C-0.6,0.62 -0.34,0.96 0,0.96 C0.34,0.96 0.6,0.62 0.6,-0.12 Z" fill="' +
+      fill + '"/>' +
+      '<path d="M-0.72,-0.5 C-0.72,-0.18 -0.4,0.02 0,0.02 C0.4,0.02 0.72,-0.18 0.72,-0.5 ' +
+      'C0.72,-0.74 0.4,-0.92 0,-0.92 C-0.4,-0.92 -0.72,-0.74 -0.72,-0.5 Z" fill="' + fill + '"/>' +
+      '<rect x="-0.08" y="-1.16" width="0.16" height="0.3" rx="0.07" fill="' + fill + '"/>' +
+      '<g stroke="rgba(255,255,255,0.35)" stroke-width="0.05">' +
+      '<line x1="-0.4" y1="-0.66" x2="-0.4" y2="-0.16"/>' +
+      '<line x1="0" y1="-0.78" x2="0" y2="-0.12"/>' +
+      '<line x1="0.4" y1="-0.66" x2="0.4" y2="-0.16"/>' +
+      '</g>' +
+      '<ellipse cx="-0.2" cy="0.4" rx="0.12" ry="0.22" fill="rgba(255,255,255,0.28)"/>' +
+      '</g>'
+    );
+  }
+  function emblemHerz(fill) {
+    return (
+      '<path fill="' + fill + '" d="M0,0.92 C-0.2,0.6 -0.95,0.2 -0.95,-0.34 ' +
+      'C-0.95,-0.74 -0.62,-0.96 -0.32,-0.96 C-0.1,-0.96 0,-0.78 0,-0.66 ' +
+      'C0,-0.78 0.1,-0.96 0.32,-0.96 C0.62,-0.96 0.95,-0.74 0.95,-0.34 ' +
+      'C0.95,0.2 0.2,0.6 0,0.92 Z"/>' +
+      '<path d="M-0.5,-0.66 C-0.66,-0.5 -0.7,-0.28 -0.64,-0.06" stroke="rgba(255,255,255,0.4)" ' +
+      'stroke-width="0.09" fill="none" stroke-linecap="round"/>'
+    );
+  }
+  function emblemLaub(fill) {
+    // Leaf frond with stem and midrib veins.
+    return (
+      '<g>' +
+      '<path fill="' + fill + '" d="M0,-0.98 C0.6,-0.5 0.78,0.2 0.34,0.7 ' +
+      'C0.16,0.9 -0.16,0.9 -0.34,0.7 C-0.78,0.2 -0.6,-0.5 0,-0.98 Z"/>' +
+      '<rect x="-0.07" y="0.62" width="0.14" height="0.42" rx="0.06" fill="' + fill + '"/>' +
+      '<g stroke="rgba(255,255,255,0.4)" stroke-width="0.055" fill="none" stroke-linecap="round">' +
+      '<line x1="0" y1="-0.78" x2="0" y2="0.66"/>' +
+      '<path d="M0,-0.42 L0.36,-0.18 M0,-0.42 L-0.36,-0.18"/>' +
+      '<path d="M0,0.02 L0.34,0.26 M0,0.02 L-0.34,0.26"/>' +
+      '</g>' +
+      '</g>'
+    );
+  }
+  const EMBLEMS = {
+    schell: emblemSchell, eichel: emblemEichel, herz: emblemHerz, laub: emblemLaub
+  };
+
+  function emblemAt(suit, cx, cy, scale, fill, rotate) {
+    const fn = EMBLEMS[suit];
+    if (!fn) return '';
+    const rot = rotate ? (' rotate(180 ' + cx + ' ' + cy + ')') : '';
+    return '<g transform="translate(' + cx + ' ' + cy + ') scale(' + scale + ')' +
+      (rotate ? ' rotate(180)' : '') + '">' + fn(fill) + '</g>';
+  }
+
+  // Pip layouts (unit coords, x in -1..1, y in -1..1) per rank.
+  // Lower half pips are flagged to be drawn rotated 180° like real cards.
+  function pipLayout(n) {
+    const C = 0, L = -0.62, R = 0.62;
+    const T = -0.78, B = 0.78, MT = -0.26, MB = 0.26, M = 0;
+    const pos = (x, y) => ({ x, y, flip: y > 0.001 });
+    switch (n) {
+      case 7:  return [pos(L,T),pos(R,T),pos(C,-0.46),pos(L,M),pos(R,M),pos(L,B),pos(R,B)];
+      case 8:  return [pos(L,T),pos(R,T),pos(C,MT),pos(L,M),pos(R,M),pos(C,MB),pos(L,B),pos(R,B)];
+      case 9:  return [pos(L,T),pos(R,T),pos(L,MT),pos(R,MT),pos(C,M),
+                       pos(L,MB),pos(R,MB),pos(L,B),pos(R,B)];
+      case 10: return [pos(L,T),pos(R,T),pos(C,-0.5),pos(L,MT),pos(R,MT),
+                       pos(L,MB),pos(R,MB),pos(C,0.5),pos(L,B),pos(R,B)];
+      default: return [];
+    }
+  }
+
+  // Court figures — clean stylized SVG so each rank reads distinctly.
+  // Drawn inside an inner panel rect (px coords, the panel is x:60..180 y:64..272).
+  function courtFigure(rank, accent, ink) {
+    const skin = '#f3d6b3', robe = accent, trim = '#fff6e0';
+    let crown = '';
+    if (rank === 'koenig') {
+      // Tall five-point crown.
+      crown = '<path d="M96,96 L96,74 L108,86 L120,66 L132,86 L144,74 L144,96 Z" fill="' +
+        '#ffd23f" stroke="' + ink + '" stroke-width="1.5"/>' +
+        '<circle cx="120" cy="64" r="3.4" fill="#ff2bd6"/>';
+    } else if (rank === 'ober') {
+      // Lower, rounded coronet.
+      crown = '<path d="M99,96 C99,80 109,74 120,74 C131,74 141,80 141,96 Z" fill="' +
+        '#ffd23f" stroke="' + ink + '" stroke-width="1.5"/>' +
+        '<circle cx="105" cy="84" r="2.6" fill="#ff2bd6"/>' +
+        '<circle cx="120" cy="80" r="2.6" fill="#ff2bd6"/>' +
+        '<circle cx="135" cy="84" r="2.6" fill="#ff2bd6"/>';
+    } else {
+      // Unter / footman: feathered cap.
+      crown = '<path d="M101,98 C101,84 110,77 120,77 C130,77 139,84 139,98 Z" fill="' +
+        accent + '" stroke="' + ink + '" stroke-width="1.5"/>' +
+        '<path d="M120,77 C128,66 138,64 146,68 C140,74 132,78 124,82 Z" fill="#39ff14"/>';
+    }
+    return (
+      // Shoulders / robe.
+      '<path d="M84,272 C84,210 96,150 120,150 C144,150 156,210 156,272 Z" fill="' + robe +
+      '" stroke="' + ink + '" stroke-width="1.6"/>' +
+      // Collar.
+      '<path d="M104,158 L120,182 L136,158 Z" fill="' + trim + '"/>' +
+      // Center placket.
+      '<rect x="118" y="172" width="4" height="96" fill="' + trim + '" opacity="0.7"/>' +
+      // Head.
+      '<circle cx="120" cy="118" r="22" fill="' + skin + '" stroke="' + ink +
+      '" stroke-width="1.4"/>' +
+      // Hair / beard hint for König.
+      (rank === 'koenig'
+        ? '<path d="M99,120 C99,138 108,150 120,150 C132,150 141,138 141,120" fill="none" stroke="' +
+          '#7a5a3a" stroke-width="3"/>'
+        : '') +
+      // Eyes.
+      '<circle cx="112" cy="116" r="2.4" fill="' + ink + '"/>' +
+      '<circle cx="128" cy="116" r="2.4" fill="' + ink + '"/>' +
+      crown
+    );
+  }
+
+  // Build a full card-face SVG string for the given card.
+  function cardSVG(card) {
+    const W = CARD_W, H = CARD_H;
+    let body = '';
+
+    if (card.isWeli) {
+      // Sun / globe motif: rays, disc, meridians, WELI banner.
+      const cx = W / 2, cy = H / 2 - 6;
+      let rays = '';
+      for (let i = 0; i < 16; i++) {
+        const a = (Math.PI * 2 * i) / 16;
+        const r1 = 60, r2 = 92;
+        rays += '<line x1="' + (cx + Math.cos(a) * r1).toFixed(1) +
+          '" y1="' + (cy + Math.sin(a) * r1).toFixed(1) +
+          '" x2="' + (cx + Math.cos(a) * r2).toFixed(1) +
+          '" y2="' + (cy + Math.sin(a) * r2).toFixed(1) + '"/>';
+      }
+      body =
+        '<g stroke="#ffd23f" stroke-width="5" stroke-linecap="round" opacity="0.9">' +
+        rays + '</g>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="54" fill="#ffd23f"/>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="54" fill="none" stroke="#ff2bd6" ' +
+        'stroke-width="3"/>' +
+        '<ellipse cx="' + cx + '" cy="' + cy + '" rx="22" ry="54" fill="none" stroke="' +
+        '#ff2bd6" stroke-width="2.4" opacity="0.7"/>' +
+        '<line x1="' + (cx - 54) + '" y1="' + cy + '" x2="' + (cx + 54) + '" y2="' + cy +
+        '" stroke="#ff2bd6" stroke-width="2.4" opacity="0.7"/>' +
+        '<text x="' + cx + '" y="' + (cy + 8) +
+        '" text-anchor="middle" font-family="\'Press Start 2P\', monospace" font-size="20" ' +
+        'fill="#0a0420">W</text>' +
+        '<text x="' + cx + '" y="' + (H - 40) +
+        '" text-anchor="middle" font-family="\'Press Start 2P\', monospace" font-size="18" ' +
+        'fill="#ff2bd6">WELI</text>';
+
+      const idx = cornerIndex('W', null, '#b537f2', true);
+      return wrapCard(body + idx, true);
+    }
+
+    const isRed = colorOf(card) === 'rot';
+    const ink = isRed ? CARD_RED : CARD_BLACK;
+    const rank = card.rank;
+
+    if (RANKS[rank] <= 10) {
+      // Number card: pip grid of the suit emblem.
+      const n = RANKS[rank];
+      const layout = pipLayout(n);
+      // Map unit coords into the central area.
+      const ax = W / 2, ay = H / 2, sx = 58, sy = 110, pip = 22;
+      let pips = '';
+      for (const p of layout) {
+        pips += emblemAt(rank ? card.suit : null,
+          (ax + p.x * sx), (ay + p.y * sy), pip / 1, ink, p.flip);
+      }
+      body = pips;
+    } else if (rank === 'ass') {
+      // Ace: one large central emblem.
+      body = emblemAt(card.suit, W / 2, H / 2, 64, ink, false);
+    } else {
+      // Court: figure panel + suit emblems in two corners of the panel.
+      body =
+        '<rect x="58" y="62" width="124" height="212" rx="10" fill="rgba(0,0,0,0.04)" ' +
+        'stroke="' + ink + '" stroke-width="1.5"/>' +
+        courtFigure(rank, isRed ? '#ff5d73' : '#5a4b8a', ink) +
+        emblemAt(card.suit, 74, 78, 15, ink, false) +
+        emblemAt(card.suit, 166, 258, 15, ink, true);
+    }
+
+    const idx = cornerIndex(RANK_LABEL[rank], card.suit, ink, false);
+    return wrapCard(body + idx, false);
+  }
+
+  // Corner index block: rank label + mini emblem, top-left and bottom-right (rotated).
+  function cornerIndex(label, suit, ink, isWeli) {
+    const mini = (x, y, rot) => suit
+      ? emblemAt(suit, x, y, 11, ink, rot)
+      : (isWeli
+          ? '<circle cx="' + x + '" cy="' + y + '" r="8" fill="#b537f2"/>' +
+            '<circle cx="' + x + '" cy="' + y + '" r="8" fill="none" stroke="#ffd23f" ' +
+            'stroke-width="1.6"/>'
+          : '');
+    const txt = (x, y, rot) =>
+      '<text x="' + x + '" y="' + y + '" text-anchor="middle" ' +
+      'font-family="\'Press Start 2P\', monospace" font-size="15" fill="' + ink + '"' +
+      (rot ? ' transform="rotate(180 ' + x + ' ' + y + ')"' : '') + '>' + label + '</text>';
+    return (
+      '<g>' +
+      txt(26, 34, false) + mini(26, 56, false) +
+      txt(CARD_W - 26, CARD_H - 22, true) + mini(CARD_W - 26, CARD_H - 46, true) +
+      '</g>'
+    );
+  }
+
+  // Wrap card body in the cream card face with border + rounded corners.
+  function wrapCard(inner, isWeli) {
+    const faceFill = '#f7f1e3';
+    const border = isWeli ? '#b537f2' : '#2a1f47';
+    return (
+      '<svg viewBox="0 0 ' + CARD_W + ' ' + CARD_H + '" xmlns="http://www.w3.org/2000/svg" ' +
+      'role="img">' +
+      '<rect x="3" y="3" width="' + (CARD_W - 6) + '" height="' + (CARD_H - 6) +
+      '" rx="16" fill="' + faceFill + '" stroke="' + border + '" stroke-width="3"/>' +
+      '<rect x="10" y="10" width="' + (CARD_W - 20) + '" height="' + (CARD_H - 20) +
+      '" rx="11" fill="none" stroke="' + (isWeli ? '#ffd23f' : '#d8cdb0') +
+      '" stroke-width="1.4"/>' +
+      inner +
+      '</svg>'
+    );
+  }
+
+  // Face-down card back: neon synthwave grid + diagonal glow + monogram.
+  function cardBackSVG() {
+    const W = CARD_W, H = CARD_H;
+    let grid = '';
+    for (let x = 24; x < W; x += 24) {
+      grid += '<line x1="' + x + '" y1="14" x2="' + x + '" y2="' + (H - 14) + '"/>';
+    }
+    for (let y = 24; y < H; y += 24) {
+      grid += '<line x1="14" y1="' + y + '" x2="' + (W - 14) + '" y2="' + y + '"/>';
+    }
+    return (
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img">' +
+      '<defs>' +
+      '<linearGradient id="bfBack" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#1a0a3a"/>' +
+      '<stop offset="0.55" stop-color="#0a0420"/>' +
+      '<stop offset="1" stop-color="#2a0a45"/>' +
+      '</linearGradient>' +
+      '</defs>' +
+      '<rect x="3" y="3" width="' + (W - 6) + '" height="' + (H - 6) +
+      '" rx="16" fill="url(#bfBack)" stroke="#00f0ff" stroke-width="3"/>' +
+      '<g clip-path="inset(0 round 12px)">' +
+      '<g stroke="#ff2bd6" stroke-width="1" opacity="0.32">' + grid + '</g>' +
+      '<g stroke="#00f0ff" stroke-width="2" opacity="0.5">' +
+      '<line x1="14" y1="' + H + '" x2="' + W + '" y2="14"/>' +
+      '<line x1="-20" y1="' + (H - 40) + '" x2="' + (W - 40) + '" y2="-20"/>' +
+      '<line x1="40" y1="' + (H + 20) + '" x2="' + (W + 20) + '" y2="40"/>' +
+      '</g>' +
+      '</g>' +
+      '<circle cx="' + (W / 2) + '" cy="' + (H / 2) + '" r="44" fill="rgba(10,4,32,0.6)" ' +
+      'stroke="#ffd23f" stroke-width="2.5"/>' +
+      '<text x="' + (W / 2) + '" y="' + (H / 2 + 12) +
+      '" text-anchor="middle" font-family="\'Press Start 2P\', monospace" font-size="26" ' +
+      'fill="#ff2bd6">B</text>' +
+      '<rect x="10" y="10" width="' + (W - 20) + '" height="' + (H - 20) +
+      '" rx="11" fill="none" stroke="#b537f2" stroke-width="1.4" opacity="0.7"/>' +
+      '</svg>'
+    );
+  }
 
   // ============ INIT ============
   updatePlayerSelection();
