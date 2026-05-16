@@ -113,19 +113,37 @@
     width:100%;overflow:hidden;}
   .board{width:100%;height:100%;display:grid;
     grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(9,1fr);}
-  .cell{position:relative;border:1px solid rgba(51,36,15,.4);
-    background:linear-gradient(160deg,#f3e6c4,#dcc28d);
+  .cell{position:relative;border:1px solid rgba(51,36,15,.35);
+    background:#e9d8ac;
     display:flex;align-items:center;justify-content:center;cursor:pointer;
     font-family:'Cinzel',serif;font-weight:700;color:var(--ink);overflow:hidden;}
-  .cell .num{font-size:clamp(9px,1.9vw,17px);opacity:.85;}
+  .cell .num{font-size:clamp(9px,1.9vw,17px);opacity:.9;}
   .cell .ico{position:absolute;top:1px;right:2px;font-size:clamp(8px,1.7vw,14px);
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));}
-  .cell.goose{background:linear-gradient(160deg,#cfe3d4,#a9c8af);}
-  .cell.peril{background:linear-gradient(160deg,#e7bfae,#cf9a7f);}
-  .cell.party{background:linear-gradient(160deg,#ead7a0,#d8bd6a);}
-  .cell.goal{background:radial-gradient(circle,var(--gold-bright),var(--gold));}
-  .cell.start{background:linear-gradient(160deg,#cdbf9a,#b6a273);}
-  .cell.cur{box-shadow:inset 0 0 0 2px var(--oxblood);z-index:1;}
+  /* Concentric ring backgrounds — follow the band, step inward */
+  .cell.r0{background:#ecdcb0;}
+  .cell.r1{background:#dabd80;}
+  .cell.r2{background:#c6a162;}
+  .cell.r3{background:#a9794a;color:#fbf0d6;}
+  .cell.r3 .num{opacity:1;}
+  /* Special squares: keep the ring colour, mark the type with a bold inset frame */
+  .cell.goose{box-shadow:inset 0 0 0 3px var(--verd-deep);}
+  .cell.peril{box-shadow:inset 0 0 0 3px var(--oxblood-deep);}
+  .cell.party{box-shadow:inset 0 0 0 3px var(--gold);}
+  .cell.start{box-shadow:inset 0 0 0 3px var(--ink);}
+  /* Unique centre / goal */
+  .cell.goal{background:radial-gradient(circle,#7be0c2,var(--verd) 70%,var(--verd-deep));
+    color:#fff;box-shadow:inset 0 0 0 3px var(--gold-bright);}
+  .cell.goal .num{opacity:1;}
+  .cell.cur{outline:3px solid var(--oxblood);outline-offset:-3px;z-index:2;}
+  /* Direction-of-travel arrow (▲ rotated toward the next field) */
+  .cell .arrow{position:absolute;top:0;left:2px;font-size:clamp(7px,1.5vw,12px);
+    line-height:1;color:rgba(51,36,15,.4);pointer-events:none;}
+  .cell.r3 .arrow,.cell.goal .arrow{color:rgba(255,245,220,.55);}
+  .cell .arrow.dir-r{transform:rotate(90deg);}
+  .cell .arrow.dir-d{transform:rotate(180deg);}
+  .cell .arrow.dir-l{transform:rotate(270deg);}
+  .menu-board .arrow{display:none;}
   .pawns{position:absolute;left:1px;right:1px;bottom:1px;display:flex;flex-wrap:wrap;
     justify-content:center;gap:2px;}
   .dot{width:clamp(8px,1.7vw,14px);height:clamp(8px,1.7vw,14px);border-radius:50%;
@@ -307,12 +325,19 @@
     for(let n=1;n<=TOTAL;n++){
       const {row,col}=gridRC(n);
       const kind=classify(n);
+      const ring=Math.min(3, row-1, col-1, ROWS-row, COLS-col); // 0=outer .. 3=inner
       const el=document.createElement("div");
-      el.className="cell"+(kind?" "+kind:"");
+      el.className="cell r"+ring+(kind?" "+kind:"");
       el.style.gridRow=row; el.style.gridColumn=col;
       let ico=""; if(n===TOTAL) ico="🪿"; else if(kind==="goose") ico="🦢";
       else if(SPECIALS[n]) ico=SPECIALS[n].ico; else if(kind==="party") ico="✦";
-      el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'')+(track?'<span class="pawns"></span>':'');
+      let arrow="";
+      if(n<TOTAL){
+        const nx=gridRC(n+1), dr=nx.row-row, dc=nx.col-col;
+        const dir=dc>0?"r":dc<0?"l":dr>0?"d":"u";
+        arrow='<span class="arrow dir-'+dir+'">▲</span>';
+      }
+      el.innerHTML='<span class="num">'+n+'</span>'+arrow+(ico?'<span class="ico">'+ico+'</span>':'')+(track?'<span class="pawns"></span>':'');
       el.title=n===TOTAL?"Il Giardino dell'Oca":(SPECIALS[n]?SPECIALS[n].title:(kind==="goose"?"L'Oca":(kind==="party"?"Pegno":"Casella "+n)));
       if(track) el.addEventListener("click",()=>openCellInfo(n));
       boardEl.appendChild(el); if(track) cellEls[n]=el;
