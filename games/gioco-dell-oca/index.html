@@ -113,19 +113,20 @@
     width:100%;overflow:hidden;}
   .board{width:100%;height:100%;display:grid;
     grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(9,1fr);}
-  .cell{position:relative;border:1px solid rgba(51,36,15,.4);
-    background:linear-gradient(160deg,#f3e6c4,#dcc28d);
+  /* Each field's background is set inline: a smooth light->dark gradient
+     from square 1 to the centre (63) so the path reads at a glance. */
+  .cell{position:relative;border:1px solid rgba(51,36,15,.28);
+    background:#e9d8ac;
     display:flex;align-items:center;justify-content:center;cursor:pointer;
     font-family:'Cinzel',serif;font-weight:700;color:var(--ink);overflow:hidden;}
-  .cell .num{font-size:clamp(9px,1.9vw,17px);opacity:.85;}
+  .cell .num{font-size:clamp(9px,1.9vw,17px);opacity:.92;}
   .cell .ico{position:absolute;top:1px;right:2px;font-size:clamp(8px,1.7vw,14px);
-    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));}
-  .cell.goose{background:linear-gradient(160deg,#cfe3d4,#a9c8af);}
-  .cell.peril{background:linear-gradient(160deg,#e7bfae,#cf9a7f);}
-  .cell.party{background:linear-gradient(160deg,#ead7a0,#d8bd6a);}
-  .cell.goal{background:radial-gradient(circle,var(--gold-bright),var(--gold));}
-  .cell.start{background:linear-gradient(160deg,#cdbf9a,#b6a273);}
-  .cell.cur{box-shadow:inset 0 0 0 2px var(--oxblood);z-index:1;}
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.45));}
+  .cell.goose{box-shadow:inset 0 0 0 3px var(--verd);}
+  .cell.peril{box-shadow:inset 0 0 0 3px var(--oxblood);}
+  .cell.party{box-shadow:inset 0 0 0 3px var(--gold-bright);}
+  .cell.goal{box-shadow:inset 0 0 0 3px var(--gold-bright);}
+  .cell.cur{outline:3px solid var(--gold-bright);outline-offset:-3px;z-index:2;}
   .pawns{position:absolute;left:1px;right:1px;bottom:1px;display:flex;flex-wrap:wrap;
     justify-content:center;gap:2px;}
   .dot{width:clamp(8px,1.7vw,14px);height:clamp(8px,1.7vw,14px);border-radius:50%;
@@ -310,6 +311,12 @@
       const el=document.createElement("div");
       el.className="cell"+(kind?" "+kind:"");
       el.style.gridRow=row; el.style.gridColumn=col;
+      // Path gradient: square 1 = lightest, centre (63) = darkest.
+      const t=(n-1)/(TOTAL-1);
+      const lerp=(a,b)=>Math.round(a+(b-a)*t);
+      const rr=lerp(241,58), gg=lerp(227,38), bb=lerp(189,18);
+      el.style.background="rgb("+rr+","+gg+","+bb+")";
+      if(t>0.52) el.style.color="#f3e6c4";   // light text once the field is dark
       let ico=""; if(n===TOTAL) ico="🪿"; else if(kind==="goose") ico="🦢";
       else if(SPECIALS[n]) ico=SPECIALS[n].ico; else if(kind==="party") ico="✦";
       el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'')+(track?'<span class="pawns"></span>':'');
