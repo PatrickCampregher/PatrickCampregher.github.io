@@ -327,10 +327,6 @@
   function freeFields(){
     return USABLE_FIELDS-PERKS.reduce((s,p)=>s+(perkCounts[p.id]||0),0);
   }
-  function shuffle(a){
-    for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-    return a;
-  }
   // Spread positions via equal segments; assign types with a max-spacing
   // interleave so the same perk never sits on consecutive occupied slots.
   function generateLayout(){
