@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BUSFAHREN — '85</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0420;
+    --grid: #1a0a3a;
+    --neon-pink: #ff2bd6;
+    --neon-cyan: #00f0ff;
+    --neon-yellow: #ffd23f;
+    --neon-green: #39ff14;
+    --neon-purple: #b537f2;
+    --dark-square: #14082e;
+    --light-square: #1d0b3d;
+    --p1: #ff8a00;
+    --p2: #ffffff;
+    --p3: #c266ff;
+    --p4: #4dffd8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100dvh;
+    height: var(--app-vh, 100dvh);
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'VT323', monospace;
+    color: var(--neon-cyan);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* Synthwave grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--neon-pink) 1px, transparent 1px),
+      linear-gradient(90deg, var(--neon-pink) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.08;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 0%, var(--bg) 80%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  #app {
+    position: relative;
+    z-index: 2;
+    width: 100vw;
+    height: 100dvh;
+    height: var(--app-vh, 100dvh);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ===== START MENU ===== */
+  .menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: max(10px, env(safe-area-inset-top)) 0 20px;
+    gap: 16px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Content below the breadcrumb, centered so free space (incl. fullscreen)
+     splits evenly above the title and below the Play button. */
+  .menu-body {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  /* Topbar: breadcrumb · title · icon buttons */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+
+  .topbar a.bc {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: var(--neon-cyan);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-shadow: 0 0 4px var(--neon-cyan);
+    flex: none;
+  }
+  .topbar a.bc:hover, .topbar a.bc:active {
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
+  }
+  .topbar .bc-sep {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    color: rgba(0, 240, 255, 0.45);
+    flex: none;
+  }
+  .topbar .bc-current {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: rgba(0, 240, 255, 0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: none;
+    max-width: 42vw;
+  }
+
+  .tb-btns {
+    display: flex;
+    gap: 8px;
+    flex: none;
+  }
+
+  .menu-fs-btn {
+    background: transparent;
+    border: 1.5px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-size: 12px;
+    line-height: 1;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    text-shadow: 0 0 4px var(--neon-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .menu-fs-btn:hover, .menu-fs-btn:active {
+    background: var(--neon-cyan);
+    color: var(--bg);
+    text-shadow: none;
+  }
+
+  .tb-spacer { flex: 1; min-width: 0; }
+
+  .menu-title {
+    flex: none;
+    width: 100%;
+    text-align: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(14px, 4.8vw, 32px);
+    color: var(--neon-pink);
+    text-shadow:
+      0 0 10px var(--neon-pink),
+      3px 3px 0 var(--neon-cyan);
+    letter-spacing: 1px;
+    line-height: 1.6;
+    padding: 2px 16px 4px;
+    white-space: nowrap;
+  }
+
+  .menu-prompt {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 6px var(--neon-yellow);
+    letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+
+  .player-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 0 12px;
+  }
+
+  .p-btn {
+    background: transparent;
+    border: 3px solid var(--neon-pink);
+    color: var(--neon-pink);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-shadow: 0 0 6px var(--neon-pink);
+    box-shadow: 0 0 8px rgba(255, 43, 214, 0.3);
+    min-width: 50px;
+  }
+
+  .p-btn.selected {
+    background: var(--neon-pink);
+    color: var(--bg);
+    text-shadow: none;
+    box-shadow: 0 0 18px var(--neon-pink);
+  }
+
+  /* Player name inputs */
+  .name-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 280px;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .name-row.hidden { display: none; }
+
+  .name-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 6px currentColor;
+    flex: none;
+  }
+  .name-dot.p1 { background: var(--p1); color: var(--p1); }
+  .name-dot.p2 { background: var(--p2); color: var(--p2); }
+  .name-dot.p3 { background: var(--p3); color: var(--p3); }
+  .name-dot.p4 { background: var(--p4); color: var(--p4); }
+
+  .name-input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(0, 240, 255, 0.05);
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    letter-spacing: 1px;
+    padding: 6px 10px;
+    outline: none;
+    text-shadow: 0 0 4px var(--neon-cyan);
+  }
+  .name-input:focus {
+    border-color: var(--neon-yellow);
+    color: var(--neon-yellow);
+    text-shadow: 0 0 4px var(--neon-yellow);
+    box-shadow: 0 0 10px rgba(255, 210, 63, 0.3);
+  }
+
+  .play-btn {
+    background: transparent;
+    border: 3px solid var(--neon-green);
+    color: var(--neon-green);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    padding: 12px 28px;
+    cursor: pointer;
+    text-shadow: 0 0 6px var(--neon-green);
+    box-shadow: 0 0 14px rgba(57, 255, 20, 0.5);
+    letter-spacing: 3px;
+    flex-shrink: 0;
+    animation: playPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes playPulse {
+    0%, 100% { box-shadow: 0 0 14px rgba(57, 255, 20, 0.5); }
+    50% { box-shadow: 0 0 24px rgba(57, 255, 20, 0.9); }
+  }
+  .play-btn:hover, .play-btn:active {
+    background: var(--neon-green);
+    color: var(--bg);
+    text-shadow: none;
+  }
+
+  /* ===== GAME ===== */
+  /* Populated by later tasks (deck/slots/discard + per-player panels). */
+  .game {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: 14px 0;
+    gap: 14px;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  /* Controls bar above the play area */
+  .controls-bar {
+    display: none;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 0 12px;
+  }
+  .controls-bar.visible { display: flex; }
+
+  .ctrl-btn {
+    background: transparent;
+    font-size: 12px;
+    line-height: 1;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .ctrl-btn.fs {
+    border: 1.5px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    text-shadow: 0 0 4px var(--neon-cyan);
+  }
+  .ctrl-btn.fs:hover, .ctrl-btn.fs:active {
+    background: var(--neon-cyan);
+    color: var(--bg);
+    text-shadow: none;
+  }
+  .ctrl-btn.menu {
+    border: 1.5px solid var(--neon-purple);
+    color: var(--neon-purple);
+    text-shadow: 0 0 4px var(--neon-purple);
+  }
+  .ctrl-btn.menu:hover, .ctrl-btn.menu:active {
+    background: var(--neon-purple);
+    color: var(--bg);
+    text-shadow: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- START MENU -->
+  <div class="menu" id="menu">
+    <div class="topbar">
+      <a class="bc" href="../../index.html">Arcade</a>
+      <span class="bc-sep">›</span>
+      <span class="bc-current">Busfahren</span>
+      <div class="tb-spacer"></div>
+      <div class="tb-btns">
+        <button class="menu-fs-btn" id="menuFsBtn" aria-label="Fullscreen">⛶</button>
+      </div>
+    </div>
+    <div class="menu-body">
+      <div class="menu-title">BUSFAHREN</div>
+      <div class="menu-prompt">SPIELER WÄHLEN</div>
+      <div class="player-buttons">
+        <button class="p-btn" data-players="1">1</button>
+        <button class="p-btn" data-players="2">2</button>
+        <button class="p-btn" data-players="3">3</button>
+        <button class="p-btn" data-players="4">4</button>
+      </div>
+      <div class="name-inputs" id="nameInputs">
+        <div class="name-row" data-idx="0">
+          <span class="name-dot p1"></span>
+          <input class="name-input" id="name0" type="text" maxlength="14" value="Spieler 1" aria-label="Name Spieler 1">
+        </div>
+        <div class="name-row" data-idx="1">
+          <span class="name-dot p2"></span>
+          <input class="name-input" id="name1" type="text" maxlength="14" value="Spieler 2" aria-label="Name Spieler 2">
+        </div>
+        <div class="name-row" data-idx="2">
+          <span class="name-dot p3"></span>
+          <input class="name-input" id="name2" type="text" maxlength="14" value="Spieler 3" aria-label="Name Spieler 3">
+        </div>
+        <div class="name-row" data-idx="3">
+          <span class="name-dot p4"></span>
+          <input class="name-input" id="name3" type="text" maxlength="14" value="Spieler 4" aria-label="Name Spieler 4">
+        </div>
+      </div>
+      <button class="play-btn" id="playBtn">▶ SPIELEN</button>
+    </div>
+  </div>
+
+  <!-- GAME (populated by later tasks) -->
+  <div class="game" id="game" style="display:none;">
+    <!-- Controls: upper-right (fullscreen + exit to menu) -->
+    <div class="controls-bar" id="controlsBar">
+      <button class="ctrl-btn fs" id="fsBtn" aria-label="Fullscreen" title="Fullscreen">⛶</button>
+      <button class="ctrl-btn menu" id="restartBtn" aria-label="Main menu">☰</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ============ DOM ============
+  const menu = document.getElementById('menu');
+  const game = document.getElementById('game');
+  const playBtn = document.getElementById('playBtn');
+  const nameRows = Array.from(document.querySelectorAll('.name-row'));
+
+  let selectedPlayers = 2; // default
+
+  // ============ SETUP MENU ============
+  function updatePlayerSelection() {
+    document.querySelectorAll('.p-btn').forEach(btn => {
+      const n = parseInt(btn.dataset.players, 10);
+      btn.classList.toggle('selected', n === selectedPlayers);
+    });
+    // Show/enable only the first N name inputs.
+    nameRows.forEach((row, i) => {
+      const on = i < selectedPlayers;
+      row.classList.toggle('hidden', !on);
+      const input = row.querySelector('.name-input');
+      if (input) input.disabled = !on;
+    });
+  }
+
+  document.querySelectorAll('.p-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedPlayers = parseInt(btn.dataset.players, 10);
+      updatePlayerSelection();
+    });
+  });
+
+  // Game flow is implemented in a later task; SPIELEN is a no-op for now.
+  playBtn.addEventListener('click', () => {
+    // TODO (later task): collect player names + count and start the game.
+  });
+
+  // ============ FULLSCREEN ============
+  const fsBtn = document.getElementById('fsBtn');
+  const menuFsBtn = document.getElementById('menuFsBtn');
+  const controlsBar = document.getElementById('controlsBar');
+  const docEl = document.documentElement;
+
+  const fsSupported =
+    docEl.requestFullscreen ||
+    docEl.webkitRequestFullscreen ||
+    docEl.mozRequestFullScreen ||
+    docEl.msRequestFullscreen;
+
+  controlsBar.classList.add('visible');
+  if (!fsSupported) {
+    fsBtn.style.display = 'none';
+    menuFsBtn.style.display = 'none';
+  }
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+              document.mozFullScreenElement || document.msFullscreenElement);
+  }
+
+  const FS_WANT_KEY = 'mg_fs_want';
+  function wantFs() { try { return sessionStorage.getItem(FS_WANT_KEY) === '1'; } catch (e) { return false; } }
+  function setWantFs(on) {
+    try { on ? sessionStorage.setItem(FS_WANT_KEY, '1') : sessionStorage.removeItem(FS_WANT_KEY); } catch (e) {}
+  }
+  function enterFs() {
+    const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen ||
+                docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+    if (req) req.call(docEl).catch(() => {});
+  }
+
+  function toggleFullscreen() {
+    if (!isFullscreen()) {
+      setWantFs(true);
+      enterFs();
+    } else {
+      // Explicit user exit — stop auto-restoring on later pages.
+      setWantFs(false);
+      const exit = document.exitFullscreen || document.webkitExitFullscreen ||
+                   document.mozCancelFullScreen || document.msExitFullscreen;
+      if (exit) exit.call(document).catch(() => {});
+    }
+  }
+
+  function updateFsIcon() {
+    const icon = isFullscreen() ? '❐' : '⛶';
+    fsBtn.textContent = icon;
+    menuFsBtn.textContent = icon;
+  }
+
+  // After a fullscreen transition the viewport size changes, but the layout
+  // sometimes does not re-flow until something triggers it. Forcing a tiny
+  // style toggle + dispatching a resize event ensures bottom controls stay visible.
+  // Pin the app to the REAL viewport height. dvh is recomputed by the browser
+  // asynchronously across fullscreen transitions, so relying on it alone leaves
+  // the layout briefly oversized and clips the bottom player row. innerHeight is
+  // always the settled value once the matching resize event fires.
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-vh', window.innerHeight + 'px');
+  }
+
+  function forceReflow() {
+    setAppHeight();
+    // Toggle a harmless property on body to force the browser to recompute layout
+    document.body.style.minHeight = '0';
+    // Read offsetHeight to flush layout
+    void document.body.offsetHeight;
+    document.body.style.minHeight = '';
+  }
+
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', setAppHeight);
+
+  fsBtn.addEventListener('click', toggleFullscreen);
+  menuFsBtn.addEventListener('click', toggleFullscreen);
+
+  // Navigation force-exits fullscreen and a fresh gesture is required to
+  // re-enter. If the user wanted fullscreen, restore it on their first
+  // interaction with this page (the tap/click they'd make anyway).
+  if (wantFs() && !isFullscreen()) {
+    const restore = () => {
+      if (wantFs() && !isFullscreen()) enterFs();
+      ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(ev =>
+        document.removeEventListener(ev, restore, true));
+    };
+    ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(ev =>
+      document.addEventListener(ev, restore, true));
+  }
+
+  ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+    .forEach(ev => document.addEventListener(ev, () => {
+      updateFsIcon();
+      setAppHeight();
+      // The viewport height settles asynchronously; re-measure across a frame
+      // and a couple of delays to cover slow fullscreen transitions.
+      requestAnimationFrame(() => {
+        forceReflow();
+        setTimeout(forceReflow, 250);
+        setTimeout(forceReflow, 600);
+      });
+    }));
+
+  // ============ INIT ============
+  updatePlayerSelection();
+</script>
+</body>
+</html>
