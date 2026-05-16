@@ -260,9 +260,9 @@
   const LUCK_UP=[11,33,51];     // "Increased Luck": +2 on the die for 3 turns
   const LUCK_DOWN=[8,27,46];    // "Decreased Luck": -2 on the die for 3 turns (can go backward)
   const LUCK={
-    up:{img:"icons/luck+2.png",title:"Fortuna Aumentata",
+    up:{img:"icons/luck-up.png",title:"Fortuna Aumentata",
         text:"<b>+2</b> al dado per i prossimi <b>3 turni</b>."},
-    down:{img:"icons/luck-2.png",title:"Sfortuna",
+    down:{img:"icons/luck-down.png",title:"Sfortuna",
         text:"<b>&minus;2</b> al dado per i prossimi <b>3 turni</b> &mdash; puoi finire in negativo e <b>tornare indietro</b>."}
   };
 
@@ -364,7 +364,7 @@
       let inner='<span class="num">'+n+'</span>', ttl="Casella "+n;
       if(kind==="luckup"||kind==="luckdown"){
         const L=kind==="luckup"?LUCK.up:LUCK.down;
-        inner+='<img class="ficon" src="'+L.img+'" alt="'+L.title+'" draggable="false">';
+        inner+='<img class="ficon" src="'+L.img+'" alt="" draggable="false">';
         ttl=L.title;
       }else{
         let ico=""; if(n===TOTAL){ ico="🏆"; ttl="Il Giardino dell'Oca"; }
