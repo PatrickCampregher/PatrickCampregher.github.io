@@ -128,9 +128,9 @@
   .stage{display:grid;grid-template-columns:1fr;gap:18px;}
   @media(min-width:820px){.stage{grid-template-columns:1.15fr .85fr;align-items:start;}}
 
-  .board-wrap{position:relative;aspect-ratio:1/1;width:100%;
+  .board-wrap{position:relative;aspect-ratio:7/9;width:100%;
     border:2px solid var(--ink);background:
-      radial-gradient(circle at 50% 50%, rgba(255,248,222,.7), rgba(196,158,92,.25) 70%, rgba(120,80,30,.25));
+      linear-gradient(160deg, rgba(255,248,222,.7), rgba(196,158,92,.28) 70%, rgba(120,80,30,.28));
     box-shadow:inset 0 0 0 6px rgba(176,137,59,.22), inset 0 0 60px rgba(80,48,12,.4);
     overflow:hidden;}
   .board-wrap svg{position:absolute;inset:0;width:100%;height:100%;}
@@ -143,7 +143,7 @@
     font-family:'Cinzel',serif;font-weight:700;color:var(--ink);
     box-shadow:0 2px 4px rgba(60,38,12,.35);
   }
-  .cell .num{font-size:.62em;opacity:.85;line-height:1;}
+  .cell .num{font-size:.85em;opacity:.9;line-height:1;}
   .cell .ico{position:absolute;font-size:1.05em;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));}
   .cell.goose{background:linear-gradient(160deg,#cfe3d4,#a9c8af);border-color:var(--verd-deep);}
   .cell.peril{background:linear-gradient(160deg,#e7bfae,#cf9a7f);border-color:var(--oxblood-deep);}
@@ -152,7 +152,7 @@
   .cell.start{background:linear-gradient(160deg,#cdbf9a,#b6a273);}
 
   .pawn{
-    position:absolute;width:15%;height:15%;min-width:13px;min-height:13px;
+    position:absolute;width:clamp(13px,2.7vw,26px);height:clamp(13px,2.7vw,26px);
     border-radius:50%;border:2px solid rgba(30,16,4,.7);
     box-shadow:0 0 0 1px rgba(255,245,220,.5),0 2px 4px rgba(0,0,0,.5),inset 0 -3px 5px rgba(0,0,0,.35);
     transition:left .45s cubic-bezier(.5,.05,.3,1),top .45s cubic-bezier(.5,.05,.3,1);
@@ -232,7 +232,7 @@
     <!-- SETUP -->
     <section class="setup" id="setup">
       <div class="rule-divider"><span>Le Regole</span></div>
-      <p class="lead">Si tira a turno con due dadi lungo la spirale. Le <b>oche</b> ti fanno avanzare ancora,
+      <p class="lead">Si tira a turno con due dadi lungo il percorso. Le <b>oche</b> ti fanno avanzare ancora,
       ma ogni casella speciale ha il suo pegno. Chi raggiunge per primo la <b>casella&nbsp;63</b> &mdash; con il tiro
       esatto &mdash; conquista il Giardino dell'Oca. Bevete con moderazione, perdete con stile.</p>
 
@@ -350,20 +350,18 @@
   }
   buildNames();
 
-  /* ---------- Spiral geometry ---------- */
-  function buildSpiral(){
+  /* ---------- Board geometry (serpentine rectangular grid) ---------- */
+  const COLS=7, ROWS=9; // 7 x 9 = 63 squares
+  function buildGrid(){
     cells=[];
-    const cx=500, cy=500;
-    const turns=3.45;
-    const totalAngle=turns*2*Math.PI;
-    const Rmax=445, Rmin=70;
-    // start square sits just outside, near the lower-left mouth of the spiral
+    // Square 1 at bottom-left; boustrophedon upward; 63 at the top.
     for(let n=1;n<=TOTAL;n++){
-      const t=(n-1)/(TOTAL-1);
-      const ang=Math.PI*0.5 + t*totalAngle;       // begin at bottom, wind inward
-      const r=Rmax-(Rmax-Rmin)*t;
-      const x=cx+r*Math.cos(ang);
-      const y=cy+r*Math.sin(ang);
+      const i=n-1;
+      const r=Math.floor(i/COLS);            // row 0 = bottom
+      let c=i%COLS;
+      if(r%2===1) c=COLS-1-c;                 // reverse every other row
+      const x=((c+0.5)/COLS)*1000;
+      const y=((ROWS-1-r+0.5)/ROWS)*1000;     // r=0 -> bottom (largest y)
       cells.push({n,x,y});
     }
   }
@@ -382,26 +380,22 @@
     const board=$("board");
     [...board.querySelectorAll(".cell,.pawn")].forEach(e=>e.remove());
 
-    // connecting spiral ribbon
+    // faint connecting route through the cell centres
     const svg=$("paths");
     let d="M "+cells[0].x+" "+cells[0].y;
     for(let i=1;i<cells.length;i++) d+=" L "+cells[i].x+" "+cells[i].y;
-    svg.innerHTML='<path d="'+d+'" fill="none" stroke="rgba(125,42,38,.35)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>'+
-                  '<path d="'+d+'" fill="none" stroke="rgba(176,137,59,.55)" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"/>';
+    svg.innerHTML='<path d="'+d+'" fill="none" stroke="rgba(176,137,59,.45)" stroke-width="2.5" stroke-dasharray="2 8" stroke-linecap="round"/>';
 
-    const sizeOuter=8.2, sizeInner=4.6; // % of board, shrinking inward
-    cells.forEach((c,i)=>{
-      const t=i/(TOTAL-1);
-      const sz=sizeOuter-(sizeOuter-sizeInner)*t;
+    const cw=100/COLS, ch=100/ROWS, gap=0.7;
+    cells.forEach((c)=>{
       const el=document.createElement("div");
       const kind=classify(c.n);
       el.className="cell"+(kind?" "+kind:"");
       el.style.left=(c.x/10)+"%";
       el.style.top=(c.y/10)+"%";
-      el.style.width=sz+"%";
-      el.style.height=sz+"%";
-      el.style.fontSize="clamp(8px,"+(sz*0.34)+"vw,18px)";
-      el.style.zIndex=10+i; // inner cells overlap on top -> tightening spiral
+      el.style.width=(cw-gap)+"%";
+      el.style.height=(ch-gap)+"%";
+      el.style.fontSize="clamp(9px,1.7vw,18px)";
       let ico="";
       if(c.n===TOTAL) ico="🪿"; else if(kind==="goose") ico="🦢";
       else if(SPECIALS[c.n]) ico=SPECIALS[c.n].ico;
@@ -489,7 +483,7 @@
     $("game").classList.add("show");
     $("restartBtn").hidden=false;
     $("log").innerHTML="";
-    buildSpiral(); renderBoard();
+    buildGrid(); renderBoard();
     drawDie($("d1"),1); drawDie($("d2"),1);
     verdict("La Sorte","Tocca a <b>"+esc(players[0].name)+"</b>. Tira i dadi e affida la tua sete al destino.");
     refreshTurnCard();

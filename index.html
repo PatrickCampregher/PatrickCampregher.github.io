@@ -178,35 +178,38 @@
 
       <a class="card" href="games/gioco-dell-oca/index.html">
         <div class="thumb">
-          <svg viewBox="0 0 400 300" role="img" aria-label="Il Gioco dell'Oca — vintage spiral board">
+          <svg viewBox="0 0 400 300" role="img" aria-label="Il Gioco dell'Oca — vintage board, drinking edition">
             <defs>
-              <radialGradient id="oca-bg" cx="50%" cy="45%" r="75%">
+              <radialGradient id="oca-bg" cx="50%" cy="42%" r="78%">
                 <stop offset="0%" stop-color="#efe0bb"/>
                 <stop offset="65%" stop-color="#dcc187"/>
                 <stop offset="100%" stop-color="#b78b4d"/>
               </radialGradient>
+              <pattern id="oca-grid" width="50" height="50" patternUnits="userSpaceOnUse" x="25" y="25">
+                <rect x="3" y="3" width="44" height="44" rx="6" fill="#e8d3a0" stroke="#33240f" stroke-width="1.5"/>
+              </pattern>
             </defs>
             <rect width="400" height="300" fill="url(#oca-bg)"/>
             <rect x="8" y="8" width="384" height="284" fill="none" stroke="#33240f" stroke-width="3"/>
             <rect x="15" y="15" width="370" height="270" fill="none" stroke="#b3893b" stroke-width="1.5"/>
-            <path d="M200 150 m0 0 a 6 6 0 1 1 0.1 0
-                     M200 150 q 26 -26 52 0 t 52 52 t -26 78 t -104 26 t -78 -104 t 52 -130 t 156 -26 t 78 156"
-                  fill="none" stroke="#7d2a26" stroke-width="13" stroke-linecap="round" opacity="0.55"/>
-            <path d="M200 150 q 26 -26 52 0 t 52 52 t -26 78 t -104 26 t -78 -104 t 52 -130 t 156 -26 t 78 156"
-                  fill="none" stroke="#b3893b" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round"/>
-            <g transform="translate(196,142)" fill="#33240f">
-              <ellipse cx="0" cy="14" rx="22" ry="15"/>
-              <path d="M14 6 q 16 -4 18 -22 q -2 -10 -10 -8 q -12 4 -12 18 q -8 -2 -14 4 z"/>
-              <circle cx="24" cy="-18" r="3.2"/>
-              <path d="M30 -16 l 11 3 l -10 4 z" fill="#b1542a"/>
+            <rect x="25" y="25" width="350" height="250" fill="url(#oca-grid)"/>
+            <rect x="28" y="28" width="44" height="44" rx="6" fill="#a9c8af" stroke="#1f4a3e" stroke-width="1.5"/>
+            <rect x="178" y="78" width="44" height="44" rx="6" fill="#cf9a7f" stroke="#5d1c1a" stroke-width="1.5"/>
+            <rect x="328" y="228" width="44" height="44" rx="6" fill="#d8bd6a" stroke="#b3893b" stroke-width="1.5"/>
+            <rect x="328" y="28" width="44" height="44" rx="6" fill="#d8b154" stroke="#33240f" stroke-width="1.5"/>
+            <text x="350" y="56" text-anchor="middle" font-family="Cinzel, Georgia, serif"
+                  font-size="20" font-weight="700" fill="#7d2a26">63</text>
+            <g transform="translate(196,168)" fill="#33240f">
+              <ellipse cx="0" cy="14" rx="26" ry="17"/>
+              <path d="M16 4 q 19 -5 21 -26 q -2 -12 -12 -9 q -14 5 -14 21 q -9 -2 -16 5 z"/>
+              <circle cx="28" cy="-22" r="3.6"/>
+              <path d="M35 -19 l 13 3 l -12 5 z" fill="#b1542a"/>
             </g>
-            <text x="200" y="270" text-anchor="middle" font-family="Cinzel, Georgia, serif"
-                  font-size="22" font-weight="700" fill="#7d2a26" letter-spacing="2">63</text>
           </svg>
         </div>
         <div class="card-body">
           <div class="card-title">IL GIOCO DELL'OCA</div>
-          <div class="card-tag">Vintage Italian spiral &mdash; drinking edition, 2-6 players</div>
+          <div class="card-tag">Vintage Italian board &mdash; drinking edition, 2-6 players</div>
         </div>
       </a>
     </main>
