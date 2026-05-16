@@ -80,8 +80,8 @@
   .game.show{display:flex;flex-direction:column;flex:1;min-height:0;gap:7px;padding-top:6px;}
 
   .players-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;flex:none;align-items:stretch;padding:0 10px;}
-  .players-row.top{transform:rotate(180deg);}
-  .players-row.bottom{padding-bottom:max(12px,env(safe-area-inset-bottom));}
+  .players-row.top{transform:rotate(180deg);padding-bottom:16px;}
+  .players-row.bottom{padding-top:16px;padding-bottom:max(12px,env(safe-area-inset-bottom));}
 
   .pslot{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;}
   .pslot.empty{visibility:hidden;}
@@ -521,12 +521,12 @@
     busy=true;
     let ticks=0;
     rollIv=setInterval(()=>{
-      die.textContent=String(2+Math.floor(Math.random()*11));
+      die.textContent=String(1+Math.floor(Math.random()*6));
       if(++ticks>9){
         clearInterval(rollIv); rollIv=null;
-        const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
-        die.textContent=String(a+b);
-        resolve(p,a+b);
+        const v=1+Math.floor(Math.random()*6);
+        die.textContent=String(v);
+        resolve(p,v);
       }
     },55);
   }
