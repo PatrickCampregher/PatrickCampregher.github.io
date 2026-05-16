@@ -111,26 +111,30 @@
 
   .board-wrap{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;
     width:100%;overflow:hidden;}
-  .board{width:100%;height:100%;display:grid;
-    grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(9,1fr);}
-  /* Each field's background is set inline: a smooth light->dark gradient
-     from square 1 to the centre (63) so the path reads at a glance. */
-  .cell{position:relative;border:1px solid rgba(51,36,15,.28);
-    background:#e9d8ac;
+  /* Tuscan meadow: grass board, a winding dirt path drawn on the SVG route */
+  .board{width:100%;height:100%;position:relative;display:grid;
+    grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(9,1fr);
+    overflow:hidden;
+    background:
+      radial-gradient(ellipse at 30% 12%, rgba(232,240,170,.55), transparent 55%),
+      repeating-linear-gradient(64deg, rgba(40,70,20,.10) 0 3px, transparent 3px 9px),
+      repeating-linear-gradient(116deg, rgba(40,70,20,.08) 0 2px, transparent 2px 11px),
+      linear-gradient(170deg,#9aae53 0%,#83992f 45%,#6f8a2c 100%);
+    box-shadow:inset 0 0 50px rgba(40,55,15,.45);}
+  .route{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+  .cell{position:relative;z-index:2;background:transparent;
     display:flex;align-items:center;justify-content:center;cursor:pointer;
-    font-family:'Cinzel',serif;font-weight:700;color:var(--ink);overflow:hidden;}
-  .cell .num{font-size:clamp(9px,1.9vw,17px);opacity:.92;}
-  .cell .ico{position:absolute;top:1px;right:2px;font-size:clamp(8px,1.7vw,14px);
-    filter:drop-shadow(0 1px 1px rgba(0,0,0,.45));}
-  .cell.goose{box-shadow:inset 0 0 0 3px var(--verd);}
-  .cell.peril{box-shadow:inset 0 0 0 3px var(--oxblood);}
-  .cell.party{box-shadow:inset 0 0 0 3px var(--gold-bright);}
-  .cell.goal{box-shadow:inset 0 0 0 3px var(--gold-bright);}
-  .cell.cur{outline:3px solid var(--gold-bright);outline-offset:-3px;z-index:2;}
-  .pawns{position:absolute;left:1px;right:1px;bottom:1px;display:flex;flex-wrap:wrap;
+    font-family:'Cinzel',serif;font-weight:700;color:#3a2912;overflow:visible;}
+  .cell .num{font-size:clamp(9px,1.9vw,17px);
+    text-shadow:0 1px 0 rgba(255,246,214,.65),0 0 3px rgba(255,246,214,.5);}
+  .cell .ico{position:absolute;top:0;right:1px;font-size:clamp(9px,1.8vw,15px);
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));}
+  .cell.cur{z-index:3;}
+  .cell.cur .num{color:#fff;text-shadow:0 0 5px #d8b154,0 0 9px #b3893b;}
+  .pawns{position:absolute;left:1px;right:1px;bottom:0;display:flex;flex-wrap:wrap;
     justify-content:center;gap:2px;}
   .dot{width:clamp(8px,1.7vw,14px);height:clamp(8px,1.7vw,14px);border-radius:50%;
-    border:1.5px solid rgba(30,16,4,.7);box-shadow:0 0 0 1px rgba(255,245,220,.5),0 1px 2px rgba(0,0,0,.5);}
+    border:1.5px solid rgba(20,12,2,.8);box-shadow:0 0 0 1px rgba(255,245,220,.6),0 1px 3px rgba(0,0,0,.6);}
 
   /* ===== Field info / event popup ===== */
   .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
@@ -303,20 +307,43 @@
     if(PARTY_SQUARES.includes(n)) return "party";
     return "";
   }
+  function routeSVG(){
+    // Polyline through every cell centre (units = grid cells); rounded
+    // joins/caps give the footpath its soft curved corners.
+    let d="";
+    for(let n=1;n<=TOTAL;n++){
+      const {row,col}=gridRC(n);
+      d+=(n===1?"M ":"L ")+(col-0.5)+" "+(row-0.5)+" ";
+    }
+    let marks="";
+    const dot=(n,fill,r)=>{ const {row,col}=gridRC(n);
+      marks+='<circle cx="'+(col-0.5)+'" cy="'+(row-0.5)+'" r="'+r+'" fill="'+fill+'"/>'; };
+    for(let n=1;n<=TOTAL;n++){
+      const k=classify(n);
+      if(k==="goose") dot(n,"rgba(31,74,62,.85)",0.30);
+      else if(k==="peril") dot(n,"rgba(125,42,38,.85)",0.30);
+      else if(k==="party") dot(n,"rgba(179,137,59,.9)",0.28);
+    }
+    const g1=gridRC(1), g63=gridRC(TOTAL);
+    return '<svg class="route" viewBox="0 0 '+COLS+' '+ROWS+'" preserveAspectRatio="none" aria-hidden="true">'
+      +'<path d="'+d+'" fill="none" stroke="#5c3d20" stroke-width="0.72" stroke-linejoin="round" stroke-linecap="round"/>'
+      +'<path d="'+d+'" fill="none" stroke="#b9894f" stroke-width="0.58" stroke-linejoin="round" stroke-linecap="round"/>'
+      +'<path d="'+d+'" fill="none" stroke="#d8b87f" stroke-width="0.26" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.05 0.55" opacity="0.7"/>'
+      +'<circle cx="'+(g1.col-0.5)+'" cy="'+(g1.row-0.5)+'" r="0.40" fill="#cdb98a" stroke="#5c3d20" stroke-width="0.06"/>'
+      +'<circle cx="'+(g63.col-0.5)+'" cy="'+(g63.row-0.5)+'" r="0.46" fill="#b9894f" stroke="#5c3d20" stroke-width="0.07"/>'
+      +'<circle cx="'+(g63.col-0.5)+'" cy="'+(g63.row-0.5)+'" r="0.30" fill="none" stroke="#d8b154" stroke-width="0.07"/>'
+      +marks
+      +'</svg>';
+  }
   function buildCells(boardEl,track){
     boardEl.innerHTML=""; if(track) cellEls={};
+    boardEl.insertAdjacentHTML("beforeend",routeSVG());
     for(let n=1;n<=TOTAL;n++){
       const {row,col}=gridRC(n);
       const kind=classify(n);
       const el=document.createElement("div");
       el.className="cell"+(kind?" "+kind:"");
       el.style.gridRow=row; el.style.gridColumn=col;
-      // Path gradient: square 1 = lightest, centre (63) = darkest.
-      const t=(n-1)/(TOTAL-1);
-      const lerp=(a,b)=>Math.round(a+(b-a)*t);
-      const rr=lerp(241,58), gg=lerp(227,38), bb=lerp(189,18);
-      el.style.background="rgb("+rr+","+gg+","+bb+")";
-      if(t>0.52) el.style.color="#f3e6c4";   // light text once the field is dark
       let ico=""; if(n===TOTAL) ico="🪿"; else if(kind==="goose") ico="🦢";
       else if(SPECIALS[n]) ico=SPECIALS[n].ico; else if(kind==="party") ico="✦";
       el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'')+(track?'<span class="pawns"></span>':'');
