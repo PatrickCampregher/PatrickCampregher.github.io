@@ -305,6 +305,59 @@
   let perkCounts={};                       // {id:count} — persisted
   let perkLayout={};                       // {id:[fields]} — regenerated each load
 
+  function loadPerkCounts(){
+    let stored={};
+    try{ stored=JSON.parse(localStorage.getItem(LS_KEY))||{}; }catch(e){ stored={}; }
+    const c={};
+    PERKS.forEach(p=>{
+      let v=Number.isInteger(stored[p.id])?stored[p.id]:p.defaultCount;
+      c[p.id]=Math.max(0,v);
+    });
+    // Clamp total down to capacity if stored data overflows.
+    let total=PERKS.reduce((s,p)=>s+c[p.id],0);
+    for(let i=PERKS.length-1;i>=0 && total>USABLE_FIELDS;i--){
+      const id=PERKS[i].id, cut=Math.min(c[id],total-USABLE_FIELDS);
+      c[id]-=cut; total-=cut;
+    }
+    return c;
+  }
+  function savePerkCounts(){
+    try{ localStorage.setItem(LS_KEY,JSON.stringify(perkCounts)); }catch(e){}
+  }
+  function freeFields(){
+    return USABLE_FIELDS-PERKS.reduce((s,p)=>s+(perkCounts[p.id]||0),0);
+  }
+  function shuffle(a){
+    for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  }
+  // Spread positions via equal segments; assign types with a max-spacing
+  // interleave so the same perk never sits on consecutive occupied slots.
+  function generateLayout(){
+    const out={}; PERKS.forEach(p=>out[p.id]=[]);
+    const T=PERKS.reduce((s,p)=>s+(perkCounts[p.id]||0),0);
+    if(T===0){ perkLayout=out; return; }
+    // 1. positions: one random field per equal segment of 2..(TOTAL-1)
+    const lo=2, hi=TOTAL-1, span=hi-lo+1;          // 2..62 inclusive
+    const pos=[];
+    for(let i=0;i<T;i++){
+      const a=lo+Math.floor(i*span/T), b=lo+Math.floor((i+1)*span/T)-1;
+      pos.push(a+Math.floor(Math.random()*(Math.max(a,b)-a+1)));
+    }
+    // 2. ordered type list, most-frequent first, round-robin placed so
+    //    identical ids are maximally separated in sequence.
+    const buckets=PERKS.map(p=>({id:p.id,n:perkCounts[p.id]||0}))
+                       .filter(x=>x.n>0).sort((x,y)=>y.n-x.n);
+    const seq=new Array(T); let idx=0;
+    buckets.forEach(bk=>{
+      for(let k=0;k<bk.n;k++){ seq[idx]=bk.id; idx+=2; if(idx>=T) idx=1; }
+    });
+    // 3. zip — pos already ascending by construction
+    for(let i=0;i<T;i++) out[seq[i]].push(pos[i]);
+    PERKS.forEach(p=>out[p.id].sort((a,b)=>a-b));
+    perkLayout=out;
+  }
+
   // playerIndex -> slot (0,1,2 = top row; 3,4,5 = bottom row)
   const LAYOUT={
     2:[4,1], 3:[4,0,2], 4:[3,0,2,5], 5:[3,4,5,0,2], 6:[3,4,5,0,1,2]
@@ -357,8 +410,7 @@
   function classify(n){
     if(n===TOTAL) return "goal";
     if(n===1) return "start";
-    if(LUCK_UP.includes(n)) return "luckup";
-    if(LUCK_DOWN.includes(n)) return "luckdown";
+    for(const p of PERKS){ if(perkLayout[p.id] && perkLayout[p.id].includes(n)) return p.id; }
     if(GEESE.includes(n)) return "goose";
     if(SPECIALS[n]) return "peril";
     if(PARTY_SQUARES.includes(n)) return "party";
@@ -420,6 +472,8 @@
     if(track) boardEl.insertAdjacentHTML("beforeend",'<div class="tokens" id="tokens"></div>');
   }
   function renderBoard(){ buildCells($("board"),true); }
+  perkCounts=loadPerkCounts();
+  generateLayout();
   buildCells($("menuBoard"),false); // static menu preview
 
   /* ---------- Player tokens (centred, visible, animated) ---------- */
