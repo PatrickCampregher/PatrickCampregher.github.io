@@ -221,7 +221,6 @@
     <section class="setup" id="setup">
       <p class="pick-label">Quanti siete?</p>
       <div class="count-row" id="countRow"></div>
-      <div class="names" id="names"></div>
       <div class="menu-board"><div class="board" id="menuBoard"></div></div>
       <button class="btn gold" id="startBtn">Inizia la Partita</button>
     </section>
@@ -364,26 +363,16 @@
   let cellEls={};
 
   const $=id=>document.getElementById(id);
-  const countRow=$("countRow"), namesBox=$("names");
+  const countRow=$("countRow");
 
   /* ---------- Setup ---------- */
   for(let c=2;c<=6;c++){
     const b=document.createElement("button");
     b.className="count-btn"+(c===2?" on":""); b.textContent=c; b.dataset.c=c;
-    b.addEventListener("click",()=>{chosenCount=c;[...countRow.children].forEach(x=>x.classList.toggle("on",+x.dataset.c===c));buildNames();});
+    b.addEventListener("click",()=>{chosenCount=c;[...countRow.children].forEach(x=>x.classList.toggle("on",+x.dataset.c===c));});
     countRow.appendChild(b);
   }
-  function buildNames(){
-    namesBox.innerHTML="";
-    for(let i=0;i<chosenCount;i++){
-      const w=document.createElement("label"); w.className="name-field";
-      const s=document.createElement("span"); s.className="seal"; s.style.background=SEAL_COLORS[i];
-      const inp=document.createElement("input"); inp.type="text"; inp.maxLength=14;
-      inp.placeholder="Giocatore "+(i+1);
-      w.appendChild(s); w.appendChild(inp); namesBox.appendChild(w);
-    }
-  }
-  buildNames();
+
 
   function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
@@ -609,10 +598,8 @@
   /* ---------- Flow ---------- */
   function startGame(){
     players=[];
-    const inputs=namesBox.querySelectorAll("input");
     for(let i=0;i<chosenCount;i++){
-      const nm=(inputs[i].value.trim())||("Giocatore "+(i+1));
-      players.push({idx:i,name:nm,pos:1,skip:0,trapped:null,lastRoll:null,fx:[]});
+      players.push({idx:i,name:"Giocatore "+(i+1),pos:1,skip:0,trapped:null,lastRoll:null,fx:[]});
     }
     cur=0; started=true; busy=false; partyIdx=0; gen++;
     $("setup").classList.add("hide"); $("win").classList.remove("show"); closeModal();
