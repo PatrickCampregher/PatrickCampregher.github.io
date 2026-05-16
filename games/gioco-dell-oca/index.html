@@ -37,13 +37,11 @@
   #app{position:relative;z-index:2;width:100vw;height:100dvh;display:flex;}
   .frame{
     flex:1;display:flex;flex-direction:column;min-height:0;
-    margin:6px;border:2px solid var(--ink);outline:1px solid var(--gold);outline-offset:3px;
-    box-shadow:inset 0 0 0 5px rgba(176,137,59,.16), 0 8px 26px rgba(0,0,0,.5);
-    padding:max(8px,env(safe-area-inset-top)) 10px 10px;
+    margin:0;border:0;padding:max(6px,env(safe-area-inset-top)) 0 0;
   }
 
   /* Topbar (title sits inline at breadcrumb/button level) */
-  .topbar{display:flex;align-items:center;gap:8px;flex:none;}
+  .topbar{display:flex;align-items:center;gap:8px;flex:none;padding:0 10px;}
   .topbar a.bc{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.1em;color:var(--ink-soft);
     text-decoration:none;border-bottom:1px solid var(--gold);flex:none;}
   .topbar a.bc:hover{color:var(--oxblood);}
@@ -57,7 +55,7 @@
 
   /* ===== SETUP ===== */
   .setup{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;
-    align-items:center;gap:14px;padding:14px 4px;text-align:center;}
+    align-items:center;gap:14px;padding:14px 12px;text-align:center;}
   .setup.hide,.game,.win{display:none;}
   .pick-label{font-family:'Cinzel',serif;letter-spacing:.2em;font-size:12px;color:var(--oxblood);text-transform:uppercase;}
   .count-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
@@ -81,7 +79,7 @@
   /* ===== GAME ===== */
   .game.show{display:flex;flex-direction:column;flex:1;min-height:0;gap:7px;padding-top:6px;}
 
-  .players-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;flex:none;align-items:stretch;}
+  .players-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;flex:none;align-items:stretch;padding:0 10px;}
   .players-row.top{transform:rotate(180deg);}
 
   .pslot{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;}
@@ -131,10 +129,16 @@
   .cell .ico{font-size:clamp(13px,2.8vw,22px);filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));}
   .cell.cur{z-index:3;box-shadow:inset 0 0 0 3px var(--gold-bright);}
   .cell.cur .num{color:var(--oxblood);}
-  .pawns{position:absolute;left:1px;right:1px;bottom:0;display:flex;flex-wrap:wrap;
-    justify-content:center;gap:2px;}
-  .dot{width:clamp(8px,1.7vw,14px);height:clamp(8px,1.7vw,14px);border-radius:50%;
-    border:1.5px solid rgba(20,12,2,.8);box-shadow:0 0 0 1px rgba(255,245,220,.6),0 1px 3px rgba(0,0,0,.6);}
+  .tokens{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;}
+  .token{position:absolute;width:clamp(17px,3.8vw,30px);height:clamp(17px,3.8vw,30px);
+    border-radius:50%;border:2px solid rgba(20,12,2,.85);
+    box-shadow:0 0 0 2px rgba(255,245,220,.7),0 2px 6px rgba(0,0,0,.6);
+    transform:translate(-50%,-50%);
+    transition:left .25s cubic-bezier(.45,.05,.3,1),top .25s cubic-bezier(.45,.05,.3,1);}
+  .token.active{box-shadow:0 0 0 2px #fff,0 0 11px 3px var(--gold-bright),0 2px 6px rgba(0,0,0,.6);
+    z-index:5;animation:tokpulse 1s ease-in-out infinite;}
+  @keyframes tokpulse{0%,100%{transform:translate(-50%,-50%) scale(1);}
+    50%{transform:translate(-50%,-50%) scale(1.16);}}
 
   /* ===== Field info / event popup ===== */
   .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
@@ -254,7 +258,7 @@
     2:[4,1], 3:[4,0,2], 4:[3,0,2,5], 5:[3,4,5,0,2], 6:[3,4,5,0,1,2]
   };
 
-  let players=[], cur=0, partyIdx=0, busy=false, started=false, rollIv=null;
+  let players=[], cur=0, partyIdx=0, busy=false, started=false, rollIv=null, moveIv=null, gen=0;
   let phase="roll"; // "roll" -> active taps dice; "pass" -> active taps Avanti
   let chosenCount=2;
   let cellEls={};
@@ -345,27 +349,67 @@
       el.style.gridRow=row; el.style.gridColumn=col;
       let ico=""; if(n===TOTAL) ico="🪿"; else if(kind==="goose") ico="🦢";
       else if(SPECIALS[n]) ico=SPECIALS[n].ico; else if(kind==="party") ico="✦";
-      el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'')+(track?'<span class="pawns"></span>':'');
+      el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'');
       el.title=n===TOTAL?"Il Giardino dell'Oca":(SPECIALS[n]?SPECIALS[n].title:(kind==="goose"?"L'Oca":(kind==="party"?"Pegno":"Casella "+n)));
       if(track) el.addEventListener("click",()=>openCellInfo(n));
       boardEl.appendChild(el); if(track) cellEls[n]=el;
     }
+    if(track) boardEl.insertAdjacentHTML("beforeend",'<div class="tokens" id="tokens"></div>');
   }
-  function renderBoard(){ buildCells($("board"),true); placePawns(); }
+  function renderBoard(){ buildCells($("board"),true); }
   buildCells($("menuBoard"),false); // static menu preview
-  function placePawns(){
-    Object.values(cellEls).forEach(c=>{ const w=c.querySelector(".pawns"); if(w) w.innerHTML=""; c.classList.remove("cur"); });
-    players.forEach(p=>{
-      const cell=cellEls[Math.max(1,Math.min(TOTAL,p.pos))];
-      if(!cell) return;
-      const d=document.createElement("span"); d.className="dot";
-      d.style.background="radial-gradient(circle at 35% 30%,#fff6,"+SEAL_COLORS[p.idx]+" 60%,rgba(0,0,0,.4))";
-      cell.querySelector(".pawns").appendChild(d);
-    });
+
+  /* ---------- Player tokens (centred, visible, animated) ---------- */
+  function cxy(pos){
+    const {row,col}=gridRC(Math.max(1,Math.min(TOTAL,pos)));
+    return { x:((col-0.5)/COLS)*100, y:((row-0.5)/ROWS)*100 };
+  }
+  function placeTok(p,pos,instant){
+    if(!p.tok) return;
+    const c=cxy(pos);
+    let dx=0,dy=0;
+    if(pos===p.pos){                       // settled: fan out shared cell
+      const same=players.filter(q=>q.pos===p.pos), m=same.length, i=same.indexOf(p);
+      if(m>1){ const a=(i/m)*Math.PI*2; dx=Math.cos(a)*2.6; dy=Math.sin(a)*2.6; }
+    }
+    if(instant) p.tok.style.transition="none";
+    p.tok.style.left=(c.x+dx)+"%"; p.tok.style.top=(c.y+dy)+"%";
+    if(instant){ void p.tok.offsetWidth; p.tok.style.transition=""; }
+  }
+  function syncTokens(){
+    players.forEach(p=>placeTok(p,p.pos,false));
+    players.forEach(p=>{ if(p.tok) p.tok.classList.toggle("active", started && players[cur]===p); });
+    Object.values(cellEls).forEach(c=>c.classList.remove("cur"));
     if(started && players[cur]){
       const cc=cellEls[Math.max(1,Math.min(TOTAL,players[cur].pos))];
       if(cc) cc.classList.add("cur");
     }
+  }
+  function makeTokens(){
+    const layer=$("tokens"); if(!layer) return;
+    layer.innerHTML="";
+    players.forEach(p=>{
+      const t=document.createElement("div"); t.className="token";
+      t.style.background="radial-gradient(circle at 35% 30%,#fff,"+SEAL_COLORS[p.idx]+" 62%,rgba(0,0,0,.45))";
+      layer.appendChild(t); p.tok=t;
+      placeTok(p,p.pos,true);
+    });
+    syncTokens();
+  }
+  // Walk the token from->to one field at a time (snakes-style); long
+  // jumps glide directly. p.pos must already be the final value.
+  function animateMove(p,fromPos,toPos,cb){
+    if(moveIv){ clearInterval(moveIv); moveIv=null; }
+    const g=gen;                                  // stale-guard: a restart/exit bumps gen
+    const done=()=>{ if(g!==gen) return; syncTokens(); cb(); };
+    const delta=toPos-fromPos, dist=Math.abs(delta);
+    if(dist===0){ syncTokens(); setTimeout(done,140); return; }
+    if(dist>14){ placeTok(p,toPos,false); setTimeout(done,320); return; }
+    const stp=delta>0?1:-1; let q=fromPos;
+    moveIv=setInterval(()=>{
+      q+=stp; placeTok(p,q,false);
+      if(q===toPos){ clearInterval(moveIv); moveIv=null; setTimeout(done,150); }
+    },135);
   }
 
 
@@ -450,10 +494,11 @@
       const nm=(inputs[i].value.trim())||("Giocatore "+(i+1));
       players.push({idx:i,name:nm,pos:1,skip:0,trapped:null});
     }
-    cur=0; started=true; busy=false; partyIdx=0; phase="roll";
+    cur=0; started=true; busy=false; partyIdx=0; phase="roll"; gen++;
     $("setup").classList.add("hide"); $("win").classList.remove("show"); closeModal();
     $("game").classList.add("show"); $("restartBtn").hidden=false;
     renderBoard();
+    makeTokens();
     renderPlayers();
   }
 
@@ -464,7 +509,7 @@
       players[cur].skip--; cur=(cur+1)%players.length;
     }
     phase="roll"; busy=false;
-    placePawns(); renderPlayers();
+    syncTokens(); renderPlayers();
   }
 
   function roll(){
@@ -502,41 +547,45 @@
     }
     freeTrappedBy(sum);
 
+    const from=p.pos;
     let pos=p.pos+sum, title="In Marcia", msg="";
-    if(pos===TOTAL){ p.pos=TOTAL; placePawns(); win(p); return; }
+    if(pos===TOTAL){ p.pos=TOTAL; animateMove(p,from,TOTAL,()=>win(p)); return; }
     if(pos>TOTAL){
       const over=pos-TOTAL; pos=TOTAL-over; title="Rimbalzo";
       msg="Superi il traguardo di "+over+"! <b>Rimbalzi</b> alla "+pos+" e <b>bevi</b>.";
     }
     p.pos=pos;
-    moveAnim(()=>handleLanding(p,sum,title,msg));
+    animateMove(p,from,pos,()=>handleLanding(p,sum,title,msg));
   }
-
-  function moveAnim(done){ placePawns(); renderPlayers(); setTimeout(done,420); }
 
   function handleLanding(p,sum,title,preMsg,depth){
     depth=depth||0;
     const n=p.pos;
     if(GEESE.includes(n)){
       let np=n+sum;
-      if(np===TOTAL){ p.pos=TOTAL; placePawns(); win(p); return; }
+      if(np===TOTAL){ p.pos=TOTAL; animateMove(p,n,TOTAL,()=>win(p)); return; }
       if(np>TOTAL){ np=TOTAL-(np-TOTAL); }
       if(np===n || depth>=12){
-        p.pos=np; placePawns(); renderPlayers();
-        event("L'Oca! 🦢","<b>"+esc(p.name)+"</b> rimbalza e resta alla casella <b>"+np+"</b>. <b>Bevi</b> e fermati qui.");
-        endRoll(); return;
+        p.pos=np;
+        animateMove(p,n,np,()=>{
+          event("L'Oca! 🦢","<b>"+esc(p.name)+"</b> rimbalza e resta alla casella <b>"+np+"</b>. <b>Bevi</b> e fermati qui.");
+          endRoll();
+        });
+        return;
       }
       p.pos=np;
-      moveAnim(()=>handleLanding(p,sum,"L'Oca","l'oca ti ha spinto avanti &mdash; <b>bevi</b>. ",depth+1));
+      animateMove(p,n,np,()=>handleLanding(p,sum,"L'Oca","l'oca ti ha spinto avanti &mdash; <b>bevi</b>. ",depth+1));
       return;
     }
     const sp=SPECIALS[n];
     if(sp){
-      if(sp.go!==undefined) p.pos=sp.go;
       if(sp.skip) p.skip=sp.skip;
       if(sp.trap) p.trapped=sp.trap;
       event(sp.title+" "+sp.ico,(preMsg?preMsg+"<br>":"")+sp.text);
-      placePawns(); renderPlayers(); endRoll(); return;
+      renderPlayers();
+      if(sp.go!==undefined){ p.pos=sp.go; animateMove(p,n,sp.go,endRoll); }
+      else { syncTokens(); endRoll(); }
+      return;
     }
     if(PARTY_SQUARES.includes(n)){
       const pr=PARTY_PROMPTS[partyIdx%PARTY_PROMPTS.length]; partyIdx++;
@@ -549,7 +598,7 @@
 
   function endRoll(){
     phase="pass"; busy=false;
-    placePawns(); renderPlayers();
+    syncTokens(); renderPlayers();
   }
 
   function win(p){
@@ -561,7 +610,7 @@
   }
 
   /* ---------- Wire up ---------- */
-  function clearRoll(){ if(rollIv){ clearInterval(rollIv); rollIv=null; } busy=false; }
+  function clearRoll(){ gen++; if(rollIv){ clearInterval(rollIv); rollIv=null; } if(moveIv){ clearInterval(moveIv); moveIv=null; } busy=false; }
   function toMenu(){
     clearRoll(); started=false; closeModal();
     $("game").classList.remove("show"); $("win").classList.remove("show");
