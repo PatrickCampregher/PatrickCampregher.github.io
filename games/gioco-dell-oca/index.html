@@ -288,15 +288,22 @@
     {t:"Specchio",d:"Chi parla con te deve imitare i tuoi gesti, o beve."}
   ];
 
-  // Custom special fields — edit these field numbers freely.
-  const LUCK_UP=[11,33,51];     // "Increased Luck": +2 on the die for 3 turns
-  const LUCK_DOWN=[8,27,46];    // "Decreased Luck": -2 on the die for 3 turns (can go backward)
-  const LUCK={
-    up:{img:"icons/luck-up.png",title:"Fortuna Aumentata",
-        text:"<b>+2</b> al dado per i prossimi <b>3 turni</b>."},
-    down:{img:"icons/luck-down.png",title:"Sfortuna",
-        text:"<b>&minus;2</b> al dado per i prossimi <b>3 turni</b> &mdash; puoi finire in negativo e <b>tornare indietro</b>."}
-  };
+  // Perk registry — add a future perk by appending one entry here.
+  // fx: die modifier applied for `turns` turns when a player lands on it.
+  const PERKS=[
+    {id:"luckup",  icon:"icons/luck-up.png",  title:"Fortuna Aumentata",
+     text:"<b>+2</b> al dado per i prossimi <b>3 turni</b>.",
+     defaultCount:3, fx:{val:2,turns:3}},
+    {id:"luckdown",icon:"icons/luck-down.png",title:"Sfortuna",
+     text:"<b>&minus;2</b> al dado per i prossimi <b>3 turni</b> &mdash; puoi finire in negativo e <b>tornare indietro</b>.",
+     defaultCount:3, fx:{val:-2,turns:3}}
+  ];
+  const PERK_BY_ID=Object.fromEntries(PERKS.map(p=>[p.id,p]));
+  const USABLE_FIELDS=TOTAL-2;            // fields 2..62 (1=start, 63=goal reserved)
+  const LS_KEY="goca.perkCounts";
+
+  let perkCounts={};                       // {id:count} — persisted
+  let perkLayout={};                       // {id:[fields]} — regenerated each load
 
   // playerIndex -> slot (0,1,2 = top row; 3,4,5 = bottom row)
   const LAYOUT={
