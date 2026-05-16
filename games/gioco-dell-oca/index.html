@@ -61,11 +61,7 @@
   .setup{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;
     align-items:center;gap:14px;padding:14px 4px;text-align:center;}
   .setup.hide,.game,.win{display:none;}
-  .setup .lead{max-width:560px;font-size:clamp(13px,2.5vw,16px);color:var(--ink-soft);line-height:1.45;}
   .pick-label{font-family:'Cinzel',serif;letter-spacing:.2em;font-size:12px;color:var(--oxblood);text-transform:uppercase;}
-  .rule-divider{display:flex;align-items:center;gap:12px;color:var(--gold);width:100%;max-width:480px;}
-  .rule-divider::before,.rule-divider::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
-  .rule-divider span{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.28em;color:var(--ink-soft);}
   .count-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
   .count-btn{width:50px;height:50px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);
     font-family:'Cinzel',serif;font-weight:700;font-size:20px;border-radius:50%;box-shadow:0 3px 0 var(--shadow);}
@@ -92,26 +88,27 @@
 
   .pslot{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;}
   .pslot.empty{visibility:hidden;}
-  .pslot .pname{font-family:'Cinzel',serif;font-size:11px;color:var(--ink-soft);
-    display:flex;align-items:center;gap:5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .pslot .pname .seal{width:13px;height:13px;}
-  .pbox{width:100%;border:1.5px solid var(--ink-soft);background:rgba(255,250,232,.45);
-    padding:5px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.15s;}
-  .pbox .meta{font-size:12px;color:var(--ink-soft);line-height:1.15;text-align:center;}
-  .pbox.active{border-color:var(--oxblood);background:rgba(216,177,84,.28);
+  .pslot .pname{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.04em;
+    color:var(--ink-soft);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pbox{display:flex;align-items:center;gap:6px;padding:4px;border:1.5px solid var(--ink-soft);
+    background:rgba(255,250,232,.4);transition:.15s;}
+  .pbox.active{border-color:var(--oxblood);background:rgba(216,177,84,.3);
     box-shadow:0 0 0 2px rgba(176,137,59,.45);}
-  .ctrl{display:flex;align-items:center;gap:6px;}
-  .die{width:30px;height:30px;background:linear-gradient(160deg,#fbf2d8,#e3cf9c);
-    border:2px solid var(--ink);border-radius:7px;position:relative;flex:none;
-    box-shadow:0 3px 0 var(--shadow);}
-  .die.rolling{animation:tumble .45s linear infinite;}
-  @keyframes tumble{0%{transform:rotate(0)}50%{transform:rotate(180deg) scale(.85)}100%{transform:rotate(360deg)}}
-  .pip{position:absolute;width:15%;height:15%;background:var(--oxblood-deep);border-radius:50%;}
-  .tap{font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:.08em;
-    color:var(--paper);background:linear-gradient(180deg,var(--verd),var(--verd-deep));
-    border:1.5px solid var(--ink);padding:7px 12px;text-transform:uppercase;animation:pulse 1.3s ease-in-out infinite;}
-  .tap.go{background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:var(--ink);}
-  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(176,137,59,.5)}50%{box-shadow:0 0 0 6px rgba(176,137,59,0)}}
+  .avatar{width:26px;height:26px;border-radius:50%;flex:none;
+    border:2px solid rgba(30,16,4,.6);box-shadow:inset 0 0 5px rgba(0,0,0,.35);}
+  .dslot{width:34px;height:34px;flex:none;border:1.5px solid var(--ink-soft);
+    background:rgba(255,248,222,.5);display:flex;align-items:center;justify-content:center;
+    font-family:'Cinzel',serif;font-weight:700;font-size:17px;color:var(--ink-soft);}
+  .dslot.empty{opacity:.3;}
+  .dslot.live{border-color:var(--oxblood);color:var(--oxblood);cursor:pointer;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    animation:pulse 1.2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(176,137,59,.55)}50%{box-shadow:0 0 0 6px rgba(176,137,59,0)}}
+
+  .menu-board{width:min(74vw,260px);aspect-ratio:7/9;flex:none;margin:2px auto;}
+  .menu-board .board{box-shadow:inset 0 0 0 3px rgba(176,137,59,.2);}
+  .menu-board .cell .ico{font-size:9px;}
+  .menu-board .cell .num{font-size:8px;}
 
   .board-wrap{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;
     width:100%;overflow:hidden;}
@@ -177,14 +174,10 @@
 
     <!-- SETUP -->
     <section class="setup" id="setup">
-      <div class="rule-divider"><span>Le Regole</span></div>
-      <p class="lead">Si tira a turno con due dadi lungo il percorso di 63 caselle.
-      Le <b>oche</b> ti spingono avanti; ogni casella speciale ha il suo pegno.
-      Chi arriva per primo alla <b>63</b> con il tiro esatto vince. Bevete con stile.</p>
-      <div class="rule-divider"><span>I Giocatori</span></div>
       <p class="pick-label">Quanti siete?</p>
       <div class="count-row" id="countRow"></div>
       <div class="names" id="names"></div>
+      <div class="menu-board"><div class="board" id="menuBoard"></div></div>
       <button class="btn gold" id="startBtn">Inizia la Partita</button>
     </section>
 
@@ -290,8 +283,8 @@
     if(PARTY_SQUARES.includes(n)) return "party";
     return "";
   }
-  function renderBoard(){
-    const board=$("board"); board.innerHTML=""; cellEls={};
+  function buildCells(boardEl,track){
+    boardEl.innerHTML=""; if(track) cellEls={};
     for(let n=1;n<=TOTAL;n++){
       const {row,col}=gridRC(n);
       const kind=classify(n);
@@ -300,12 +293,13 @@
       el.style.gridRow=row; el.style.gridColumn=col;
       let ico=""; if(n===TOTAL) ico="🪿"; else if(kind==="goose") ico="🦢";
       else if(SPECIALS[n]) ico=SPECIALS[n].ico; else if(kind==="party") ico="✦";
-      el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'')+'<span class="pawns"></span>';
+      el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'')+(track?'<span class="pawns"></span>':'');
       el.title=n===TOTAL?"Il Giardino dell'Oca":(SPECIALS[n]?SPECIALS[n].title:(kind==="goose"?"L'Oca":(kind==="party"?"Pegno":"Casella "+n)));
-      board.appendChild(el); cellEls[n]=el;
+      boardEl.appendChild(el); if(track) cellEls[n]=el;
     }
-    placePawns();
   }
+  function renderBoard(){ buildCells($("board"),true); placePawns(); }
+  buildCells($("menuBoard"),false); // static menu preview
   function placePawns(){
     Object.values(cellEls).forEach(c=>{ const w=c.querySelector(".pawns"); if(w) w.innerHTML=""; c.classList.remove("cur"); });
     players.forEach(p=>{
@@ -321,29 +315,12 @@
     }
   }
 
-  /* ---------- Dice ---------- */
-  const PIPS={1:[[50,50]],2:[[28,28],[72,72]],3:[[28,28],[50,50],[72,72]],
-    4:[[28,28],[72,28],[28,72],[72,72]],5:[[28,28],[72,28],[50,50],[28,72],[72,72]],
-    6:[[28,28],[72,28],[28,50],[72,50],[28,72],[72,72]]};
-  function drawDie(el,v){
-    el.innerHTML="";
-    PIPS[v].forEach(([x,y])=>{const p=document.createElement("span");p.className="pip";
-      p.style.left=(x-7.5)+"%";p.style.top=(y-7.5)+"%";el.appendChild(p);});
-  }
 
   /* ---------- Verdict / ticker ---------- */
   function verdict(title,html){ $("scrollTitle").textContent=title; $("verdict").innerHTML=html; }
   function log(msg){ $("ticker").innerHTML=msg; }
 
-  function statusText(p){
-    if(p.pos>=TOTAL) return "Al traguardo";
-    if(p.trapped) return "Intrappolato ("+(p.trapped==="well"?"Pozzo":"Prigione")+")";
-    if(p.skip>0) return "Salta "+p.skip+" turno"+(p.skip>1?"i":"");
-    if(p.pos<=1) return "In partenza";
-    return "Casella "+p.pos;
-  }
-
-  /* ---------- Per-player controls ---------- */
+  /* ---------- Per-player controls (minimal: avatar + one dice slot) ---------- */
   function renderPlayers(){
     const top=$("playersTop"), bot=$("playersBottom");
     top.innerHTML=""; bot.innerHTML="";
@@ -356,35 +333,31 @@
     players.forEach((p,i)=>{
       const slot=slots[lay[i]]; slot.classList.remove("empty");
       const active=started && i===cur;
-      const nm=document.createElement("div"); nm.className="pname";
-      const sl=document.createElement("span"); sl.className="seal"; sl.style.background=SEAL_COLORS[p.idx];
-      nm.appendChild(sl); nm.appendChild(document.createTextNode(p.name));
+
+      const nm=document.createElement("div"); nm.className="pname"; nm.textContent=p.name;
+
       const box=document.createElement("div"); box.className="pbox"+(active?" active":"");
-      const meta=document.createElement("div"); meta.className="meta"; meta.textContent=statusText(p);
-      box.appendChild(meta);
+      const av=document.createElement("div"); av.className="avatar";
+      av.style.background="radial-gradient(circle at 35% 30%,#fff6,"+SEAL_COLORS[p.idx]+" 60%,rgba(0,0,0,.4))";
+      const ds=document.createElement("div"); ds.className="dslot";
 
       if(active){
+        ds.classList.add("live");
         if(phase==="pass"){
-          const go=document.createElement("button"); go.className="tap go"; go.textContent="Avanti ▸";
-          go.addEventListener("click",()=>{ if(busy) return; advanceTurn(); });
-          box.appendChild(go);
+          ds.textContent="▸";
+          box.addEventListener("click",()=>{ if(busy) return; advanceTurn(); });
         }else{
-          const ctrl=document.createElement("div"); ctrl.className="ctrl";
-          const d1=document.createElement("div"); d1.className="die";
-          const d2=document.createElement("div"); d2.className="die";
-          drawDie(d1,1); drawDie(d2,1);
-          ctrl.appendChild(d1); ctrl.appendChild(d2);
-          const tap=document.createElement("button"); tap.className="tap";
-          tap.textContent=p.trapped?"Tira (6 = libero)":"Tira i Dadi";
-          const fire=()=>roll();
-          ctrl.addEventListener("click",fire); tap.addEventListener("click",fire);
-          box.appendChild(ctrl); box.appendChild(tap);
+          ds.textContent="?";
+          box.addEventListener("click",roll);
         }
+      }else{
+        ds.classList.add("empty");
       }
+      box.appendChild(av); box.appendChild(ds);
       slot.appendChild(nm); slot.appendChild(box);
     });
   }
-  function activeDice(){ return [...document.querySelectorAll(".pslot .pbox.active .die")]; }
+  function activeDie(){ return document.querySelector(".pslot .pbox.active .dslot"); }
 
   /* ---------- Flow ---------- */
   function startGame(){
@@ -423,20 +396,17 @@
 
   function roll(){
     if(busy || phase!=="roll" || !started) return;
-    busy=true;
     const p=players[cur];
-    const dice=activeDice();
-    if(dice.length<2){ busy=false; return; }
-    dice.forEach(d=>d.classList.add("rolling"));
+    const die=activeDie();
+    if(!die) return;
+    busy=true;
     let ticks=0;
     rollIv=setInterval(()=>{
-      drawDie(dice[0],1+Math.floor(Math.random()*6));
-      drawDie(dice[1],1+Math.floor(Math.random()*6));
+      die.textContent=String(2+Math.floor(Math.random()*11));
       if(++ticks>9){
         clearInterval(rollIv); rollIv=null;
         const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
-        drawDie(dice[0],a); drawDie(dice[1],b);
-        dice.forEach(d=>d.classList.remove("rolling"));
+        die.textContent=String(a+b);
         resolve(p,a+b);
       }
     },55);
