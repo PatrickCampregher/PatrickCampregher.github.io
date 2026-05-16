@@ -387,7 +387,7 @@
       const row=document.createElement("div"); row.className="perk-row";
       const c=perkCounts[p.id]||0;
       row.innerHTML='<img src="'+BASE+p.icon+'" alt="">'
-        +'<span class="pt">'+p.title+'</span>'
+        +'<span class="pt">'+esc(p.title)+'</span>'
         +'<span class="step">'
         +'<button type="button" data-d="-1"'+(c<=0?" disabled":"")+'>&minus;</button>'
         +'<span class="cnt">'+c+'</span>'
