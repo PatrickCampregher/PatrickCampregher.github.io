@@ -99,7 +99,6 @@
     align-items: center;
     justify-content: center;
     gap: 18px;
-    overflow-y: auto;
     padding: 8px 0;
   }
 
@@ -464,6 +463,7 @@
     docEl.mozRequestFullScreen ||
     docEl.msRequestFullscreen;
 
+  // Pre-set; startGame (Task 3) makes #game visible — controls bar is always shown in game view.
   controlsBar.classList.add('visible');
   if (!fsSupported) {
     fsBtn.style.display = 'none';
