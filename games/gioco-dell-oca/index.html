@@ -87,7 +87,7 @@
   .pslot.empty{visibility:hidden;}
   .pslot .pname{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.04em;
     color:var(--ink-soft);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .pbox{display:flex;align-items:center;gap:8px;padding:8px 10px;border:2px solid var(--ink-soft);
+  .pbox{position:relative;display:flex;align-items:center;gap:8px;padding:8px 10px;border:2px solid var(--ink-soft);
     background:#ece0bb;transition:.18s;}
   .pbox.active{border-color:var(--gold-bright);
     animation:boxglow 1.1s ease-in-out infinite;}
@@ -134,20 +134,22 @@
     opacity:.85;text-shadow:0 1px 0 rgba(255,246,214,.7),0 0 3px rgba(255,246,214,.6);}
   .cell .ico{font-size:clamp(13px,2.8vw,22px);filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));}
   #board .cell.goal .ico{font-size:clamp(19px,4.4vw,32px);}
-  .fx{display:inline-flex;align-items:center;gap:3px;flex:none;}
-  .fx img{width:20px;height:20px;object-fit:contain;
-    filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));}
-  .fx b{font-family:'Cinzel',serif;font-size:11px;color:var(--oxblood);}
+  /* active-effect icons: absolute so they never resize the control box */
+  .fxstack{position:absolute;top:-9px;right:-9px;display:flex;flex-direction:column;
+    gap:2px;pointer-events:none;}
+  .fxstack img{width:20px;height:20px;object-fit:contain;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));}
   .fxburst{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     pointer-events:none;z-index:6;}
-  .fxcard{display:flex;flex-direction:column;align-items:center;gap:6px;
-    padding:14px 20px;background:rgba(28,18,6,.78);border:2px solid var(--gold-bright);
+  .fxcard{display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:14px 22px;background:rgba(28,18,6,.78);border:2px solid var(--gold-bright);
     color:#f3e6c4;font-family:'Cinzel',serif;font-weight:700;
     animation:fxpop .95s ease-out forwards;}
-  .fxcard img{width:clamp(54px,16vw,92px);height:clamp(54px,16vw,92px);object-fit:contain;
+  .fxcard .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;}
+  .fxcard .row img{width:clamp(42px,12vw,72px);height:clamp(42px,12vw,72px);object-fit:contain;
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));}
-  .fxcard span{font-size:clamp(15px,3.4vw,22px);}
-  .fxcard span b{color:var(--gold-bright);font-size:1.25em;}
+  .fxcard span{font-size:clamp(16px,3.6vw,24px);}
+  .fxcard span b{color:var(--gold-bright);font-size:1.3em;}
   @keyframes fxpop{
     0%{opacity:0;transform:scale(.5);}
     18%{opacity:1;transform:scale(1.08);}
@@ -536,12 +538,10 @@
       }
       box.appendChild(av); box.appendChild(ds);
 
-      if(p.modTurns>0 && p.mod!==0){            // active effect badge
-        const fx=document.createElement("div"); fx.className="fx";
-        fx.title=(p.mod>0?LUCK.up.title:LUCK.down.title)+" — "+p.modTurns+" turni";
-        fx.innerHTML='<img src="'+BASE+(p.mod>0?LUCK.up.img:LUCK.down.img)+'" alt="">'
-          +'<b>x'+p.modTurns+'</b>';
-        box.appendChild(fx);
+      if(p.fx.length){                          // stacked effect icons, top-right
+        const st=document.createElement("div"); st.className="fxstack";
+        st.innerHTML=p.fx.map(e=>'<img src="'+BASE+e.img+'" alt="">').join("");
+        box.appendChild(st);
       }
 
       slot.appendChild(nm); slot.appendChild(box);
@@ -555,7 +555,7 @@
     const inputs=namesBox.querySelectorAll("input");
     for(let i=0;i<chosenCount;i++){
       const nm=(inputs[i].value.trim())||("Giocatore "+(i+1));
-      players.push({idx:i,name:nm,pos:1,skip:0,trapped:null,lastRoll:null,mod:0,modTurns:0});
+      players.push({idx:i,name:nm,pos:1,skip:0,trapped:null,lastRoll:null,fx:[]});
     }
     cur=0; started=true; busy=false; partyIdx=0; gen++;
     $("setup").classList.add("hide"); $("win").classList.remove("show"); closeModal();
@@ -587,7 +587,7 @@
       if(++ticks>9){
         clearInterval(rollIv); rollIv=null;
         const v=1+Math.floor(Math.random()*6);
-        die.textContent=String(v); p.lastRoll=v;
+        die.textContent=String(v);          // resolve() updates this to the modified total
         resolve(p,v);
       }
     },55);
@@ -610,24 +610,30 @@
     }
     freeTrappedBy(sum);
 
-    // Active luck modifier: play an "effect applied" animation, then walk.
-    if(p.modTurns>0 && p.mod!==0){
-      const mod=p.mod, eff=sum+mod;
-      p.modTurns--; if(p.modTurns<=0) p.mod=0;
-      effectFlash(mod,sum,eff,()=>moveResolve(p,eff));
+    // Sum every active effect; the die shows the modified total.
+    const mTot=p.fx.reduce((s,e)=>s+e.val,0);
+    const eff=sum+mTot;
+    const die=activeDie(); if(die) die.textContent=String(eff);
+    p.lastRoll=eff;
+
+    if(p.fx.length){
+      const imgs=p.fx.map(e=>e.img);                 // icons that applied this roll
+      p.fx.forEach(e=>e.turns--);                    // consume one turn each
+      p.fx=p.fx.filter(e=>e.turns>0);                // drop expired effects
+      effectFlash(imgs,sum,eff,()=>moveResolve(p,eff));
     }else{
       moveResolve(p,sum);
     }
   }
 
-  // Brief overlay showing the luck icon + the modifier applied to the roll.
-  function effectFlash(mod,raw,eff,cb){
+  // Brief overlay: all active effect icons + the roll math, then walk.
+  function effectFlash(imgs,raw,eff,cb){
     const g=gen;
-    const die=activeDie(); if(die) die.textContent=String(eff);
     const board=$("board");
     const b=document.createElement("div"); b.className="fxburst";
-    b.innerHTML='<div class="fxcard"><img src="'+BASE+(mod>0?LUCK.up.img:LUCK.down.img)+'" alt="">'
-      +'<span>'+raw+' '+(mod>0?"+":"&minus;")+' '+Math.abs(mod)+' = <b>'+eff+'</b></span></div>';
+    b.innerHTML='<div class="fxcard"><div class="row">'
+      +imgs.map(s=>'<img src="'+BASE+s+'" alt="">').join("")
+      +'</div><span>'+raw+' &rarr; <b>'+eff+'</b></span></div>';
     board.appendChild(b);
     setTimeout(()=>{ b.remove(); if(g===gen) cb(); },950);
   }
@@ -680,8 +686,8 @@
       endRoll(); return;
     }
     if(LUCK_UP.includes(n) || LUCK_DOWN.includes(n)){
-      const L=LUCK_UP.includes(n)?LUCK.up:LUCK.down;
-      p.mod=LUCK_UP.includes(n)?2:-2; p.modTurns=3;
+      const up=LUCK_UP.includes(n), L=up?LUCK.up:LUCK.down;
+      p.fx.push({val:up?2:-2, img:L.img, turns:3});   // stacks with any existing effects
       event(L.title,(preMsg?preMsg+"<br>":"")+"<b>"+esc(p.name)+"</b> &mdash; "+L.text);
       endRoll(); return;
     }
