@@ -42,20 +42,18 @@
     padding:max(8px,env(safe-area-inset-top)) 10px 10px;
   }
 
-  /* Topbar */
-  .topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;}
-  .topbar a{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.12em;color:var(--ink-soft);
-    text-decoration:none;border-bottom:1px solid var(--gold);}
-  .topbar a:hover{color:var(--oxblood);}
-  .tb-btns{display:flex;gap:6px;}
+  /* Topbar (title sits inline at breadcrumb/button level) */
+  .topbar{display:flex;align-items:center;gap:8px;flex:none;}
+  .topbar a.bc{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.1em;color:var(--ink-soft);
+    text-decoration:none;border-bottom:1px solid var(--gold);flex:none;}
+  .topbar a.bc:hover{color:var(--oxblood);}
+  .gtitle{flex:1;min-width:0;text-align:center;font-family:'Cinzel',serif;font-weight:900;
+    color:var(--oxblood);font-size:clamp(14px,3.4vw,20px);letter-spacing:.04em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tb-btns{display:flex;gap:6px;flex:none;}
   .ic-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;
     background:transparent;border:1.5px solid var(--ink-soft);color:var(--ink-soft);font-size:14px;}
   .ic-btn:hover{color:var(--oxblood);border-color:var(--oxblood);}
-
-  h1{font-family:'Cinzel',serif;font-weight:900;text-align:center;color:var(--oxblood);
-    font-size:clamp(15px,4.4vw,24px);letter-spacing:.05em;line-height:1.1;margin-top:4px;flex:none;}
-  .ribbon{text-align:center;font-style:italic;color:var(--ink-soft);
-    font-size:clamp(12px,3vw,15px);margin:2px 0 0;flex:none;}
 
   /* ===== SETUP ===== */
   .setup{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;
@@ -105,44 +103,54 @@
     animation:pulse 1.2s ease-in-out infinite;}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(176,137,59,.55)}50%{box-shadow:0 0 0 6px rgba(176,137,59,0)}}
 
-  .menu-board{width:min(74vw,260px);aspect-ratio:7/9;flex:none;margin:2px auto;}
-  .menu-board .board{box-shadow:inset 0 0 0 3px rgba(176,137,59,.2);}
+  .menu-board{width:min(74vw,260px);aspect-ratio:7/9;flex:none;margin:2px auto;
+    border:2px solid var(--ink);outline:1px solid var(--gold);outline-offset:2px;}
+  .menu-board .cell{cursor:default;}
   .menu-board .cell .ico{font-size:9px;}
   .menu-board .cell .num{font-size:8px;}
 
   .board-wrap{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;
     width:100%;overflow:hidden;}
   .board{width:100%;height:100%;display:grid;
-    grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(9,1fr);gap:2px;
-    border:2px solid var(--ink);background:linear-gradient(160deg,rgba(255,248,222,.35),rgba(120,80,30,.18));
-    box-shadow:inset 0 0 0 4px rgba(176,137,59,.2), inset 0 0 40px rgba(80,48,12,.35);padding:3px;}
-  .cell{position:relative;border:1px solid rgba(51,36,15,.6);border-radius:5px;
+    grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(9,1fr);}
+  .cell{position:relative;border:1px solid rgba(51,36,15,.4);
     background:linear-gradient(160deg,#f3e6c4,#dcc28d);
-    display:flex;align-items:center;justify-content:center;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
     font-family:'Cinzel',serif;font-weight:700;color:var(--ink);overflow:hidden;}
   .cell .num{font-size:clamp(9px,1.9vw,17px);opacity:.85;}
   .cell .ico{position:absolute;top:1px;right:2px;font-size:clamp(8px,1.7vw,14px);
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));}
-  .cell.goose{background:linear-gradient(160deg,#cfe3d4,#a9c8af);border-color:var(--verd-deep);}
-  .cell.peril{background:linear-gradient(160deg,#e7bfae,#cf9a7f);border-color:var(--oxblood-deep);}
-  .cell.party{background:linear-gradient(160deg,#ead7a0,#d8bd6a);border-color:var(--gold);}
+  .cell.goose{background:linear-gradient(160deg,#cfe3d4,#a9c8af);}
+  .cell.peril{background:linear-gradient(160deg,#e7bfae,#cf9a7f);}
+  .cell.party{background:linear-gradient(160deg,#ead7a0,#d8bd6a);}
   .cell.goal{background:radial-gradient(circle,var(--gold-bright),var(--gold));}
   .cell.start{background:linear-gradient(160deg,#cdbf9a,#b6a273);}
-  .cell.cur{box-shadow:inset 0 0 0 2px var(--oxblood);}
+  .cell.cur{box-shadow:inset 0 0 0 2px var(--oxblood);z-index:1;}
   .pawns{position:absolute;left:1px;right:1px;bottom:1px;display:flex;flex-wrap:wrap;
     justify-content:center;gap:2px;}
   .dot{width:clamp(8px,1.7vw,14px);height:clamp(8px,1.7vw,14px);border-radius:50%;
     border:1.5px solid rgba(30,16,4,.7);box-shadow:0 0 0 1px rgba(255,245,220,.5),0 1px 2px rgba(0,0,0,.5);}
 
-  .verdict-strip{flex:none;max-height:30vh;overflow:auto;border:1.5px solid var(--ink);
-    background:linear-gradient(160deg,#f1e3bd,#e0c890);box-shadow:inset 0 0 16px rgba(120,80,30,.3);
-    padding:8px 12px;}
-  .verdict-strip h3{font-family:'Cinzel',serif;color:var(--oxblood);letter-spacing:.1em;
-    font-size:13px;text-transform:uppercase;}
-  .verdict-strip .vbody{font-size:clamp(14px,2.7vw,18px);line-height:1.35;color:var(--ink);margin-top:2px;}
-  .verdict-strip .vbody b{color:var(--oxblood);}
-  .ticker{font-size:12px;color:var(--ink-soft);margin-top:5px;font-style:italic;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* ===== Field info / event popup ===== */
+  .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
+    padding:22px;background:rgba(28,18,6,.66);}
+  .modal.show{display:flex;}
+  .modal .card{max-width:440px;width:100%;border:2px solid var(--ink);
+    outline:1px solid var(--gold);outline-offset:3px;
+    background:linear-gradient(160deg,#f1e3bd,#e0c890);
+    box-shadow:0 14px 36px rgba(0,0,0,.55), inset 0 0 0 5px rgba(176,137,59,.16);
+    padding:20px 22px 22px;text-align:center;}
+  .modal .mtag{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.26em;
+    color:var(--ink-soft);text-transform:uppercase;}
+  .modal h3{font-family:'Cinzel',serif;color:var(--oxblood);font-size:clamp(19px,5vw,26px);
+    margin:5px 0 10px;}
+  .modal .mbody{font-size:clamp(15px,3vw,18px);line-height:1.45;color:var(--ink);}
+  .modal .mbody b{color:var(--oxblood);}
+  .modal .mclose{margin-top:18px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.14em;
+    text-transform:uppercase;font-size:14px;color:var(--paper);
+    background:linear-gradient(180deg,var(--verd),var(--verd-deep));
+    border:2px solid var(--ink);padding:10px 26px;box-shadow:0 4px 0 var(--shadow);}
+  .modal .mclose:active{transform:translateY(2px);box-shadow:0 2px 0 var(--shadow);}
 
   /* ===== WIN ===== */
   .win.show{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;
@@ -152,8 +160,7 @@
   .win .sub{font-style:italic;color:var(--ink-soft);font-size:16px;max-width:460px;}
 
   @media (orientation:landscape) and (max-height:560px){
-    h1{font-size:clamp(14px,3vw,20px);}
-    .ribbon{display:none;}
+    .gtitle{font-size:clamp(13px,3vw,17px);}
   }
 </style>
 </head>
@@ -162,15 +169,13 @@
   <div class="frame">
 
     <div class="topbar">
-      <a href="../../index.html">‹ ARCADE</a>
+      <a class="bc" href="../../index.html">‹ Arcade</a>
+      <div class="gtitle">Il Gioco dell'Oca</div>
       <div class="tb-btns">
         <button class="ic-btn" id="fsBtn" aria-label="Schermo intero" title="Schermo intero">⛶</button>
         <button class="ic-btn" id="restartBtn" aria-label="Ricomincia" title="Ricomincia" hidden>☰</button>
       </div>
     </div>
-
-    <h1>Il Gioco dell'Oca</h1>
-    <div class="ribbon" id="ribbon">Edizione della Bevuta</div>
 
     <!-- SETUP -->
     <section class="setup" id="setup">
@@ -187,12 +192,6 @@
 
       <div class="board-wrap"><div class="board" id="board"></div></div>
 
-      <div class="verdict-strip" aria-live="polite">
-        <h3 id="scrollTitle">La Sorte</h3>
-        <div class="vbody" id="verdict">Tocca a te. Tira i dadi e affida la tua sete al destino.</div>
-        <div class="ticker" id="ticker"></div>
-      </div>
-
       <div class="players-row bottom" id="playersBottom"></div>
     </section>
 
@@ -204,6 +203,16 @@
       <button class="btn gold" id="againBtn">Un'Altra Partita</button>
     </section>
 
+  </div>
+
+  <!-- Field info / event popup -->
+  <div class="modal" id="modal">
+    <div class="card" role="dialog" aria-modal="true">
+      <div class="mtag" id="mTag">Casella</div>
+      <h3 id="mTitle">—</h3>
+      <div class="mbody" id="mBody"></div>
+      <button class="mclose" id="mClose">Chiudi</button>
+    </div>
   </div>
 </div>
 
@@ -269,12 +278,22 @@
 
   function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
-  /* ---------- Board (serpentine grid) ---------- */
-  function gridRC(n){
-    const i=n-1, r=Math.floor(i/COLS);
-    let c=i%COLS; if(r%2===1) c=COLS-1-c;
-    return {row:ROWS-r, col:c+1};        // r=0 (square 1) -> bottom row
-  }
+  /* ---------- Board (rectangular inward spiral; 63 = centre) ---------- */
+  const SPIRAL=(function(){
+    const grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+    const map={}, dr=[0,1,0,-1], dc=[1,0,-1,0];
+    let r=0,c=0,dir=0;                                   // start top-left, go right, wind inward
+    for(let k=1;k<=TOTAL;k++){
+      map[k]={row:r+1,col:c+1}; grid[r][c]=k;
+      let nr=r+dr[dir], nc=c+dc[dir];
+      if(nr<0||nr>=ROWS||nc<0||nc>=COLS||grid[nr][nc]!==0){
+        dir=(dir+1)%4; nr=r+dr[dir]; nc=c+dc[dir];
+      }
+      r=nr; c=nc;
+    }
+    return map;                                          // map[TOTAL] = innermost (centre) cell
+  })();
+  function gridRC(n){ return SPIRAL[n]; }
   function classify(n){
     if(n===TOTAL) return "goal";
     if(n===1) return "start";
@@ -295,6 +314,7 @@
       else if(SPECIALS[n]) ico=SPECIALS[n].ico; else if(kind==="party") ico="✦";
       el.innerHTML='<span class="num">'+n+'</span>'+(ico?'<span class="ico">'+ico+'</span>':'')+(track?'<span class="pawns"></span>':'');
       el.title=n===TOTAL?"Il Giardino dell'Oca":(SPECIALS[n]?SPECIALS[n].title:(kind==="goose"?"L'Oca":(kind==="party"?"Pegno":"Casella "+n)));
+      if(track) el.addEventListener("click",()=>openCellInfo(n));
       boardEl.appendChild(el); if(track) cellEls[n]=el;
     }
   }
@@ -316,9 +336,39 @@
   }
 
 
-  /* ---------- Verdict / ticker ---------- */
-  function verdict(title,html){ $("scrollTitle").textContent=title; $("verdict").innerHTML=html; }
-  function log(msg){ $("ticker").innerHTML=msg; }
+  /* ---------- Popup (field info + event verdicts) ---------- */
+  function showModal(tag,title,html){
+    $("mTag").textContent=tag; $("mTitle").innerHTML=title; $("mBody").innerHTML=html;
+    $("modal").classList.add("show");
+  }
+  function closeModal(){ $("modal").classList.remove("show"); }
+  function event(title,html){ showModal("La Sorte",title,html); }
+
+  function openCellInfo(n){
+    const kind=classify(n);
+    let title, body;
+    if(n===TOTAL){
+      title="Il Giardino dell'Oca 🪿";
+      body="Casella <b>63</b>, l'arrivo al centro. Raggiungila con il <b>tiro esatto</b> per vincere; se superi, rimbalzi indietro.";
+    }else if(kind==="goose"){
+      title="L'Oca 🦢";
+      body="Casella <b>"+n+"</b>. Chi vi arriva <b>avanza ancora</b> dello stesso tiro e <b>beve</b> &mdash; e le oche si concatenano.";
+    }else if(SPECIALS[n]){
+      const sp=SPECIALS[n];
+      title=sp.title+" "+sp.ico;
+      body="Casella <b>"+n+"</b>. "+sp.text;
+    }else if(kind==="party"){
+      title="Pegno ✦";
+      body="Casella <b>"+n+"</b>. Una prova a sorte: verità, obbligo, cascata, categorie&hellip; bevi se fallisci.";
+    }else if(n===1){
+      title="La Partenza";
+      body="Casella <b>1</b>. Tutti partono da qui. Buona fortuna &mdash; e buona sete.";
+    }else{
+      title="Casella "+n;
+      body="Una casella tranquilla: nessun effetto. Per ora la sete attende.";
+    }
+    showModal("Casella "+n, title, body);
+  }
 
   /* ---------- Per-player controls (minimal: avatar + one dice slot) ---------- */
   function renderPlayers(){
@@ -368,11 +418,9 @@
       players.push({idx:i,name:nm,pos:1,skip:0,trapped:null});
     }
     cur=0; started=true; busy=false; partyIdx=0; phase="roll";
-    $("setup").classList.add("hide"); $("win").classList.remove("show");
-    $("game").classList.add("show"); $("restartBtn").hidden=false; $("ribbon").style.display="none";
+    $("setup").classList.add("hide"); $("win").classList.remove("show"); closeModal();
+    $("game").classList.add("show"); $("restartBtn").hidden=false;
     renderBoard();
-    verdict("La Sorte","Tocca a <b>"+esc(players[0].name)+"</b>. Tira i dadi e affida la tua sete al destino.");
-    log("");
     renderPlayers();
   }
 
@@ -380,17 +428,9 @@
     cur=(cur+1)%players.length;
     let guard=0;
     while(players[cur].skip>0 && guard++<players.length*8){
-      const p=players[cur];
-      log("<b>"+esc(p.name)+"</b> salta il turno.");
-      p.skip--; cur=(cur+1)%players.length;
+      players[cur].skip--; cur=(cur+1)%players.length;
     }
     phase="roll"; busy=false;
-    const p=players[cur];
-    if(p.trapped){
-      verdict("Intrappolato","<b>"+esc(p.name)+"</b> è "+(p.trapped==="well"?"nel Pozzo":"in Prigione")+". Tira: con un <b>6</b> ti liberi e bevi alla libertà.");
-    }else{
-      verdict("La Sorte","Tocca a <b>"+esc(p.name)+"</b>. Tira i dadi.");
-    }
     placePawns(); renderPlayers();
   }
 
@@ -414,19 +454,16 @@
 
   function freeTrappedBy(rollVal){
     if(rollVal!==6) return;
-    players.forEach(q=>{
-      if(q.trapped){ log("<b>"+esc(q.name)+"</b> viene liberato!"); q.trapped=null; }
-    });
+    players.forEach(q=>{ if(q.trapped) q.trapped=null; });
   }
 
   function resolve(p,sum){
-    log("<b>"+esc(p.name)+"</b> tira <b>"+sum+"</b>.");
     if(p.trapped){
       if(sum===6){
         p.trapped=null;
-        verdict("Libero!","<b>"+esc(p.name)+"</b> esce con un colpo di fortuna. <b>Bevi alla libertà</b> e prosegui al prossimo turno.");
+        event("Libero! ("+sum+")","<b>"+esc(p.name)+"</b> esce con un colpo di fortuna. <b>Bevi alla libertà</b> e prosegui al prossimo turno.");
       }else{
-        verdict("Ancora bloccato","Niente <b>6</b>. <b>"+esc(p.name)+"</b> beve un sorso e resta fermo.");
+        event("Ancora bloccato ("+sum+")","Niente <b>6</b>. <b>"+esc(p.name)+"</b> beve un sorso e resta fermo.");
       }
       endRoll(); return;
     }
@@ -448,18 +485,16 @@
     depth=depth||0;
     const n=p.pos;
     if(GEESE.includes(n)){
-      log("Casella "+n+": <b>L'Oca</b> — avanza ancora di "+sum+".");
       let np=n+sum;
       if(np===TOTAL){ p.pos=TOTAL; placePawns(); win(p); return; }
       if(np>TOTAL){ np=TOTAL-(np-TOTAL); }
       if(np===n || depth>=12){
         p.pos=np; placePawns(); renderPlayers();
-        verdict("L'Oca! 🦢","<b>"+esc(p.name)+"</b> rimbalza e resta alla casella <b>"+np+"</b>. <b>Bevi</b> e fermati qui.");
+        event("L'Oca! 🦢","<b>"+esc(p.name)+"</b> rimbalza e resta alla casella <b>"+np+"</b>. <b>Bevi</b> e fermati qui.");
         endRoll(); return;
       }
       p.pos=np;
-      verdict("L'Oca! 🦢","<b>"+esc(p.name)+"</b> &mdash; "+(preMsg?preMsg+" Poi ":"")+"l'oca ti spinge ancora: <b>bevi</b> e voli alla <b>"+np+"</b>.");
-      moveAnim(()=>handleLanding(p,sum,"L'Oca","",depth+1));
+      moveAnim(()=>handleLanding(p,sum,"L'Oca","l'oca ti ha spinto avanti &mdash; <b>bevi</b>. ",depth+1));
       return;
     }
     const sp=SPECIALS[n];
@@ -467,17 +502,15 @@
       if(sp.go!==undefined) p.pos=sp.go;
       if(sp.skip) p.skip=sp.skip;
       if(sp.trap) p.trapped=sp.trap;
-      verdict(sp.title+" "+sp.ico,(preMsg?preMsg+"<br>":"")+sp.text);
-      log("Casella "+n+": <b>"+sp.title+"</b>.");
+      event(sp.title+" "+sp.ico,(preMsg?preMsg+"<br>":"")+sp.text);
       placePawns(); renderPlayers(); endRoll(); return;
     }
     if(PARTY_SQUARES.includes(n)){
       const pr=PARTY_PROMPTS[partyIdx%PARTY_PROMPTS.length]; partyIdx++;
-      verdict("Pegno: "+pr.t+" ✦",(preMsg?preMsg+"<br>":"")+"<b>"+esc(p.name)+"</b> — "+pr.d);
-      log("Casella "+n+": pegno «"+pr.t+"».");
+      event("Pegno: "+pr.t+" ✦",(preMsg?preMsg+"<br>":"")+"<b>"+esc(p.name)+"</b> &mdash; "+pr.d);
       endRoll(); return;
     }
-    verdict(title, preMsg || ("<b>"+esc(p.name)+"</b> avanza tranquillo alla casella <b>"+n+"</b>. Per ora la sete attende."));
+    if(preMsg) event(title, preMsg);   // only surface notable events (e.g. bounce / goose push)
     endRoll();
   }
 
@@ -487,7 +520,7 @@
   }
 
   function win(p){
-    started=false; clearRoll();
+    started=false; clearRoll(); closeModal();
     $("game").classList.remove("show"); $("win").classList.add("show");
     $("winName").textContent="🏆 "+p.name;
     $("winSub").innerHTML="ha conquistato il <b>Giardino dell'Oca</b> con il tiro esatto. "+
@@ -497,13 +530,18 @@
   /* ---------- Wire up ---------- */
   function clearRoll(){ if(rollIv){ clearInterval(rollIv); rollIv=null; } busy=false; }
   function toMenu(){
-    clearRoll(); started=false;
+    clearRoll(); started=false; closeModal();
     $("game").classList.remove("show"); $("win").classList.remove("show");
-    $("setup").classList.remove("hide"); $("restartBtn").hidden=true; $("ribbon").style.display="";
+    $("setup").classList.remove("hide"); $("restartBtn").hidden=true;
   }
   $("startBtn").addEventListener("click",startGame);
   $("againBtn").addEventListener("click",toMenu);
   $("restartBtn").addEventListener("click",()=>{ if(confirm("Ricominciare la partita?")) toMenu(); });
+
+  /* ---------- Modal close wiring ---------- */
+  $("mClose").addEventListener("click",closeModal);
+  $("modal").addEventListener("click",e=>{ if(e.target===$("modal")) closeModal(); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
 
   /* ---------- Fullscreen ---------- */
   const docEl=document.documentElement;
