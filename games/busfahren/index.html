@@ -736,6 +736,108 @@
     width: 100%;
     height: 100%;
   }
+
+  /* ===== ANIMATIONS (Task 5) ===== */
+  /* Smooth turn-change handoff on the active panel highlight. */
+  .panel {
+    transition: background 0.32s ease, box-shadow 0.32s ease,
+                border-color 0.32s ease, transform 0.32s ease;
+  }
+  .panel.active {
+    animation: turnPulse 0.5s ease-out;
+  }
+  @keyframes turnPulse {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+
+  /* Transient flying card: position computed from real bounding rects.
+     `inset:auto` so it's driven purely by left/top/width/height. */
+  .fly-card {
+    position: fixed;
+    z-index: 9;
+    border-radius: 9px;
+    pointer-events: none;
+    perspective: 900px;
+    will-change: transform, left, top;
+    transition: left var(--fly-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1),
+                top  var(--fly-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .fly-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform var(--flip-ms, 360ms) ease-in-out;
+  }
+  .fly-card.flipped .fly-inner { transform: rotateY(180deg); }
+  .fly-face, .fly-back {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .fly-face svg, .fly-back svg { display: block; width: 100%; height: 100%; }
+  .fly-back  { transform: rotateY(0deg); }
+  .fly-face  { transform: rotateY(180deg); }
+
+  /* Sweep a revealed slot card off toward the discard pile. */
+  .slot .card.sweeping {
+    transition: transform 0.34s cubic-bezier(0.55, 0.06, 0.68, 0.19),
+                opacity 0.34s ease;
+    z-index: 8;
+  }
+
+  /* Deck "riffle" pulse used during reshuffle. */
+  .deck-stack.reshuffling .deck-shadow {
+    animation: riffle 0.5s ease-in-out;
+  }
+  .deck-stack.reshuffling #deckCard {
+    animation: riffle 0.5s ease-in-out;
+  }
+  @keyframes riffle {
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    30%  { transform: translate(-6px, -3px) rotate(-4deg); }
+    65%  { transform: translate(7px, 2px) rotate(5deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+  /* Keep the offset shadow cards' base transforms during the riffle. */
+  .deck-stack.reshuffling .deck-shadow.s1 { animation-name: riffleS1; }
+  .deck-stack.reshuffling .deck-shadow.s2 { animation-name: riffleS2; }
+  @keyframes riffleS1 {
+    0%   { transform: translate(4px, 4px) rotate(0deg); }
+    30%  { transform: translate(-3px, 0) rotate(-3deg); }
+    65%  { transform: translate(10px, 7px) rotate(4deg); }
+    100% { transform: translate(4px, 4px) rotate(0deg); }
+  }
+  @keyframes riffleS2 {
+    0%   { transform: translate(8px, 8px) rotate(0deg); }
+    30%  { transform: translate(0, 3px) rotate(-2deg); }
+    65%  { transform: translate(13px, 11px) rotate(3deg); }
+    100% { transform: translate(8px, 8px) rotate(0deg); }
+  }
+  /* A card flying back from discard onto the deck during reshuffle. */
+  .reshuffle-card {
+    position: fixed;
+    z-index: 9;
+    border-radius: 9px;
+    pointer-events: none;
+    transition: left 0.42s ease-in, top 0.42s ease-in, opacity 0.42s ease-in;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel { transition: none; }
+    .panel.active { animation: none; }
+    .fly-card { transition: none; }
+    .fly-inner { transition: none; }
+    .slot .card.sweeping { transition: none; }
+    .deck-stack.reshuffling .deck-shadow,
+    .deck-stack.reshuffling #deckCard { animation: none; }
+    .reshuffle-card { transition: none; }
+  }
 </style>
 </head>
 <body>
@@ -1083,12 +1185,16 @@
     return colorOf(card) === want ? 'win' : 'lose';
   }
 
-  // Draw the top card. Reshuffles the discard back into the deck when empty
-  // (Task 5 will wrap this with a shuffle animation; functional here).
+  // Draw the top card. Reshuffles the discard back into the deck when empty.
+  // Sets state._lastReshuffled (read + cleared by onAnswer) so the deal
+  // sequence can play a shuffle animation before revealing the card. The
+  // reshuffle logic itself is unchanged from Task 4.
   function drawCard() {
+    state._lastReshuffled = false;
     if (state.deck.length === 0) {
       state.deck = shuffle(state.discard);
       state.discard = [];
+      state._lastReshuffled = true;
     }
     return state.deck.pop();
   }
@@ -1161,32 +1267,221 @@
     return false;
   }
 
+  // ============ ANIMATION (Task 5) ============
+  // Purely presentational. Sequences visuals AROUND the unchanged Task 4
+  // seam (resolveStage/applyOutcome). A busy flag locks input so a player
+  // cannot double-trigger while a sequence is in flight.
+
+  let animBusy = false;
+
+  function prefersReducedMotion() {
+    return window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function nextFrame() {
+    return new Promise(res => requestAnimationFrame(() => res()));
+  }
+  function wait(ms) {
+    return new Promise(res => setTimeout(res, ms));
+  }
+
+  // Resolve once a CSS transition/animation on `el` ends, or after `timeout`
+  // ms as a safety fallback (so a missed transitionend never wedges input).
+  function onceTransitionEnd(el, timeout) {
+    return new Promise(res => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.removeEventListener('transitionend', finish);
+        el.removeEventListener('animationend', finish);
+        res();
+      };
+      el.addEventListener('transitionend', finish);
+      el.addEventListener('animationend', finish);
+      setTimeout(finish, timeout);
+    });
+  }
+
+  // Disable every answer button immediately (input lock at click time, before
+  // the next render()). render()/renderControls() restores correct state.
+  function lockAnswerButtons() {
+    controlsRegion.querySelectorAll('.ans-btn')
+      .forEach(b => { b.disabled = true; });
+  }
+
+  // Fly a face-down card from the deck stack to its stage slot, then 3D flip
+  // it to the face. Leaves the face card sitting in the slot (so it stays
+  // visible through the outcome). Returns when the flip has completed.
+  async function animateDealAndFlip(card, stage) {
+    const slot = stageSlots.querySelector('[data-stage="' + stage + '"]');
+    if (!slot) return;
+    const reduced = prefersReducedMotion();
+
+    const from = deckStack.getBoundingClientRect();
+    const to = slot.getBoundingClientRect();
+
+    const fly = document.createElement('div');
+    fly.className = 'fly-card';
+    fly.style.setProperty('--fly-ms', reduced ? '0ms' : '360ms');
+    fly.style.setProperty('--flip-ms', reduced ? '0ms' : '360ms');
+    fly.style.left = from.left + 'px';
+    fly.style.top = from.top + 'px';
+    fly.style.width = from.width + 'px';
+    fly.style.height = from.height + 'px';
+    fly.innerHTML =
+      '<div class="fly-inner">' +
+      '<div class="fly-back">' + cardBackSVG() + '</div>' +
+      '<div class="fly-face">' + cardSVG(card) + '</div>' +
+      '</div>';
+    document.body.appendChild(fly);
+
+    const cleanup = () => { if (fly.parentNode) fly.parentNode.removeChild(fly); };
+
+    if (reduced) {
+      // Near-instant: drop the card straight into the slot.
+      slot.classList.remove('empty');
+      slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
+      cleanup();
+      return;
+    }
+
+    // 1) slide deck -> slot (size to slot too, slots == deck size here).
+    await nextFrame();
+    fly.style.left = to.left + 'px';
+    fly.style.top = to.top + 'px';
+    fly.style.width = to.width + 'px';
+    fly.style.height = to.height + 'px';
+    await onceTransitionEnd(fly, 600);
+
+    // 2) 3D flip to the face.
+    await nextFrame();
+    fly.classList.add('flipped');
+    await onceTransitionEnd(fly.querySelector('.fly-inner'), 600);
+
+    // 3) Settle: place the face card into the slot, drop the flyer.
+    slot.classList.remove('empty');
+    slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
+    cleanup();
+  }
+
+  // Sweep the active player's currently-revealed slot cards toward the
+  // discard pile, then clear the slots. Used on lose + stage-4 finish,
+  // BEFORE discardRevealed mutates p.revealed.
+  async function animateSweepToDiscard() {
+    const reduced = prefersReducedMotion();
+    const cards = Array.from(stageSlots.querySelectorAll('.slot .card'));
+    if (!cards.length || reduced) return;
+
+    const target = discardSlot.getBoundingClientRect();
+    let last = null;
+    cards.forEach(c => {
+      const r = c.getBoundingClientRect();
+      const dx = (target.left + target.width / 2) - (r.left + r.width / 2);
+      const dy = (target.top + target.height / 2) - (r.top + r.height / 2);
+      c.classList.add('sweeping');
+      // Force a frame so the transition picks up from the start state.
+      void c.offsetWidth;
+      c.style.transform =
+        'translate(' + dx + 'px,' + dy + 'px) rotate(120deg) scale(0.7)';
+      c.style.opacity = '0';
+      last = c;
+    });
+    if (last) await onceTransitionEnd(last, 600);
+  }
+
+  // Brief shuffle animation: pulse the deck and fly the (now face-down) top
+  // discard card back onto the deck. Sequenced before the deal when a
+  // reshuffle happened. ~500ms.
+  async function animateReshuffle() {
+    if (prefersReducedMotion()) return;
+
+    const from = discardSlot.getBoundingClientRect();
+    const to = deckStack.getBoundingClientRect();
+
+    const ghost = document.createElement('div');
+    ghost.className = 'reshuffle-card';
+    ghost.style.left = from.left + 'px';
+    ghost.style.top = from.top + 'px';
+    ghost.style.width = from.width + 'px';
+    ghost.style.height = from.height + 'px';
+    ghost.innerHTML = '<div class="card">' + cardBackSVG() + '</div>';
+    document.body.appendChild(ghost);
+
+    deckStack.classList.add('reshuffling');
+    await nextFrame();
+    ghost.style.left = to.left + 'px';
+    ghost.style.top = to.top + 'px';
+    ghost.style.width = to.width + 'px';
+    ghost.style.height = to.height + 'px';
+    ghost.style.opacity = '0.2';
+
+    await onceTransitionEnd(ghost, 700);
+    if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+    deckStack.classList.remove('reshuffling');
+  }
+
   // Decision-button handler. Resolves the active player's current stage from
-  // a freshly drawn card, applies win/lose, advances stage or passes the
-  // turn, reshuffles when needed, detects game end, then re-renders.
-  function onAnswer(playerIndex, choiceIndex) {
+  // a freshly drawn card. The Task 4 outcome (resolveStage/applyOutcome) is
+  // computed up front and UNCHANGED; only its presentation is deferred so
+  // the just-drawn card visibly deals + flips into its slot (and, on
+  // lose/finish, sweeps to discard) BEFORE the discard/turn-pass + render.
+  async function onAnswer(playerIndex, choiceIndex) {
     if (!state) return;
+    if (animBusy) return;                 // re-entrancy guard
     // Only the active, non-finished player may act.
     if (playerIndex !== state.activePlayer) return;
     const p = state.players[playerIndex];
     if (p.finished) return;
 
-    const stage = p.stage;
-    const card = drawCard();
-    p.revealed.push(card);
+    animBusy = true;
+    lockAnswerButtons();
 
-    const cardName = card.isWeli
-      ? 'Weli'
-      : (RANK_LABEL[card.rank] + ' ' + card.suit);
+    try {
+      const stage = p.stage;
+      const card = drawCard();
+      const reshuffled = state._lastReshuffled;
+      p.revealed.push(card);
 
-    const outcome = resolveStage(stage, choiceIndex, card, p.revealed);
+      const cardName = card.isWeli
+        ? 'Weli'
+        : (RANK_LABEL[card.rank] + ' ' + card.suit);
 
-    // Terminal handling lives behind a single synchronous seam so Task 5 can
-    // animate the revealed card before the discard/turn-pass. If the game
-    // ended, applyOutcome already rendered + showed the end screen.
-    if (applyOutcome(p, playerIndex, outcome, stage, cardName)) return;
+      // Outcome is decided NOW (rules unchanged); presentation deferred.
+      const outcome = resolveStage(stage, choiceIndex, card, p.revealed);
 
-    render();
+      // If the deck was recycled, shuffle-animate before dealing. Refresh the
+      // deck count badge first so it shows the recycled size mid-shuffle.
+      if (reshuffled) {
+        deckCount.textContent = String(state.deck.length);
+        await animateReshuffle();
+      }
+
+      // Deal + flip the drawn card into its stage slot; it stays visible.
+      await animateDealAndFlip(card, stage);
+
+      // Surface the result text before the sweep so the player reads it.
+      const willSweep = (outcome === 'lose') || (outcome === 'win' && stage === 4);
+      if (willSweep) {
+        if (outcome === 'lose') {
+          setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose');
+        } else if (p.revealed.length === 4) {
+          setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win');
+        }
+        await wait(prefersReducedMotion() ? 0 : 650);
+        await animateSweepToDiscard();
+      }
+
+      // Apply the Task 4 seam (unchanged outcome). It performs the
+      // discard/turn-pass/finish bookkeeping; on game end it rendered +
+      // showed the end screen and returns true.
+      if (applyOutcome(p, playerIndex, outcome, stage, cardName)) return;
+
+      render();
+    } finally {
+      animBusy = false;
+    }
   }
 
   // Build + show the end overlay: rank by finish order, last = BUSFAHRER.
