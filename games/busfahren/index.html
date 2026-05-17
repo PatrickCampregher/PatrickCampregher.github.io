@@ -1027,12 +1027,24 @@
 
   // ============ RULES ENGINE ============
 
-  // Pure stage resolver. NO side effects — given the stage (1-based), the
-  // chosen button index (0 = first label, 1 = second per buttonLabels), the
-  // freshly drawn card, and the player's already-revealed cards for this
-  // attempt (revealed[0] = stage-1 card, revealed[1] = stage-2 card, ...),
-  // returns 'win' or 'lose'. Drawing exactly the boundary value is an auto
-  // loss; the Weli (value Infinity, isWeli) always wins.
+  // Pure stage resolver. NO side effects — returns 'win' or 'lose'.
+  //
+  // Contract (read carefully — Task 5 depends on this):
+  //  - stage:       1-based stage number being attempted.
+  //  - choiceIndex: chosen button index (0 = first label, 1 = second label,
+  //                 per buttonLabels for that stage).
+  //  - card:        the just-drawn card for THIS attempt — the resolver
+  //                 evaluates the outcome against THIS card.
+  //  - revealed:    the player's revealed array for this attempt. It is
+  //                 passed AFTER the just-drawn card has been pushed, so it
+  //                 INCLUDES the current card as its LAST element. The
+  //                 resolver therefore reads PRIOR-stage reference cards by
+  //                 fixed index — revealed[0] = stage-1 card, revealed[1] =
+  //                 stage-2 card — and the just-drawn card ONLY via the
+  //                 `card` parameter (never via revealed[revealed.length-1]).
+  //
+  // Drawing exactly the boundary value is an auto loss; the Weli
+  // (value Infinity, isWeli) always wins.
   function resolveStage(stage, choiceIndex, card, revealed) {
     if (stage === 1) {
       // choiceIndex 0 = TIEFER (< 10), 1 = HÖHER (> 10). Exactly 10 = lose.
@@ -1109,6 +1121,46 @@
     statusResult.className = 'status-result' + (kind ? ' ' + kind : '');
   }
 
+  // Outcome-continuation seam. Given the resolved outcome for the active
+  // player's attempt, applies exactly what happens after the resolver
+  // decides: a non-terminal win (<stage 4) bumps the stage; a terminal
+  // win (stage 4 cleared) finishes the player, discards, records finish
+  // order and may end the game; a lose resets to stage 1 and discards.
+  // Returns true when the end screen was shown (caller must stop).
+  //
+  // This is intentionally a single SYNCHRONOUS function so Task 5 can defer
+  // the call (run a deal/flip animation showing the just-drawn card in its
+  // slot) BEFORE the discard/turn-pass happens. Do not add async/timers
+  // here — that is Task 5's job.
+  function applyOutcome(p, playerIndex, outcome, stage, cardName) {
+    if (outcome === 'win') {
+      if (stage < 4) {
+        // Advance to the next stage — SAME player keeps going.
+        p.stage = stage + 1;
+        setResult('RICHTIG! (' + cardName + ') → Stufe ' + p.stage, 'win');
+      } else {
+        // Cleared all four stages — player finishes.
+        p.finished = true;
+        state.finishOrder.push(playerIndex);
+        discardRevealed(p);
+        setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win');
+        if (checkAllFinished()) {
+          render();
+          showEndScreen();
+          return true;
+        }
+        advanceTurn();
+      }
+    } else {
+      // Wrong / boundary / auto-loss — back to Stufe 1, turn passes on.
+      p.stage = 1;
+      discardRevealed(p);
+      setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose');
+      advanceTurn();
+    }
+    return false;
+  }
+
   // Decision-button handler. Resolves the active player's current stage from
   // a freshly drawn card, applies win/lose, advances stage or passes the
   // turn, reshuffles when needed, detects game end, then re-renders.
@@ -1129,33 +1181,10 @@
 
     const outcome = resolveStage(stage, choiceIndex, card, p.revealed);
 
-    if (outcome === 'win') {
-      if (stage < 4) {
-        // Advance to the next stage — SAME player keeps going.
-        p.stage = stage + 1;
-        setResult('RICHTIG! (' + cardName + ') → Stufe ' + p.stage, 'win');
-      } else {
-        // Cleared all four stages — player finishes.
-        p.finished = true;
-        if (!state.finishOrder) state.finishOrder = [];
-        state.finishOrder.push(playerIndex);
-        p.finishRank = state.finishOrder.length;
-        discardRevealed(p);
-        setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win');
-        if (checkAllFinished()) {
-          render();
-          showEndScreen();
-          return;
-        }
-        advanceTurn();
-      }
-    } else {
-      // Wrong / boundary / auto-loss — back to Stufe 1, turn passes on.
-      p.stage = 1;
-      discardRevealed(p);
-      setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose');
-      advanceTurn();
-    }
+    // Terminal handling lives behind a single synchronous seam so Task 5 can
+    // animate the revealed card before the discard/turn-pass. If the game
+    // ended, applyOutcome already rendered + showed the end screen.
+    if (applyOutcome(p, playerIndex, outcome, stage, cardName)) return;
 
     render();
   }
