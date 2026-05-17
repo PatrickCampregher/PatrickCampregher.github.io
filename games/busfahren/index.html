@@ -1208,12 +1208,20 @@
   // the call (run a deal/flip animation showing the just-drawn card in its
   // slot) BEFORE the discard/turn-pass happens. Do not add async/timers
   // here — that is Task 5's job.
+  // Outcome-continuation seam. Turn ALWAYS passes after an action (social
+  // flow — nobody chains stages in one turn). A non-terminal win bumps the
+  // player's own stage and KEEPS their revealed cards (cumulative progress).
+  // A stage-4 win finishes the player (their cards discard). A loss resets
+  // ONLY that player to stage 1 and discards only their cards — other
+  // players' progress is untouched. Returns true when the end screen was
+  // shown (caller must stop). Synchronous so Task-5 animation can defer it.
   function applyOutcome(p, playerIndex, outcome, stage, cardName) {
     if (outcome === 'win') {
       if (stage < 4) {
-        // Advance to the next stage — SAME player keeps going.
+        // Advance this player's own stage; keep their revealed cards.
         p.stage = stage + 1;
         setResult('RICHTIG! (' + cardName + ') → Stufe ' + p.stage, 'win', playerIndex);
+        advanceTurn();
       } else {
         // Cleared all four stages — player finishes.
         p.finished = true;
@@ -1228,7 +1236,8 @@
         advanceTurn();
       }
     } else {
-      // Wrong / boundary / auto-loss — back to Stufe 1, turn passes on.
+      // Wrong / boundary / auto-loss — ONLY this player resets to Stufe 1
+      // and clears their own spots. Turn passes on.
       p.stage = 1;
       discardRevealed(p);
       setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose', playerIndex);
@@ -1422,6 +1431,7 @@
 
     animBusy = true;
     lockAnswerButtons();
+    state.lastResult = null;
 
     try {
       const stage = p.stage;
