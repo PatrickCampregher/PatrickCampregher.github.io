@@ -303,40 +303,18 @@
   }
 
   /* ===== GAME ===== */
-  /* Populated by later tasks (deck/slots/discard + per-player panels). */
   .game {
-    position: relative;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100%;
+    padding: 12px 0;
+    gap: 10px;
+    align-items: stretch;
     overflow: hidden;
   }
 
-  /* Centre of the "poker table": status + deck + discard + stage slots */
-  .table-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: clamp(8px, 2.2vh, 16px);
-    width: min(58vw, 340px);
-    max-width: 78vw;
-    pointer-events: none;
-  }
-
-  .felt {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: clamp(8px, 3vw, 22px);
-  }
-  /* Discard sits a touch smaller so the deck reads as the centrepiece */
-  .felt .pile:not(.pile-deck) .slot { --card-w: clamp(38px, 9.5vw, 62px); }
-
-  /* Controls bar above the play area */
+  /* Controls: upper-right (fullscreen + exit to menu) */
   .controls-bar {
     display: none;
     justify-content: flex-end;
@@ -380,43 +358,30 @@
     text-shadow: none;
   }
 
-  /* Status header: current player + stage + question */
-  .status {
+  /* Top / bottom player rows */
+  .players-top, .players-bottom {
+    display: grid;
+    gap: 8px;
     flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding: 0 12px;
-    text-align: center;
+    padding: 0 10px;
+    align-items: start;
+    justify-items: center;
   }
-  .status-line {
+  .players-bottom { grid-template-columns: 1fr; }
+  .players-top {
+    grid-template-columns: repeat(3, 1fr);
+    transform: rotate(180deg);
+  }
+  .players-top:empty, .players-bottom:empty { display: none; }
+
+  /* Center felt: deck + discard only, fills remaining space */
+  .felt {
+    flex: 1 1 0;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .status-name {
-    font-family: 'Press Start 2P', monospace;
-    font-size: clamp(10px, 3vw, 16px);
-    color: var(--neon-cyan);
-    text-shadow: 0 0 6px var(--neon-cyan);
-    letter-spacing: 1px;
-  }
-  .status-stage {
-    font-family: 'Press Start 2P', monospace;
-    font-size: clamp(8px, 2.4vw, 12px);
-    color: var(--neon-yellow);
-    text-shadow: 0 0 6px var(--neon-yellow);
-    letter-spacing: 1px;
-  }
-  .status-question {
-    font-family: 'VT323', monospace;
-    font-size: clamp(15px, 4.4vw, 22px);
-    color: var(--neon-pink);
-    text-shadow: 0 0 6px var(--neon-pink);
-    letter-spacing: 1px;
+    gap: clamp(12px, 6vw, 36px);
   }
 
   .pile {
@@ -434,9 +399,9 @@
     text-transform: uppercase;
   }
 
-  /* Card-sized box used by deck/slots/discard */
+  /* Card-sized box used by deck/discard and (smaller) by panel spots */
   .slot {
-    --card-w: clamp(48px, 13vw, 84px);
+    --card-w: clamp(54px, 16vw, 92px);
     width: var(--card-w);
     height: calc(var(--card-w) * 1.4);
     border-radius: 9px;
@@ -459,17 +424,12 @@
     left: 50%;
     transform: translate(-50%, -50%);
     font-family: 'Press Start 2P', monospace;
-    font-size: clamp(10px, 3vw, 16px);
+    font-size: clamp(9px, 2.6vw, 14px);
     color: rgba(0, 240, 255, 0.3);
     pointer-events: none;
   }
-
-  .stage-slots {
-    display: flex;
-    align-items: center;
-    gap: clamp(4px, 1.6vw, 12px);
-    flex: none;
-  }
+  /* Discard reads a touch smaller so the deck is the centrepiece */
+  .felt .pile:not(.pile-deck) .slot { --card-w: clamp(44px, 12vw, 74px); }
 
   /* Face-down deck stack with offset shadow cards + count badge */
   .deck-stack { position: relative; }
@@ -501,37 +461,32 @@
     text-shadow: 0 0 4px var(--neon-yellow);
     z-index: 3;
   }
-  /* Per-player control panels — absolutely ringed around the table */
-  .controls-region {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    pointer-events: none;
-  }
+
+  /* Per-player controller */
   .panel {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: clamp(118px, 30vw, 168px);
-    pointer-events: auto;
+    width: 100%;
+    max-width: 230px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
-    padding: 7px 6px;
+    gap: 6px;
+    padding: 8px;
     border: 2px solid var(--pc, var(--neon-cyan));
-    border-radius: 8px;
-    background: var(--bg);
+    border-radius: 10px;
     background: color-mix(in srgb, var(--bg) 86%, transparent);
-    box-shadow: 0 0 8px rgba(0, 240, 255, 0.30);
     box-shadow: 0 0 8px color-mix(in srgb, var(--pc, var(--neon-cyan)) 30%, transparent);
+    transition: background 0.32s ease, box-shadow 0.32s ease,
+                border-color 0.32s ease;
   }
   .panel.active {
-    background: rgba(0, 240, 255, 0.12);
     background: color-mix(in srgb, var(--pc, var(--neon-cyan)) 12%, transparent);
-    box-shadow: 0 0 16px rgba(0, 240, 255, 0.55);
     box-shadow: 0 0 16px color-mix(in srgb, var(--pc, var(--neon-cyan)) 55%, transparent);
+    animation: turnPulse 0.5s ease-out;
+  }
+  @keyframes turnPulse {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.03); }
+    100% { transform: scale(1); }
   }
   .panel-head {
     display: flex;
@@ -552,22 +507,56 @@
   }
   .panel-name {
     font-family: 'VT323', monospace;
-    font-size: 17px;
+    font-size: 18px;
     letter-spacing: 1px;
     color: var(--pc, var(--neon-cyan));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .panel-status {
+  .panel-stage {
     font-family: 'Press Start 2P', monospace;
     font-size: 8px;
     letter-spacing: 1px;
     color: rgba(0, 240, 255, 0.65);
   }
-  .panel-status.done {
+  .panel-stage.done {
     color: var(--neon-green);
     text-shadow: 0 0 6px var(--neon-green);
+  }
+  .panel-prompt {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
+    text-align: center;
+    min-height: 1.1em;
+  }
+  .panel-result {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-align: center;
+    min-height: 1em;
+  }
+  .panel-result.win {
+    color: var(--neon-green);
+    text-shadow: 0 0 6px var(--neon-green);
+  }
+  .panel-result.lose {
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
+  }
+  .panel-slots {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+  }
+  .panel-slots .slot { --card-w: clamp(34px, 12vw, 50px); }
+  .panel-slots .slot.empty {
+    border: 2px dashed color-mix(in srgb, var(--pc, var(--neon-cyan)) 35%, transparent);
+    background: transparent;
   }
   .panel-btns {
     display: flex;
@@ -581,9 +570,9 @@
     border: 2px solid var(--pc, var(--neon-cyan));
     color: var(--pc, var(--neon-cyan));
     font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
+    font-size: 9px;
     letter-spacing: 1px;
-    padding: 8px 2px;
+    padding: 9px 2px;
     cursor: pointer;
     text-shadow: 0 0 4px var(--pc, var(--neon-cyan));
     transition: all 0.12s;
@@ -599,23 +588,6 @@
     cursor: not-allowed;
     text-shadow: none;
     box-shadow: none;
-  }
-
-  /* Brief result feedback in the status header */
-  .status-result {
-    font-family: 'Press Start 2P', monospace;
-    font-size: clamp(8px, 2.4vw, 12px);
-    letter-spacing: 1px;
-    min-height: 1em;
-    margin-top: 2px;
-  }
-  .status-result.win {
-    color: var(--neon-green);
-    text-shadow: 0 0 6px var(--neon-green);
-  }
-  .status-result.lose {
-    color: var(--neon-pink);
-    text-shadow: 0 0 6px var(--neon-pink);
   }
 
   /* ===== END SCREEN OVERLAY ===== */
@@ -749,21 +721,6 @@
   }
 
   /* ===== ANIMATIONS (Task 5) ===== */
-  /* Smooth turn-change handoff on the active panel highlight. */
-  .panel {
-    transition: background 0.32s ease, box-shadow 0.32s ease,
-                border-color 0.32s ease;
-  }
-  .panel.active {
-    animation: turnPulse 0.5s ease-out;
-  }
-  /* Keep the ring-centering translate so the pulse doesn't shift the panel. */
-  @keyframes turnPulse {
-    0%   { transform: translate(-50%, -50%) scale(1); }
-    45%  { transform: translate(-50%, -50%) scale(1.04); }
-    100% { transform: translate(-50%, -50%) scale(1); }
-  }
-
   /* Transient flying card: position computed from real bounding rects.
      `inset:auto` so it's driven purely by left/top/width/height. */
   .fly-card {
@@ -905,43 +862,28 @@
       <button class="ctrl-btn menu" id="restartBtn" aria-label="Main menu" title="Hauptmenü">☰</button>
     </div>
 
-    <!-- Center "table": deck dead-centre, discard + stage slots fanned around -->
-    <div class="table-center" id="tableCenter">
-      <div class="status" id="status">
-        <div class="status-line">
-          <span class="status-name" id="statusName">Spieler 1</span>
-          <span class="status-stage" id="statusStage">Stufe (1/4)</span>
-        </div>
-        <div class="status-question" id="statusQuestion">Höher oder tiefer als 10?</div>
-        <div class="status-result" id="statusResult"></div>
-      </div>
+    <!-- Top row: players 2-4 (rotated 180°) -->
+    <div class="players-top" id="playersTop"></div>
 
-      <div class="felt">
-        <div class="pile">
-          <div class="pile-label">Ablage</div>
-          <div class="slot empty" id="discardSlot"></div>
-        </div>
-        <div class="pile pile-deck">
-          <div class="pile-label">Stapel</div>
-          <div class="slot deck-stack" id="deckStack">
-            <div class="deck-shadow s2"></div>
-            <div class="deck-shadow s1"></div>
-            <div class="card" id="deckCard"></div>
-            <div class="deck-count" id="deckCount">0</div>
-          </div>
-        </div>
+    <!-- Center: deck (Stapel) + discard (Ablage) only -->
+    <div class="felt" id="felt">
+      <div class="pile">
+        <div class="pile-label">Ablage</div>
+        <div class="slot empty" id="discardSlot"></div>
       </div>
-
-      <div class="stage-slots" id="stageSlots">
-        <div class="slot empty" data-stage="1"><span class="slot-num">1</span></div>
-        <div class="slot empty" data-stage="2"><span class="slot-num">2</span></div>
-        <div class="slot empty" data-stage="3"><span class="slot-num">3</span></div>
-        <div class="slot empty" data-stage="4"><span class="slot-num">4</span></div>
+      <div class="pile pile-deck">
+        <div class="pile-label">Stapel</div>
+        <div class="slot deck-stack" id="deckStack">
+          <div class="deck-shadow s2"></div>
+          <div class="deck-shadow s1"></div>
+          <div class="card" id="deckCard"></div>
+          <div class="deck-count" id="deckCount">0</div>
+        </div>
       </div>
     </div>
 
-    <!-- Player control panels — ringed evenly around the table -->
-    <div class="controls-region" id="controlsRegion"></div>
+    <!-- Bottom row: player 1 -->
+    <div class="players-bottom" id="playersBottom"></div>
   </div>
 
   <!-- END SCREEN OVERLAY (shown when all players finished) -->
@@ -1014,32 +956,21 @@
   }
 
   // ============ DOM (game view) ============
-  const statusName = document.getElementById('statusName');
-  const statusStage = document.getElementById('statusStage');
-  const statusQuestion = document.getElementById('statusQuestion');
-  const statusResult = document.getElementById('statusResult');
   const endOverlay = document.getElementById('endOverlay');
   const endRanks = document.getElementById('endRanks');
   const endAgainBtn = document.getElementById('endAgainBtn');
-  const stageSlots = document.getElementById('stageSlots');
   const deckCard = document.getElementById('deckCard');
   const deckStack = document.getElementById('deckStack');
   const deckCount = document.getElementById('deckCount');
   const discardSlot = document.getElementById('discardSlot');
-  const controlsRegion = document.getElementById('controlsRegion');
+  const playersTop = document.getElementById('playersTop');
+  const playersBottom = document.getElementById('playersBottom');
   const restartBtn = document.getElementById('restartBtn');
 
   // ============ RENDER ============
-  // (Re)draws header + stage slots + deck + discard + per-player panels from
-  // `state`. Safe to call repeatedly — Task 4 calls this after each move.
+  // (Re)draws deck + discard + per-player panels from `state`.
   function render() {
     if (!state) return;
-    const active = state.players[state.activePlayer];
-
-    // Status header (active player + their stage + matching question).
-    statusName.textContent = active.name;
-    statusStage.textContent = 'Stufe (' + active.stage + '/4)';
-    statusQuestion.textContent = stageQuestion(active.stage);
 
     // Deck stack: face-down back + remaining count (or empty hint).
     if (state.deck.length > 0) {
@@ -1055,22 +986,6 @@
       deckCard.innerHTML = '';
     }
 
-    // Four stage slots: show active player's revealed cards, else placeholder.
-    // Select by data-stage (not child order) so Task 5 can insert transient
-    // in-flight card elements into stageSlots without misaligning the render.
-    for (let stage = 1; stage <= 4; stage++) {
-      const slot = stageSlots.querySelector('[data-stage="' + stage + '"]');
-      if (!slot) continue;
-      const card = active.revealed[stage - 1];
-      if (card) {
-        slot.classList.remove('empty');
-        slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
-      } else {
-        slot.classList.add('empty');
-        slot.innerHTML = '<span class="slot-num">' + stage + '</span>';
-      }
-    }
-
     // Discard: top card face-up, else empty.
     const top = state.discard[state.discard.length - 1];
     if (top) {
@@ -1084,15 +999,19 @@
     renderControls();
   }
 
-  // Per-player panels: name + status + the two stage-appropriate buttons.
-  // Only the active, unfinished player's buttons are enabled.
+  // Per-player panels: name + stage + (active only) prompt/result + the
+  // player's own 4 card spots + the two stage-appropriate buttons.
+  // P1 -> bottom row; P2..P4 -> top row (rotated by CSS).
   function renderControls() {
-    controlsRegion.innerHTML = '';
+    playersTop.innerHTML = '';
+    playersBottom.innerHTML = '';
+
     state.players.forEach((p, idx) => {
       const isActive = idx === state.activePlayer && !p.finished;
 
       const panel = document.createElement('div');
       panel.className = 'panel' + (isActive ? ' active' : '');
+      panel.dataset.player = String(idx);
       panel.style.setProperty('--pc', PLAYER_COLORS[idx]);
 
       const head = document.createElement('div');
@@ -1105,15 +1024,46 @@
       head.appendChild(dot);
       head.appendChild(nm);
 
-      const st = document.createElement('div');
-      st.className = 'panel-status' + (p.finished ? ' done' : '');
-      st.textContent = p.finished ? 'FERTIG' : (p.stage + '/4');
+      const stg = document.createElement('div');
+      stg.className = 'panel-stage' + (p.finished ? ' done' : '');
+      stg.textContent = p.finished ? 'FERTIG' : ('Stufe ' + p.stage + '/4');
+
+      // Active-only stage prompt.
+      const prompt = document.createElement('div');
+      prompt.className = 'panel-prompt';
+      prompt.textContent = isActive ? stageQuestion(p.stage) : '';
+
+      // Result text lives on whichever player last acted (state.lastResult).
+      const res = document.createElement('div');
+      const lr = state.lastResult;
+      if (lr && lr.idx === idx) {
+        res.className = 'panel-result ' + (lr.kind || '');
+        res.textContent = lr.text;
+      } else {
+        res.className = 'panel-result';
+        res.textContent = '';
+      }
+
+      // The player's own four card spots (cumulative progress).
+      const slots = document.createElement('div');
+      slots.className = 'panel-slots';
+      for (let s = 1; s <= 4; s++) {
+        const slot = document.createElement('div');
+        slot.dataset.spot = String(s);
+        const card = p.revealed[s - 1];
+        if (card) {
+          slot.className = 'slot';
+          slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
+        } else {
+          slot.className = 'slot empty';
+          slot.innerHTML = '<span class="slot-num">' + s + '</span>';
+        }
+        slots.appendChild(slot);
+      }
 
       const btns = document.createElement('div');
       btns.className = 'panel-btns';
       if (p.finished) {
-        // Finished players: inert placeholders only — no stage labels (stage
-        // may be reset) and no click listener (status stays FERTIG).
         for (let k = 0; k < 2; k++) {
           const b = document.createElement('button');
           b.className = 'ans-btn';
@@ -1133,34 +1083,14 @@
       }
 
       panel.appendChild(head);
-      panel.appendChild(st);
+      panel.appendChild(stg);
+      panel.appendChild(prompt);
+      panel.appendChild(res);
+      panel.appendChild(slots);
       panel.appendChild(btns);
-      controlsRegion.appendChild(panel);
-    });
-    ringPanels();
-  }
 
-  // Seat the panels evenly around an ellipse, starting from the top.
-  // Radii are derived from the live container + panel size so panels stay
-  // fully on-screen at any viewport (circular at every size).
-  function ringPanels() {
-    const panels = controlsRegion.children;
-    const n = panels.length;
-    if (!n) return;
-    const W = controlsRegion.clientWidth;
-    const H = controlsRegion.clientHeight;
-    const pw = panels[0].offsetWidth;
-    const ph = panels[0].offsetHeight;
-    const M = 6; // edge margin
-    const rx = Math.max(0, W / 2 - pw / 2 - M);
-    const ry = Math.max(0, H / 2 - ph / 2 - M);
-    for (let i = 0; i < n; i++) {
-      const a = -Math.PI / 2 + i * (2 * Math.PI / n);
-      const x = W / 2 + rx * Math.cos(a);
-      const y = H / 2 + ry * Math.sin(a);
-      panels[i].style.left = Math.round(x) + 'px';
-      panels[i].style.top = Math.round(y) + 'px';
-    }
+      (idx === 0 ? playersBottom : playersTop).appendChild(panel);
+    });
   }
 
   // ============ RULES ENGINE ============
@@ -1257,10 +1187,14 @@
     return state.players.every(p => p.finished);
   }
 
-  // Brief textual feedback for the just-resolved attempt.
-  function setResult(text, kind) {
-    statusResult.textContent = text;
-    statusResult.className = 'status-result' + (kind ? ' ' + kind : '');
+  // Result feedback is stored on state, keyed to the player who acted, and
+  // painted by renderControls into that player's panel. `idx` omitted/null
+  // clears it (start/menu).
+  function setResult(text, kind, idx) {
+    if (!state) return;
+    state.lastResult = text
+      ? { idx: (idx == null ? -1 : idx), text: text, kind: kind || '' }
+      : null;
   }
 
   // Outcome-continuation seam. Given the resolved outcome for the active
@@ -1279,13 +1213,13 @@
       if (stage < 4) {
         // Advance to the next stage — SAME player keeps going.
         p.stage = stage + 1;
-        setResult('RICHTIG! (' + cardName + ') → Stufe ' + p.stage, 'win');
+        setResult('RICHTIG! (' + cardName + ') → Stufe ' + p.stage, 'win', playerIndex);
       } else {
         // Cleared all four stages — player finishes.
         p.finished = true;
         state.finishOrder.push(playerIndex);
         discardRevealed(p);
-        setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win');
+        setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win', playerIndex);
         if (checkAllFinished()) {
           render();
           showEndScreen();
@@ -1297,7 +1231,7 @@
       // Wrong / boundary / auto-loss — back to Stufe 1, turn passes on.
       p.stage = 1;
       discardRevealed(p);
-      setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose');
+      setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose', playerIndex);
       advanceTurn();
     }
     return false;
@@ -1350,7 +1284,7 @@
   // Disable every answer button immediately (input lock at click time, before
   // the next render()). render()/renderControls() restores correct state.
   function lockAnswerButtons() {
-    controlsRegion.querySelectorAll('.ans-btn')
+    document.querySelectorAll('.ans-btn')
       .forEach(b => { b.disabled = true; });
   }
 
@@ -1358,8 +1292,8 @@
   // it to the face. Leaves the face card sitting in the slot (so it stays
   // visible through the outcome). Returns when the flip has completed.
   async function animateDealAndFlip(card, stage) {
-    const slot = stageSlots.querySelector('[data-stage="' + stage + '"]');
-    if (!slot) return;
+    // stageSlots removed in Task 1 layout; animations will be rewired in Task 3.
+    return;
     const reduced = prefersReducedMotion();
 
     const from = deckStack.getBoundingClientRect();
@@ -1417,9 +1351,8 @@
   // discard pile, then clear the slots. Used on lose + stage-4 finish,
   // BEFORE discardRevealed mutates p.revealed.
   async function animateSweepToDiscard() {
-    const reduced = prefersReducedMotion();
-    const cards = Array.from(stageSlots.querySelectorAll('.slot .card'));
-    if (!cards.length || reduced) return;
+    // stageSlots removed in Task 1 layout; animations will be rewired in Task 3.
+    return;
 
     const target = discardSlot.getBoundingClientRect();
     let last = null;
@@ -1524,9 +1457,9 @@
       const willSweep = (outcome === 'lose') || (outcome === 'win' && stage === 4);
       if (willSweep) {
         if (outcome === 'lose') {
-          setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose');
+          setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose', playerIndex);
         } else if (p.revealed.length === 4) {
-          setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win');
+          setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win', playerIndex);
         }
         await wait(prefersReducedMotion() ? 0 : 650);
         await animateSweepToDiscard();
@@ -1597,7 +1530,8 @@
       deck: shuffle(buildDeck()),
       discard: [],
       activePlayer: 0,
-      finishOrder: []
+      finishOrder: [],
+      lastResult: null
     };
 
     endOverlay.style.display = 'none';
@@ -1699,11 +1633,6 @@
   setAppHeight();
   window.addEventListener('resize', setAppHeight);
   window.addEventListener('orientationchange', setAppHeight);
-
-  // Keep the player ring fitted when the viewport changes.
-  function reRing() { if (state && controlsRegion.children.length) ringPanels(); }
-  window.addEventListener('resize', reRing);
-  window.addEventListener('orientationchange', reRing);
 
   fsBtn.addEventListener('click', toggleFullscreen);
   menuFsBtn.addEventListener('click', toggleFullscreen);
