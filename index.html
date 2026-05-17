@@ -156,9 +156,35 @@
     color: var(--neon-purple);
     opacity: 0.8;
   }
+
+  .fs-btn {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 60;
+    background: transparent;
+    border: 1.5px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-size: 12px;
+    line-height: 1;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    text-shadow: 0 0 4px var(--neon-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .fs-btn:hover, .fs-btn:active {
+    background: var(--neon-cyan);
+    color: var(--bg);
+    text-shadow: none;
+  }
 </style>
 </head>
 <body>
+  <button class="fs-btn" id="fsBtn" aria-label="Fullscreen" title="Fullscreen">⛶</button>
   <div class="wrap">
     <header>
       <h1>MINIGAMES</h1>
@@ -212,9 +238,120 @@
           <div class="card-tag">Vintage Italian board &mdash; drinking edition, 2-6 players</div>
         </div>
       </a>
+
+      <a class="card" href="games/busfahren/index.html">
+        <div class="thumb">
+          <svg viewBox="0 0 400 300" role="img" aria-label="Busfahren &mdash; fanned German-suited Watt cards">
+            <defs>
+              <radialGradient id="bus-bg" cx="50%" cy="42%" r="80%">
+                <stop offset="0%" stop-color="#1d0b3d"/>
+                <stop offset="60%" stop-color="#14082e"/>
+                <stop offset="100%" stop-color="#0a0420"/>
+              </radialGradient>
+            </defs>
+            <rect width="400" height="300" fill="url(#bus-bg)"/>
+            <rect x="10" y="10" width="380" height="280" rx="10" fill="none" stroke="#b537f2" stroke-width="2"/>
+            <rect x="18" y="18" width="364" height="264" rx="7" fill="none" stroke="rgba(0,240,255,0.35)" stroke-width="1.5"/>
+            <g transform="translate(200,165)">
+              <g transform="rotate(-26)">
+                <rect x="-52" y="-78" width="104" height="156" rx="11" fill="#14082e" stroke="#00f0ff" stroke-width="2.5"/>
+                <g fill="#39ff14" stroke="#39ff14" stroke-width="1">
+                  <path d="M0 -52 C 16 -70 40 -54 0 -22 C -40 -54 -16 -70 0 -52 Z"/>
+                  <path d="M0 52 C 16 34 40 50 0 82" fill="none" stroke-width="0" opacity="0"/>
+                  <path d="M0 56 C -16 38 -40 54 0 26 C 40 54 16 38 0 56 Z"/>
+                </g>
+                <text x="-38" y="-50" font-family="Cinzel, Georgia, serif" font-size="22" font-weight="700" fill="#39ff14">A</text>
+              </g>
+              <g transform="rotate(0)">
+                <rect x="-52" y="-86" width="104" height="156" rx="11" fill="#1d0b3d" stroke="#ffd23f" stroke-width="2.5"/>
+                <g transform="translate(0,-8)" fill="#ffd23f">
+                  <circle cx="0" cy="-22" r="14"/>
+                  <path d="M-14 -22 Q 0 30 0 30 Q 0 30 14 -22 Q 0 -6 -14 -22 Z"/>
+                  <rect x="-13" y="22" width="26" height="7" rx="3"/>
+                </g>
+                <text x="-39" y="-58" font-family="Cinzel, Georgia, serif" font-size="22" font-weight="700" fill="#ffd23f">K</text>
+              </g>
+              <g transform="rotate(26)">
+                <rect x="-52" y="-78" width="104" height="156" rx="11" fill="#14082e" stroke="#ff2bd6" stroke-width="2.5"/>
+                <g transform="translate(0,-6)" fill="#ff2bd6">
+                  <circle cx="-11" cy="-26" r="9"/>
+                  <circle cx="11" cy="-26" r="9"/>
+                  <circle cx="0" cy="-9" r="9"/>
+                  <rect x="-3" y="-2" width="6" height="34" rx="3"/>
+                  <path d="M-16 32 L 16 32 L 9 22 L -9 22 Z"/>
+                </g>
+                <text x="-38" y="-50" font-family="Cinzel, Georgia, serif" font-size="22" font-weight="700" fill="#ff2bd6">O</text>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="card-title">BUSFAHREN</div>
+          <div class="card-tag">S&uuml;dtiroler Kartenspiel &mdash; 1-4 Spieler</div>
+        </div>
+      </a>
     </main>
 
     <footer>GAMES ONLINE &mdash; MORE COMING SOON</footer>
   </div>
+
+  <script>
+    (function () {
+      var fsBtn = document.getElementById('fsBtn');
+      var docEl = document.documentElement;
+      var supported = docEl.requestFullscreen || docEl.webkitRequestFullscreen ||
+                      docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+      if (!supported) { fsBtn.style.display = 'none'; return; }
+
+      function isFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+                  document.mozFullScreenElement || document.msFullscreenElement);
+      }
+      var WANT_KEY = 'mg_fs_want';
+      function wantFs() { try { return sessionStorage.getItem(WANT_KEY) === '1'; } catch (e) { return false; } }
+      function setWantFs(on) {
+        try { on ? sessionStorage.setItem(WANT_KEY, '1') : sessionStorage.removeItem(WANT_KEY); } catch (e) {}
+      }
+      function enterFs() {
+        var req = docEl.requestFullscreen || docEl.webkitRequestFullscreen ||
+                  docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+        if (req) req.call(docEl).catch(function () {});
+      }
+      function toggleFullscreen() {
+        if (!isFullscreen()) {
+          setWantFs(true);
+          enterFs();
+        } else {
+          // Explicit user exit — stop auto-restoring on later pages.
+          setWantFs(false);
+          var exit = document.exitFullscreen || document.webkitExitFullscreen ||
+                     document.mozCancelFullScreen || document.msExitFullscreen;
+          if (exit) exit.call(document).catch(function () {});
+        }
+      }
+      function updateIcon() {
+        fsBtn.textContent = isFullscreen() ? '❐' : '⛶';
+      }
+      fsBtn.addEventListener('click', toggleFullscreen);
+      ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+        .forEach(function (ev) { document.addEventListener(ev, updateIcon); });
+      updateIcon();
+
+      // Navigation force-exits fullscreen and a fresh gesture is required to
+      // re-enter. If the user wanted fullscreen, restore it on their first
+      // interaction with this page (the tap/click they'd make anyway).
+      if (wantFs() && !isFullscreen()) {
+        var restore = function () {
+          if (wantFs() && !isFullscreen()) enterFs();
+          ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(function (ev) {
+            document.removeEventListener(ev, restore, true);
+          });
+        };
+        ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(function (ev) {
+          document.addEventListener(ev, restore, true);
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
