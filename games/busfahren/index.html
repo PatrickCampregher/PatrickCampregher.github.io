@@ -1356,12 +1356,18 @@
       '.panel[data-player="' + playerIndex + '"] .panel-slots .slot .card'));
     if (!cards.length || reduced) return;
 
+    // Top-row players (every index except 0) live inside a rotate(180deg)
+    // container, so their local CSS axes are flipped. Negate the screen-space
+    // deltas so translate() still moves the cards toward the discard pile.
+    const inTopRow = playerIndex !== 0;
+
     const target = discardSlot.getBoundingClientRect();
     let last = null;
     cards.forEach(c => {
       const r = c.getBoundingClientRect();
-      const dx = (target.left + target.width / 2) - (r.left + r.width / 2);
-      const dy = (target.top + target.height / 2) - (r.top + r.height / 2);
+      let dx = (target.left + target.width / 2) - (r.left + r.width / 2);
+      let dy = (target.top + target.height / 2) - (r.top + r.height / 2);
+      if (inTopRow) { dx = -dx; dy = -dy; }
       c.classList.add('sweeping');
       // Force a frame so the transition picks up from the start state.
       void c.offsetWidth;
