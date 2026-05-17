@@ -1470,7 +1470,14 @@
       // If the deck was recycled, shuffle-animate before dealing. Refresh the
       // deck count badge first so it shows the recycled size mid-shuffle.
       if (reshuffled) {
+        // Restore the deck stack to its non-empty face-down look (same refs
+        // and classes render() uses) so the reshuffle ghost flies onto a
+        // visible stack instead of an empty slot.
+        deckCard.style.display = '';
+        deckCard.innerHTML = cardBackSVG();
+        deckCount.style.display = '';
         deckCount.textContent = String(state.deck.length);
+        deckStack.classList.remove('empty');
         await animateReshuffle();
       }
 
@@ -1539,6 +1546,9 @@
 
   // ============ START / RESET ============
   function startGame() {
+    // Belt-and-suspenders: a fresh game must never inherit a stuck lock
+    // (e.g. if the player hit the menu button mid-animation last round).
+    animBusy = false;
     const names = [];
     for (let i = 0; i < selectedPlayers; i++) {
       const input = document.getElementById('name' + i);
@@ -1562,6 +1572,9 @@
   }
 
   function backToMenu() {
+    // Leaving mid-animation must not leave the answer-lock latched, or the
+    // next game would be permanently unresponsive (onAnswer's animBusy guard).
+    animBusy = false;
     state = null;
     endOverlay.style.display = 'none';
     setResult('', null);
@@ -1690,6 +1703,24 @@
     '7': '7', '8': '8', '9': '9', '10': '10',
     unter: 'U', ober: 'O', koenig: 'K', ass: 'A'
   };
+
+  // Full German display words — used only for accessible SVG aria-labels.
+  const RANK_NAME = {
+    '7': '7', '8': '8', '9': '9', '10': '10',
+    unter: 'Unter', ober: 'Ober', koenig: 'König', ass: 'Ass'
+  };
+  const SUIT_NAME = {
+    schell: 'Schell', eichel: 'Eichel', herz: 'Herz', laub: 'Laub'
+  };
+
+  // Escape a string for safe use inside a double-quoted SVG attribute.
+  function attrEscape(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
   function buildDeck() {
     const deck = [];
@@ -1903,7 +1934,7 @@
         'fill="#ff2bd6">WELI</text>';
 
       const idx = cornerIndex('W', null, '#b537f2', true);
-      return wrapCard(body + idx, true);
+      return wrapCard(body + idx, true, 'Weli');
     }
 
     const isRed = colorOf(card) === 'rot';
@@ -1936,7 +1967,8 @@
     }
 
     const idx = cornerIndex(RANK_LABEL[rank], card.suit, ink, false);
-    return wrapCard(body + idx, false);
+    return wrapCard(body + idx, false,
+      RANK_NAME[rank] + ' ' + SUIT_NAME[card.suit]);
   }
 
   // Corner index block: rank label + mini emblem, top-left and bottom-right (rotated).
@@ -1961,12 +1993,12 @@
   }
 
   // Wrap card body in the cream card face with border + rounded corners.
-  function wrapCard(inner, isWeli) {
+  function wrapCard(inner, isWeli, label) {
     const faceFill = '#f7f1e3';
     const border = isWeli ? '#b537f2' : '#2a1f47';
     return (
       '<svg viewBox="0 0 ' + CARD_W + ' ' + CARD_H + '" xmlns="http://www.w3.org/2000/svg" ' +
-      'role="img">' +
+      'role="img" aria-label="' + attrEscape(label) + '">' +
       '<rect x="3" y="3" width="' + (CARD_W - 6) + '" height="' + (CARD_H - 6) +
       '" rx="16" fill="' + faceFill + '" stroke="' + border + '" stroke-width="3"/>' +
       '<rect x="10" y="10" width="' + (CARD_W - 20) + '" height="' + (CARD_H - 20) +
@@ -1996,7 +2028,8 @@
       grid += '<line x1="14" y1="' + y + '" x2="' + (W - 14) + '" y2="' + y + '"/>';
     }
     return (
-      '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img">' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" ' +
+      'role="img" aria-label="Verdeckte Karte">' +
       '<defs>' +
       '<linearGradient id="' + gradId + '" x1="0" y1="0" x2="1" y2="1">' +
       '<stop offset="0" stop-color="#1a0a3a"/>' +
