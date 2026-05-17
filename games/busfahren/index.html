@@ -1197,17 +1197,6 @@
       : null;
   }
 
-  // Outcome-continuation seam. Given the resolved outcome for the active
-  // player's attempt, applies exactly what happens after the resolver
-  // decides: a non-terminal win (<stage 4) bumps the stage; a terminal
-  // win (stage 4 cleared) finishes the player, discards, records finish
-  // order and may end the game; a lose resets to stage 1 and discards.
-  // Returns true when the end screen was shown (caller must stop).
-  //
-  // This is intentionally a single SYNCHRONOUS function so Task 5 can defer
-  // the call (run a deal/flip animation showing the just-drawn card in its
-  // slot) BEFORE the discard/turn-pass happens. Do not add async/timers
-  // here — that is Task 5's job.
   // Outcome-continuation seam. Turn ALWAYS passes after an action (social
   // flow — nobody chains stages in one turn). A non-terminal win bumps the
   // player's own stage and KEEPS their revealed cards (cumulative progress).
