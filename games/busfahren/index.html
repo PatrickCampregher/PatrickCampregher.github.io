@@ -590,6 +590,134 @@
     box-shadow: none;
   }
 
+  /* Brief result feedback in the status header */
+  .status-result {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(8px, 2.4vw, 12px);
+    letter-spacing: 1px;
+    min-height: 1em;
+    margin-top: 2px;
+  }
+  .status-result.win {
+    color: var(--neon-green);
+    text-shadow: 0 0 6px var(--neon-green);
+  }
+  .status-result.lose {
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
+  }
+
+  /* ===== END SCREEN OVERLAY ===== */
+  .end-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(10, 4, 32, 0.92);
+    backdrop-filter: blur(2px);
+  }
+  .end-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 360px;
+    max-height: 100%;
+    overflow: auto;
+    padding: 22px 18px;
+    border: 3px solid var(--neon-pink);
+    border-radius: 12px;
+    background: rgba(20, 8, 46, 0.95);
+    box-shadow: 0 0 24px rgba(255, 43, 214, 0.55);
+  }
+  .end-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(14px, 4.6vw, 22px);
+    color: var(--neon-pink);
+    text-shadow: 0 0 10px var(--neon-pink), 2px 2px 0 var(--neon-cyan);
+    letter-spacing: 2px;
+    text-align: center;
+  }
+  .end-ranks {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  .end-rank {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 2px solid var(--neon-cyan);
+    border-radius: 8px;
+    background: rgba(0, 240, 255, 0.05);
+  }
+  .end-rank.busfahrer {
+    border-color: var(--neon-yellow);
+    background: rgba(255, 210, 63, 0.08);
+    box-shadow: 0 0 12px rgba(255, 210, 63, 0.4);
+  }
+  .end-pos {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 4px var(--neon-yellow);
+    flex: none;
+    min-width: 22px;
+  }
+  .end-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 6px currentColor;
+    flex: none;
+  }
+  .end-name {
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    letter-spacing: 1px;
+    color: var(--neon-cyan);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .end-tag {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    letter-spacing: 1px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 6px var(--neon-yellow);
+    flex: none;
+  }
+  .end-again {
+    background: transparent;
+    border: 3px solid var(--neon-green);
+    color: var(--neon-green);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 13px;
+    padding: 12px 24px;
+    cursor: pointer;
+    text-shadow: 0 0 6px var(--neon-green);
+    box-shadow: 0 0 14px rgba(57, 255, 20, 0.5);
+    letter-spacing: 2px;
+  }
+  .end-again:hover, .end-again:active {
+    background: var(--neon-green);
+    color: var(--bg);
+    text-shadow: none;
+  }
+
   /* ===== CARDS ===== */
   /* Sizing/visuals only. Positioning is added by later tasks. */
   .card {
@@ -670,6 +798,7 @@
         <span class="status-stage" id="statusStage">Stufe (1/4)</span>
       </div>
       <div class="status-question" id="statusQuestion">Höher oder tiefer als 10?</div>
+      <div class="status-result" id="statusResult"></div>
     </div>
 
     <!-- Center play row: deck · 4 stage slots · discard -->
@@ -699,6 +828,15 @@
 
     <!-- One control panel per active player -->
     <div class="controls-region" id="controlsRegion"></div>
+  </div>
+
+  <!-- END SCREEN OVERLAY (shown when all players finished) -->
+  <div class="end-overlay" id="endOverlay" style="display:none;">
+    <div class="end-card">
+      <div class="end-title">SPIEL VORBEI</div>
+      <ol class="end-ranks" id="endRanks"></ol>
+      <button class="end-again" id="endAgainBtn">↻ NOCHMAL</button>
+    </div>
   </div>
 </div>
 
@@ -765,6 +903,10 @@
   const statusName = document.getElementById('statusName');
   const statusStage = document.getElementById('statusStage');
   const statusQuestion = document.getElementById('statusQuestion');
+  const statusResult = document.getElementById('statusResult');
+  const endOverlay = document.getElementById('endOverlay');
+  const endRanks = document.getElementById('endRanks');
+  const endAgainBtn = document.getElementById('endAgainBtn');
   const stageSlots = document.getElementById('stageSlots');
   const deckCard = document.getElementById('deckCard');
   const deckStack = document.getElementById('deckStack');
@@ -883,12 +1025,176 @@
     });
   }
 
-  // Decision-button handler. Task 4 implements stage resolution here:
-  // draw from state.deck, push to players[i].revealed, place into slots,
-  // use colorOf()/card.value, advance/reset stage, pass turn, reshuffle
-  // state.discard -> state.deck, detect all-finished, then call render().
+  // ============ RULES ENGINE ============
+
+  // Pure stage resolver. NO side effects — given the stage (1-based), the
+  // chosen button index (0 = first label, 1 = second per buttonLabels), the
+  // freshly drawn card, and the player's already-revealed cards for this
+  // attempt (revealed[0] = stage-1 card, revealed[1] = stage-2 card, ...),
+  // returns 'win' or 'lose'. Drawing exactly the boundary value is an auto
+  // loss; the Weli (value Infinity, isWeli) always wins.
+  function resolveStage(stage, choiceIndex, card, revealed) {
+    if (stage === 1) {
+      // choiceIndex 0 = TIEFER (< 10), 1 = HÖHER (> 10). Exactly 10 = lose.
+      if (card.isWeli) return 'win';
+      if (card.value === 10) return 'lose';
+      if (choiceIndex === 1) return card.value > 10 ? 'win' : 'lose';
+      return card.value < 10 ? 'win' : 'lose';
+    }
+
+    if (stage === 2) {
+      // Compare against the stage-1 card. Weli first card => value Infinity.
+      if (card.isWeli) return 'win';
+      const first = revealed[0];
+      const ref = first.isWeli ? Infinity : first.value;
+      if (card.value === ref) return 'lose';
+      if (choiceIndex === 1) return card.value > ref ? 'win' : 'lose';
+      return card.value < ref ? 'win' : 'lose';
+    }
+
+    if (stage === 3) {
+      // INNEN (0) / AUSSEN (1) relative to cards 1 & 2. Landing on a bound
+      // = lose. Weli => win. Both bounds equal: only "außen" can win.
+      if (card.isWeli) return 'win';
+      const v0 = revealed[0].isWeli ? Infinity : revealed[0].value;
+      const v1 = revealed[1].isWeli ? Infinity : revealed[1].value;
+      const lo = Math.min(v0, v1);
+      const hi = Math.max(v0, v1);
+      if (card.value === lo || card.value === hi) return 'lose';
+      if (choiceIndex === 0) return (card.value > lo && card.value < hi) ? 'win' : 'lose';
+      return (card.value < lo || card.value > hi) ? 'win' : 'lose';
+    }
+
+    // Stage 4 — ROT (0) / SCHWARZ (1). Weli (no color) always wins.
+    if (card.isWeli) return 'win';
+    const want = choiceIndex === 0 ? 'rot' : 'schwarz';
+    return colorOf(card) === want ? 'win' : 'lose';
+  }
+
+  // Draw the top card. Reshuffles the discard back into the deck when empty
+  // (Task 5 will wrap this with a shuffle animation; functional here).
+  function drawCard() {
+    if (state.deck.length === 0) {
+      state.deck = shuffle(state.discard);
+      state.discard = [];
+    }
+    return state.deck.pop();
+  }
+
+  // Move a player's revealed (attempt) cards onto the discard pile and clear.
+  function discardRevealed(p) {
+    while (p.revealed.length) state.discard.push(p.revealed.shift());
+  }
+
+  // Advance the turn to the next not-finished player (wraps). No-op when
+  // everyone is finished (end screen handles that case).
+  function advanceTurn() {
+    const n = state.players.length;
+    for (let step = 1; step <= n; step++) {
+      const idx = (state.activePlayer + step) % n;
+      if (!state.players[idx].finished) {
+        state.activePlayer = idx;
+        return;
+      }
+    }
+  }
+
+  function checkAllFinished() {
+    return state.players.every(p => p.finished);
+  }
+
+  // Brief textual feedback for the just-resolved attempt.
+  function setResult(text, kind) {
+    statusResult.textContent = text;
+    statusResult.className = 'status-result' + (kind ? ' ' + kind : '');
+  }
+
+  // Decision-button handler. Resolves the active player's current stage from
+  // a freshly drawn card, applies win/lose, advances stage or passes the
+  // turn, reshuffles when needed, detects game end, then re-renders.
   function onAnswer(playerIndex, choiceIndex) {
-    /* Task 4: resolve stage */
+    if (!state) return;
+    // Only the active, non-finished player may act.
+    if (playerIndex !== state.activePlayer) return;
+    const p = state.players[playerIndex];
+    if (p.finished) return;
+
+    const stage = p.stage;
+    const card = drawCard();
+    p.revealed.push(card);
+
+    const cardName = card.isWeli
+      ? 'Weli'
+      : (RANK_LABEL[card.rank] + ' ' + card.suit);
+
+    const outcome = resolveStage(stage, choiceIndex, card, p.revealed);
+
+    if (outcome === 'win') {
+      if (stage < 4) {
+        // Advance to the next stage — SAME player keeps going.
+        p.stage = stage + 1;
+        setResult('RICHTIG! (' + cardName + ') → Stufe ' + p.stage, 'win');
+      } else {
+        // Cleared all four stages — player finishes.
+        p.finished = true;
+        if (!state.finishOrder) state.finishOrder = [];
+        state.finishOrder.push(playerIndex);
+        p.finishRank = state.finishOrder.length;
+        discardRevealed(p);
+        setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win');
+        if (checkAllFinished()) {
+          render();
+          showEndScreen();
+          return;
+        }
+        advanceTurn();
+      }
+    } else {
+      // Wrong / boundary / auto-loss — back to Stufe 1, turn passes on.
+      p.stage = 1;
+      discardRevealed(p);
+      setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose');
+      advanceTurn();
+    }
+
+    render();
+  }
+
+  // Build + show the end overlay: rank by finish order, last = BUSFAHRER.
+  function showEndScreen() {
+    const order = state.finishOrder || [];
+    endRanks.innerHTML = '';
+    order.forEach((pIdx, i) => {
+      const isLast = i === order.length - 1;
+      const li = document.createElement('li');
+      li.className = 'end-rank' + (isLast ? ' busfahrer' : '');
+
+      const pos = document.createElement('span');
+      pos.className = 'end-pos';
+      pos.textContent = (i + 1) + '.';
+
+      const dot = document.createElement('span');
+      dot.className = 'end-dot';
+      dot.style.background = PLAYER_COLORS[pIdx];
+      dot.style.color = PLAYER_COLORS[pIdx];
+
+      const nm = document.createElement('span');
+      nm.className = 'end-name';
+      nm.textContent = state.players[pIdx].name;
+
+      li.appendChild(pos);
+      li.appendChild(dot);
+      li.appendChild(nm);
+
+      if (isLast) {
+        const tag = document.createElement('span');
+        tag.className = 'end-tag';
+        tag.textContent = 'BUSFAHRER';
+        li.appendChild(tag);
+      }
+      endRanks.appendChild(li);
+    });
+    endOverlay.style.display = 'flex';
   }
 
   // ============ START / RESET ============
@@ -904,9 +1210,12 @@
       players: names.map(name => ({ name, stage: 1, finished: false, revealed: [] })),
       deck: shuffle(buildDeck()),
       discard: [],
-      activePlayer: 0
+      activePlayer: 0,
+      finishOrder: []
     };
 
+    endOverlay.style.display = 'none';
+    setResult('', null);
     menu.style.display = 'none';
     game.style.display = 'flex';
     render();
@@ -914,12 +1223,15 @@
 
   function backToMenu() {
     state = null;
+    endOverlay.style.display = 'none';
+    setResult('', null);
     game.style.display = 'none';
     menu.style.display = 'flex';
   }
 
   playBtn.addEventListener('click', startGame);
   restartBtn.addEventListener('click', backToMenu);
+  endAgainBtn.addEventListener('click', backToMenu);
 
   // ============ FULLSCREEN ============
   const fsBtn = document.getElementById('fsBtn');
