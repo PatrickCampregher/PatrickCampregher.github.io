@@ -1173,6 +1173,7 @@
   // Advance the turn to the next not-finished player (wraps). No-op when
   // everyone is finished (end screen handles that case).
   function advanceTurn() {
+    if (!state) return;
     const n = state.players.length;
     for (let step = 1; step <= n; step++) {
       const idx = (state.activePlayer + step) % n;
@@ -1478,6 +1479,9 @@
       // Apply the Task 4 seam (unchanged outcome). It performs the
       // discard/turn-pass/finish bookkeeping; on game end it rendered +
       // showed the end screen and returns true.
+      // Bailed to menu/restart mid-animation: state was torn down while we
+      // awaited. Stop before touching it (finally still clears animBusy).
+      if (!state || state.players[playerIndex] !== p) return;
       if (applyOutcome(p, playerIndex, outcome, stage, cardName)) return;
 
       render();
