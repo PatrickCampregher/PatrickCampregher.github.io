@@ -1037,7 +1037,7 @@
       const res = document.createElement('div');
       const lr = state.lastResult;
       if (lr && lr.idx === idx) {
-        res.className = 'panel-result ' + (lr.kind || '');
+        res.className = lr.kind ? ('panel-result ' + lr.kind) : 'panel-result';
         res.textContent = lr.text;
       } else {
         res.className = 'panel-result';
@@ -1547,7 +1547,6 @@
     animBusy = false;
     state = null;
     endOverlay.style.display = 'none';
-    setResult('', null);
     game.style.display = 'none';
     menu.style.display = 'flex';
   }
@@ -1568,7 +1567,7 @@
     docEl.mozRequestFullScreen ||
     docEl.msRequestFullscreen;
 
-  // Pre-set; startGame (Task 3) makes #game visible — controls bar is always shown in game view.
+  // Pre-set; startGame makes #game visible — controls bar is always shown in game view.
   controlsBar.classList.add('visible');
   if (!fsSupported) {
     fsBtn.style.display = 'none';
