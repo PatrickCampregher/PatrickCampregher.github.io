@@ -305,15 +305,36 @@
   /* ===== GAME ===== */
   /* Populated by later tasks (deck/slots/discard + per-player panels). */
   .game {
-    display: flex;
-    flex-direction: column;
+    position: relative;
     width: 100%;
     height: 100%;
-    padding: 14px 0;
-    gap: 14px;
-    align-items: stretch;
     overflow: hidden;
   }
+
+  /* Centre of the "poker table": status + deck + discard + stage slots */
+  .table-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(8px, 2.2vh, 16px);
+    width: min(58vw, 340px);
+    max-width: 78vw;
+    pointer-events: none;
+  }
+
+  .felt {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: clamp(8px, 3vw, 22px);
+  }
+  /* Discard sits a touch smaller so the deck reads as the centrepiece */
+  .felt .pile:not(.pile-deck) .slot { --card-w: clamp(38px, 9.5vw, 62px); }
 
   /* Controls bar above the play area */
   .controls-bar {
@@ -398,18 +419,6 @@
     letter-spacing: 1px;
   }
 
-  /* Center play row: deck · stage slots · discard */
-  .play-row {
-    flex: 1 1 0;
-    min-height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(8px, 2.5vw, 22px);
-    padding: 0 10px;
-    flex-wrap: nowrap;
-  }
-
   .pile {
     display: flex;
     flex-direction: column;
@@ -492,27 +501,29 @@
     text-shadow: 0 0 4px var(--neon-yellow);
     z-index: 3;
   }
-  /* Per-player control panels */
+  /* Per-player control panels — absolutely ringed around the table */
   .controls-region {
-    flex-shrink: 0;
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    padding: 0 10px;
-    flex-wrap: wrap;
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
   }
   .panel {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 220px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: clamp(118px, 30vw, 168px);
+    pointer-events: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 8px 6px;
+    gap: 5px;
+    padding: 7px 6px;
     border: 2px solid var(--pc, var(--neon-cyan));
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
     box-shadow: 0 0 8px rgba(0, 240, 255, 0.30);
     box-shadow: 0 0 8px color-mix(in srgb, var(--pc, var(--neon-cyan)) 30%, transparent);
   }
@@ -741,15 +752,16 @@
   /* Smooth turn-change handoff on the active panel highlight. */
   .panel {
     transition: background 0.32s ease, box-shadow 0.32s ease,
-                border-color 0.32s ease, transform 0.32s ease;
+                border-color 0.32s ease;
   }
   .panel.active {
     animation: turnPulse 0.5s ease-out;
   }
+  /* Keep the ring-centering translate so the pulse doesn't shift the panel. */
   @keyframes turnPulse {
-    0%   { transform: scale(1); }
-    45%  { transform: scale(1.04); }
-    100% { transform: scale(1); }
+    0%   { transform: translate(-50%, -50%) scale(1); }
+    45%  { transform: translate(-50%, -50%) scale(1.04); }
+    100% { transform: translate(-50%, -50%) scale(1); }
   }
 
   /* Transient flying card: position computed from real bounding rects.
@@ -893,25 +905,30 @@
       <button class="ctrl-btn menu" id="restartBtn" aria-label="Main menu" title="Hauptmenü">☰</button>
     </div>
 
-    <!-- Status header -->
-    <div class="status" id="status">
-      <div class="status-line">
-        <span class="status-name" id="statusName">Spieler 1</span>
-        <span class="status-stage" id="statusStage">Stufe (1/4)</span>
+    <!-- Center "table": deck dead-centre, discard + stage slots fanned around -->
+    <div class="table-center" id="tableCenter">
+      <div class="status" id="status">
+        <div class="status-line">
+          <span class="status-name" id="statusName">Spieler 1</span>
+          <span class="status-stage" id="statusStage">Stufe (1/4)</span>
+        </div>
+        <div class="status-question" id="statusQuestion">Höher oder tiefer als 10?</div>
+        <div class="status-result" id="statusResult"></div>
       </div>
-      <div class="status-question" id="statusQuestion">Höher oder tiefer als 10?</div>
-      <div class="status-result" id="statusResult"></div>
-    </div>
 
-    <!-- Center play row: deck · 4 stage slots · discard -->
-    <div class="play-row" id="playRow">
-      <div class="pile">
-        <div class="pile-label">Stapel</div>
-        <div class="slot deck-stack" id="deckStack">
-          <div class="deck-shadow s2"></div>
-          <div class="deck-shadow s1"></div>
-          <div class="card" id="deckCard"></div>
-          <div class="deck-count" id="deckCount">0</div>
+      <div class="felt">
+        <div class="pile">
+          <div class="pile-label">Ablage</div>
+          <div class="slot empty" id="discardSlot"></div>
+        </div>
+        <div class="pile pile-deck">
+          <div class="pile-label">Stapel</div>
+          <div class="slot deck-stack" id="deckStack">
+            <div class="deck-shadow s2"></div>
+            <div class="deck-shadow s1"></div>
+            <div class="card" id="deckCard"></div>
+            <div class="deck-count" id="deckCount">0</div>
+          </div>
         </div>
       </div>
 
@@ -921,14 +938,9 @@
         <div class="slot empty" data-stage="3"><span class="slot-num">3</span></div>
         <div class="slot empty" data-stage="4"><span class="slot-num">4</span></div>
       </div>
-
-      <div class="pile">
-        <div class="pile-label">Ablage</div>
-        <div class="slot empty" id="discardSlot"></div>
-      </div>
     </div>
 
-    <!-- One control panel per active player -->
+    <!-- Player control panels — ringed evenly around the table -->
     <div class="controls-region" id="controlsRegion"></div>
   </div>
 
@@ -1125,6 +1137,30 @@
       panel.appendChild(btns);
       controlsRegion.appendChild(panel);
     });
+    ringPanels();
+  }
+
+  // Seat the panels evenly around an ellipse, starting from the top.
+  // Radii are derived from the live container + panel size so panels stay
+  // fully on-screen at any viewport (circular at every size).
+  function ringPanels() {
+    const panels = controlsRegion.children;
+    const n = panels.length;
+    if (!n) return;
+    const W = controlsRegion.clientWidth;
+    const H = controlsRegion.clientHeight;
+    const pw = panels[0].offsetWidth;
+    const ph = panels[0].offsetHeight;
+    const M = 6; // edge margin
+    const rx = Math.max(0, W / 2 - pw / 2 - M);
+    const ry = Math.max(0, H / 2 - ph / 2 - M);
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + i * (2 * Math.PI / n);
+      const x = W / 2 + rx * Math.cos(a);
+      const y = H / 2 + ry * Math.sin(a);
+      panels[i].style.left = Math.round(x) + 'px';
+      panels[i].style.top = Math.round(y) + 'px';
+    }
   }
 
   // ============ RULES ENGINE ============
@@ -1663,6 +1699,11 @@
   setAppHeight();
   window.addEventListener('resize', setAppHeight);
   window.addEventListener('orientationchange', setAppHeight);
+
+  // Keep the player ring fitted when the viewport changes.
+  function reRing() { if (state && controlsRegion.children.length) ringPanels(); }
+  window.addEventListener('resize', reRing);
+  window.addEventListener('orientationchange', reRing);
 
   fsBtn.addEventListener('click', toggleFullscreen);
   menuFsBtn.addEventListener('click', toggleFullscreen);
