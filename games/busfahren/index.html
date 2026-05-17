@@ -698,7 +698,6 @@
   function emblemAt(suit, cx, cy, scale, fill, rotate) {
     const fn = EMBLEMS[suit];
     if (!fn) return '';
-    const rot = rotate ? (' rotate(180 ' + cx + ' ' + cy + ')') : '';
     return '<g transform="translate(' + cx + ' ' + cy + ') scale(' + scale + ')' +
       (rotate ? ' rotate(180)' : '') + '">' + fn(fill) + '</g>';
   }
@@ -816,8 +815,8 @@
       const ax = W / 2, ay = H / 2, sx = 58, sy = 110, pip = 22;
       let pips = '';
       for (const p of layout) {
-        pips += emblemAt(rank ? card.suit : null,
-          (ax + p.x * sx), (ay + p.y * sy), pip / 1, ink, p.flip);
+        pips += emblemAt(card.suit,
+          (ax + p.x * sx), (ay + p.y * sy), pip, ink, p.flip);
       }
       body = pips;
     } else if (rank === 'ass') {
@@ -878,6 +877,8 @@
   // Face-down card back: neon synthwave grid + diagonal glow + monogram.
   function cardBackSVG() {
     const W = CARD_W, H = CARD_H;
+    const n = (cardBackSVG._n = (cardBackSVG._n || 0) + 1);
+    const gradId = 'bfBack' + n, clipId = 'bfClip' + n;
     let grid = '';
     for (let x = 24; x < W; x += 24) {
       grid += '<line x1="' + x + '" y1="14" x2="' + x + '" y2="' + (H - 14) + '"/>';
@@ -888,15 +889,19 @@
     return (
       '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img">' +
       '<defs>' +
-      '<linearGradient id="bfBack" x1="0" y1="0" x2="1" y2="1">' +
+      '<linearGradient id="' + gradId + '" x1="0" y1="0" x2="1" y2="1">' +
       '<stop offset="0" stop-color="#1a0a3a"/>' +
       '<stop offset="0.55" stop-color="#0a0420"/>' +
       '<stop offset="1" stop-color="#2a0a45"/>' +
       '</linearGradient>' +
+      '<clipPath id="' + clipId + '">' +
+      '<rect x="3" y="3" width="' + (W - 6) + '" height="' + (H - 6) +
+      '" rx="16"/>' +
+      '</clipPath>' +
       '</defs>' +
       '<rect x="3" y="3" width="' + (W - 6) + '" height="' + (H - 6) +
-      '" rx="16" fill="url(#bfBack)" stroke="#00f0ff" stroke-width="3"/>' +
-      '<g clip-path="inset(0 round 12px)">' +
+      '" rx="16" fill="url(#' + gradId + ')" stroke="#00f0ff" stroke-width="3"/>' +
+      '<g clip-path="url(#' + clipId + ')">' +
       '<g stroke="#ff2bd6" stroke-width="1" opacity="0.32">' + grid + '</g>' +
       '<g stroke="#00f0ff" stroke-width="2" opacity="0.5">' +
       '<line x1="14" y1="' + H + '" x2="' + W + '" y2="14"/>' +
