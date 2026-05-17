@@ -359,6 +359,246 @@
     text-shadow: none;
   }
 
+  /* Status header: current player + stage + question */
+  .status {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    text-align: center;
+  }
+  .status-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .status-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(10px, 3vw, 16px);
+    color: var(--neon-cyan);
+    text-shadow: 0 0 6px var(--neon-cyan);
+    letter-spacing: 1px;
+  }
+  .status-stage {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(8px, 2.4vw, 12px);
+    color: var(--neon-yellow);
+    text-shadow: 0 0 6px var(--neon-yellow);
+    letter-spacing: 1px;
+  }
+  .status-question {
+    font-family: 'VT323', monospace;
+    font-size: clamp(15px, 4.4vw, 22px);
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
+    letter-spacing: 1px;
+  }
+
+  /* Center play row: deck · stage slots · discard */
+  .play-row {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 2.5vw, 22px);
+    padding: 0 10px;
+    flex-wrap: nowrap;
+  }
+
+  .pile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+  .pile-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: rgba(0, 240, 255, 0.6);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Card-sized box used by deck/slots/discard */
+  .slot {
+    --card-w: clamp(48px, 13vw, 84px);
+    width: var(--card-w);
+    height: calc(var(--card-w) * 1.4);
+    border-radius: 9px;
+    flex: none;
+    position: relative;
+  }
+  .slot.empty {
+    border: 2px dashed rgba(0, 240, 255, 0.35);
+    background: rgba(0, 240, 255, 0.03);
+  }
+  .slot .card {
+    --card-w: clamp(48px, 13vw, 84px);
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .slot-num {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(10px, 3vw, 16px);
+    color: rgba(0, 240, 255, 0.3);
+    pointer-events: none;
+  }
+
+  .stage-slots {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1.6vw, 12px);
+    flex: none;
+  }
+
+  /* Face-down deck stack with offset shadow cards + count badge */
+  .deck-stack { position: relative; }
+  .deck-stack .deck-shadow {
+    position: absolute;
+    inset: 0;
+    border-radius: 9px;
+    background: #14082e;
+    border: 2px solid rgba(181, 55, 242, 0.5);
+  }
+  .deck-stack .deck-shadow.s1 { transform: translate(4px, 4px); }
+  .deck-stack .deck-shadow.s2 { transform: translate(8px, 8px); }
+  .deck-count {
+    position: absolute;
+    bottom: -8px;
+    right: -8px;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 5px;
+    border-radius: 12px;
+    background: var(--bg);
+    border: 2px solid var(--neon-yellow);
+    color: var(--neon-yellow);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 4px var(--neon-yellow);
+    z-index: 3;
+  }
+  .deck-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'VT323', monospace;
+    font-size: 13px;
+    color: rgba(0, 240, 255, 0.4);
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  /* Per-player control panels */
+  .controls-region {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 10px;
+    flex-wrap: wrap;
+  }
+  .panel {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 6px;
+    border: 2px solid var(--pc, var(--neon-cyan));
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--pc, var(--neon-cyan)) 30%, transparent);
+  }
+  .panel.active {
+    background: color-mix(in srgb, var(--pc, var(--neon-cyan)) 12%, transparent);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--pc, var(--neon-cyan)) 55%, transparent);
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    justify-content: center;
+  }
+  .panel-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: var(--pc);
+    color: var(--pc);
+    box-shadow: 0 0 6px currentColor;
+    flex: none;
+  }
+  .panel-name {
+    font-family: 'VT323', monospace;
+    font-size: 17px;
+    letter-spacing: 1px;
+    color: var(--pc, var(--neon-cyan));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .panel-status {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    letter-spacing: 1px;
+    color: rgba(0, 240, 255, 0.65);
+  }
+  .panel-status.done {
+    color: var(--neon-green);
+    text-shadow: 0 0 6px var(--neon-green);
+  }
+  .panel-btns {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+  }
+  .ans-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    background: transparent;
+    border: 2px solid var(--pc, var(--neon-cyan));
+    color: var(--pc, var(--neon-cyan));
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    letter-spacing: 1px;
+    padding: 8px 2px;
+    cursor: pointer;
+    text-shadow: 0 0 4px var(--pc, var(--neon-cyan));
+    transition: all 0.12s;
+  }
+  .ans-btn:not(:disabled):hover,
+  .ans-btn:not(:disabled):active {
+    background: var(--pc, var(--neon-cyan));
+    color: var(--bg);
+    text-shadow: none;
+  }
+  .ans-btn:disabled {
+    opacity: 0.28;
+    cursor: not-allowed;
+    text-shadow: none;
+    box-shadow: none;
+  }
+
   /* ===== CARDS ===== */
   /* Sizing/visuals only. Positioning is added by later tasks. */
   .card {
@@ -424,13 +664,50 @@
     </div>
   </div>
 
-  <!-- GAME (populated by later tasks) -->
+  <!-- GAME -->
   <div class="game" id="game" style="display:none;">
     <!-- Controls: upper-right (fullscreen + exit to menu) -->
     <div class="controls-bar" id="controlsBar">
       <button class="ctrl-btn fs" id="fsBtn" aria-label="Fullscreen" title="Fullscreen">⛶</button>
-      <button class="ctrl-btn menu" id="restartBtn" aria-label="Main menu">☰</button>
+      <button class="ctrl-btn menu" id="restartBtn" aria-label="Main menu" title="Hauptmenü">☰</button>
     </div>
+
+    <!-- Status header -->
+    <div class="status" id="status">
+      <div class="status-line">
+        <span class="status-name" id="statusName">Spieler 1</span>
+        <span class="status-stage" id="statusStage">Stufe (1/4)</span>
+      </div>
+      <div class="status-question" id="statusQuestion">Höher oder tiefer als 10?</div>
+    </div>
+
+    <!-- Center play row: deck · 4 stage slots · discard -->
+    <div class="play-row" id="playRow">
+      <div class="pile">
+        <div class="pile-label">Stapel</div>
+        <div class="slot deck-stack" id="deckStack">
+          <div class="deck-shadow s2"></div>
+          <div class="deck-shadow s1"></div>
+          <div class="card" id="deckCard"></div>
+          <div class="deck-count" id="deckCount">0</div>
+        </div>
+      </div>
+
+      <div class="stage-slots" id="stageSlots">
+        <div class="slot empty" data-stage="1"><span class="slot-num">1</span></div>
+        <div class="slot empty" data-stage="2"><span class="slot-num">2</span></div>
+        <div class="slot empty" data-stage="3"><span class="slot-num">3</span></div>
+        <div class="slot empty" data-stage="4"><span class="slot-num">4</span></div>
+      </div>
+
+      <div class="pile">
+        <div class="pile-label">Ablage</div>
+        <div class="slot empty" id="discardSlot"></div>
+      </div>
+    </div>
+
+    <!-- One control panel per active player -->
+    <div class="controls-region" id="controlsRegion"></div>
   </div>
 </div>
 
@@ -465,10 +742,178 @@
     });
   });
 
-  // Game flow is implemented in a later task; SPIELEN is a no-op for now.
-  playBtn.addEventListener('click', () => {
-    // TODO (later task): collect player names + count and start the game.
-  });
+  // ============ GAME STATE ============
+  // Built by startGame(); Task 4 mutates it inside onAnswer() then calls render().
+  let state = null;
+
+  const PLAYER_COLORS = ['var(--p1)', 'var(--p2)', 'var(--p3)', 'var(--p4)'];
+
+  // The two decision-button captions for a given stage (1-based).
+  function buttonLabels(stage) {
+    switch (stage) {
+      case 1: return ['TIEFER', 'HÖHER'];
+      case 2: return ['TIEFER', 'HÖHER'];
+      case 3: return ['INNEN', 'AUSSEN'];
+      case 4: return ['ROT', 'SCHWARZ'];
+      default: return ['TIEFER', 'HÖHER'];
+    }
+  }
+
+  // Header question text for a given stage (1-based). German UI.
+  function stageQuestion(stage) {
+    switch (stage) {
+      case 1: return 'Höher oder tiefer als 10?';
+      case 2: return 'Höher oder tiefer als die erste Karte?';
+      case 3: return 'Innen oder außen?';
+      case 4: return 'Rot oder schwarz?';
+      default: return 'Höher oder tiefer als 10?';
+    }
+  }
+
+  // ============ DOM (game view) ============
+  const statusName = document.getElementById('statusName');
+  const statusStage = document.getElementById('statusStage');
+  const statusQuestion = document.getElementById('statusQuestion');
+  const stageSlots = document.getElementById('stageSlots');
+  const deckCard = document.getElementById('deckCard');
+  const deckStack = document.getElementById('deckStack');
+  const deckCount = document.getElementById('deckCount');
+  const discardSlot = document.getElementById('discardSlot');
+  const controlsRegion = document.getElementById('controlsRegion');
+  const restartBtn = document.getElementById('restartBtn');
+
+  // ============ RENDER ============
+  // (Re)draws header + stage slots + deck + discard + per-player panels from
+  // `state`. Safe to call repeatedly — Task 4 calls this after each move.
+  function render() {
+    if (!state) return;
+    const active = state.players[state.activePlayer];
+
+    // Status header (active player + their stage + matching question).
+    statusName.textContent = active.name;
+    statusStage.textContent = 'Stufe (' + active.stage + '/4)';
+    statusQuestion.textContent = stageQuestion(active.stage);
+
+    // Deck stack: face-down back + remaining count (or empty hint).
+    if (state.deck.length > 0) {
+      deckCard.style.display = '';
+      deckCard.innerHTML = cardBackSVG();
+      deckCount.style.display = '';
+      deckCount.textContent = String(state.deck.length);
+      deckStack.classList.remove('empty');
+    } else {
+      deckCard.style.display = 'none';
+      deckCount.style.display = 'none';
+      deckStack.classList.add('empty');
+      deckCard.innerHTML = '';
+    }
+
+    // Four stage slots: show active player's revealed cards, else placeholder.
+    Array.from(stageSlots.children).forEach((slot, i) => {
+      const card = active.revealed[i];
+      if (card) {
+        slot.classList.remove('empty');
+        slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
+      } else {
+        slot.classList.add('empty');
+        slot.innerHTML = '<span class="slot-num">' + (i + 1) + '</span>';
+      }
+    });
+
+    // Discard: top card face-up, else empty.
+    const top = state.discard[state.discard.length - 1];
+    if (top) {
+      discardSlot.classList.remove('empty');
+      discardSlot.innerHTML = '<div class="card">' + cardSVG(top) + '</div>';
+    } else {
+      discardSlot.classList.add('empty');
+      discardSlot.innerHTML = '';
+    }
+
+    renderControls();
+  }
+
+  // Per-player panels: name + status + the two stage-appropriate buttons.
+  // Only the active, unfinished player's buttons are enabled.
+  function renderControls() {
+    controlsRegion.innerHTML = '';
+    state.players.forEach((p, idx) => {
+      const isActive = idx === state.activePlayer && !p.finished;
+
+      const panel = document.createElement('div');
+      panel.className = 'panel' + (isActive ? ' active' : '');
+      panel.style.setProperty('--pc', PLAYER_COLORS[idx]);
+
+      const head = document.createElement('div');
+      head.className = 'panel-head';
+      const dot = document.createElement('span');
+      dot.className = 'panel-dot';
+      const nm = document.createElement('span');
+      nm.className = 'panel-name';
+      nm.textContent = p.name;
+      head.appendChild(dot);
+      head.appendChild(nm);
+
+      const st = document.createElement('div');
+      st.className = 'panel-status' + (p.finished ? ' done' : '');
+      st.textContent = p.finished ? 'FERTIG' : (p.stage + '/4');
+
+      const btns = document.createElement('div');
+      btns.className = 'panel-btns';
+      const labels = buttonLabels(p.stage);
+      labels.forEach((label, choiceIndex) => {
+        const b = document.createElement('button');
+        b.className = 'ans-btn';
+        b.textContent = label;
+        b.disabled = !isActive;
+        b.addEventListener('click', () => onAnswer(idx, choiceIndex));
+        btns.appendChild(b);
+      });
+
+      panel.appendChild(head);
+      panel.appendChild(st);
+      panel.appendChild(btns);
+      controlsRegion.appendChild(panel);
+    });
+  }
+
+  // Decision-button handler. Task 4 implements stage resolution here:
+  // draw from state.deck, push to players[i].revealed, place into slots,
+  // use colorOf()/card.value, advance/reset stage, pass turn, reshuffle
+  // state.discard -> state.deck, detect all-finished, then call render().
+  function onAnswer(playerIndex, choiceIndex) {
+    /* Task 4: resolve stage */
+  }
+
+  // ============ START / RESET ============
+  function startGame() {
+    const names = [];
+    for (let i = 0; i < selectedPlayers; i++) {
+      const input = document.getElementById('name' + i);
+      const v = input && input.value.trim();
+      names.push(v || ('Spieler ' + (i + 1)));
+    }
+
+    state = {
+      players: names.map(name => ({ name, stage: 1, finished: false, revealed: [] })),
+      deck: shuffle(buildDeck()),
+      discard: [],
+      activePlayer: 0
+    };
+
+    menu.style.display = 'none';
+    game.style.display = 'flex';
+    render();
+  }
+
+  function backToMenu() {
+    state = null;
+    game.style.display = 'none';
+    menu.style.display = 'flex';
+  }
+
+  playBtn.addEventListener('click', startGame);
+  restartBtn.addEventListener('click', backToMenu);
 
   // ============ FULLSCREEN ============
   const fsBtn = document.getElementById('fsBtn');
