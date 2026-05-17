@@ -760,7 +760,7 @@
     border-radius: 9px;
     pointer-events: none;
     perspective: 900px;
-    will-change: transform, left, top;
+    will-change: transform;
     transition: left var(--fly-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1),
                 top  var(--fly-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1);
   }
@@ -825,7 +825,7 @@
     z-index: 9;
     border-radius: 9px;
     pointer-events: none;
-    transition: left 0.42s ease-in, top 0.42s ease-in, opacity 0.42s ease-in;
+    transition: left 0.5s ease-in, top 0.5s ease-in, opacity 0.5s ease-in;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1288,17 +1288,24 @@
 
   // Resolve once a CSS transition/animation on `el` ends, or after `timeout`
   // ms as a safety fallback (so a missed transitionend never wedges input).
-  function onceTransitionEnd(el, timeout) {
+  function onceTransitionEnd(el, timeout, propFilter) {
     return new Promise(res => {
       let done = false;
       const finish = () => {
         if (done) return;
         done = true;
-        el.removeEventListener('transitionend', finish);
+        el.removeEventListener('transitionend', onTransition);
         el.removeEventListener('animationend', finish);
         res();
       };
-      el.addEventListener('transitionend', finish);
+      // When propFilter is set, ignore transitionend for other properties
+      // (e.g. .fly-card transitions both left & top with equal duration —
+      // wait on one so the FIRST event doesn't resolve early).
+      const onTransition = (e) => {
+        if (propFilter && e.propertyName !== propFilter) return;
+        finish();
+      };
+      el.addEventListener('transitionend', onTransition);
       el.addEventListener('animationend', finish);
       setTimeout(finish, timeout);
     });
@@ -1339,31 +1346,35 @@
 
     const cleanup = () => { if (fly.parentNode) fly.parentNode.removeChild(fly); };
 
-    if (reduced) {
-      // Near-instant: drop the card straight into the slot.
+    try {
+      if (reduced) {
+        // Near-instant: drop the card straight into the slot.
+        slot.classList.remove('empty');
+        slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
+        return;
+      }
+
+      // 1) slide deck -> slot (size to slot too, slots == deck size here).
+      await nextFrame();
+      fly.style.left = to.left + 'px';
+      fly.style.top = to.top + 'px';
+      fly.style.width = to.width + 'px';
+      fly.style.height = to.height + 'px';
+      await onceTransitionEnd(fly, 600, 'top');
+
+      // 2) 3D flip to the face.
+      await nextFrame();
+      fly.classList.add('flipped');
+      await onceTransitionEnd(fly.querySelector('.fly-inner'), 600);
+
+      // 3) Settle: place the face card into the slot, drop the flyer.
       slot.classList.remove('empty');
       slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
+    } finally {
+      // Guarantee the transient flyer is never orphaned, even if an
+      // await above throws. The parentNode guard makes a double-call safe.
       cleanup();
-      return;
     }
-
-    // 1) slide deck -> slot (size to slot too, slots == deck size here).
-    await nextFrame();
-    fly.style.left = to.left + 'px';
-    fly.style.top = to.top + 'px';
-    fly.style.width = to.width + 'px';
-    fly.style.height = to.height + 'px';
-    await onceTransitionEnd(fly, 600);
-
-    // 2) 3D flip to the face.
-    await nextFrame();
-    fly.classList.add('flipped');
-    await onceTransitionEnd(fly.querySelector('.fly-inner'), 600);
-
-    // 3) Settle: place the face card into the slot, drop the flyer.
-    slot.classList.remove('empty');
-    slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
-    cleanup();
   }
 
   // Sweep the active player's currently-revealed slot cards toward the
@@ -1409,17 +1420,22 @@
     ghost.innerHTML = '<div class="card">' + cardBackSVG() + '</div>';
     document.body.appendChild(ghost);
 
-    deckStack.classList.add('reshuffling');
-    await nextFrame();
-    ghost.style.left = to.left + 'px';
-    ghost.style.top = to.top + 'px';
-    ghost.style.width = to.width + 'px';
-    ghost.style.height = to.height + 'px';
-    ghost.style.opacity = '0.2';
+    try {
+      deckStack.classList.add('reshuffling');
+      await nextFrame();
+      ghost.style.left = to.left + 'px';
+      ghost.style.top = to.top + 'px';
+      ghost.style.width = to.width + 'px';
+      ghost.style.height = to.height + 'px';
+      ghost.style.opacity = '0.2';
 
-    await onceTransitionEnd(ghost, 700);
-    if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
-    deckStack.classList.remove('reshuffling');
+      await onceTransitionEnd(ghost, 700);
+      deckStack.classList.remove('reshuffling');
+    } finally {
+      // Guarantee the transient ghost is never orphaned even if an
+      // await above throws. parentNode guard makes a double-call safe.
+      if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+    }
   }
 
   // Decision-button handler. Resolves the active player's current stage from
