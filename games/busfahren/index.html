@@ -1289,9 +1289,11 @@
   // Fly a face-down card from the deck stack to its stage slot, then 3D flip
   // it to the face. Leaves the face card sitting in the slot (so it stays
   // visible through the outcome). Returns when the flip has completed.
-  async function animateDealAndFlip(card, stage) {
-    // stageSlots removed in Task 1 layout; animations will be rewired in Task 3.
-    return;
+  async function animateDealAndFlip(card, stage, playerIndex) {
+    const slot = document.querySelector(
+      '.panel[data-player="' + playerIndex + '"] ' +
+      '.panel-slots .slot[data-spot="' + stage + '"]');
+    if (!slot) return;
     const reduced = prefersReducedMotion();
 
     const from = deckStack.getBoundingClientRect();
@@ -1322,7 +1324,7 @@
         return;
       }
 
-      // 1) slide deck -> slot (size to slot too, slots == deck size here).
+      // 1) slide deck -> slot.
       await nextFrame();
       fly.style.left = to.left + 'px';
       fly.style.top = to.top + 'px';
@@ -1348,9 +1350,11 @@
   // Sweep the active player's currently-revealed slot cards toward the
   // discard pile, then clear the slots. Used on lose + stage-4 finish,
   // BEFORE discardRevealed mutates p.revealed.
-  async function animateSweepToDiscard() {
-    // stageSlots removed in Task 1 layout; animations will be rewired in Task 3.
-    return;
+  async function animateSweepToDiscard(playerIndex) {
+    const reduced = prefersReducedMotion();
+    const cards = Array.from(document.querySelectorAll(
+      '.panel[data-player="' + playerIndex + '"] .panel-slots .slot .card'));
+    if (!cards.length || reduced) return;
 
     const target = discardSlot.getBoundingClientRect();
     let last = null;
@@ -1449,8 +1453,8 @@
         await animateReshuffle();
       }
 
-      // Deal + flip the drawn card into its stage slot; it stays visible.
-      await animateDealAndFlip(card, stage);
+      // Deal + flip the drawn card into the acting player's stage slot.
+      await animateDealAndFlip(card, stage, playerIndex);
 
       // Surface the result text before the sweep so the player reads it.
       const willSweep = (outcome === 'lose') || (outcome === 'win' && stage === 4);
@@ -1460,8 +1464,9 @@
         } else if (p.revealed.length === 4) {
           setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win', playerIndex);
         }
+        render();
         await wait(prefersReducedMotion() ? 0 : 650);
-        await animateSweepToDiscard();
+        await animateSweepToDiscard(playerIndex);
       }
 
       // Apply the Task 4 seam (unchanged outcome). It performs the
