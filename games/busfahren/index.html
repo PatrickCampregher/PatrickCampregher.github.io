@@ -439,7 +439,6 @@
     background: rgba(0, 240, 255, 0.03);
   }
   .slot .card {
-    --card-w: clamp(48px, 13vw, 84px);
     position: absolute;
     inset: 0;
     width: 100%;
@@ -493,17 +492,6 @@
     text-shadow: 0 0 4px var(--neon-yellow);
     z-index: 3;
   }
-  .deck-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'VT323', monospace;
-    font-size: 13px;
-    color: rgba(0, 240, 255, 0.4);
-    text-align: center;
-    line-height: 1.1;
-  }
-
   /* Per-player control panels */
   .controls-region {
     flex-shrink: 0;
@@ -525,10 +513,13 @@
     border: 2px solid var(--pc, var(--neon-cyan));
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.02);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.30);
     box-shadow: 0 0 8px color-mix(in srgb, var(--pc, var(--neon-cyan)) 30%, transparent);
   }
   .panel.active {
+    background: rgba(0, 240, 255, 0.12);
     background: color-mix(in srgb, var(--pc, var(--neon-cyan)) 12%, transparent);
+    box-shadow: 0 0 16px rgba(0, 240, 255, 0.55);
     box-shadow: 0 0 16px color-mix(in srgb, var(--pc, var(--neon-cyan)) 55%, transparent);
   }
   .panel-head {
@@ -751,8 +742,8 @@
   // The two decision-button captions for a given stage (1-based).
   function buttonLabels(stage) {
     switch (stage) {
-      case 1: return ['TIEFER', 'HÖHER'];
-      case 2: return ['TIEFER', 'HÖHER'];
+      // same labels; stage 1 compares vs 10, stage 2 vs card 1 (Task 4)
+      case 1: case 2: return ['TIEFER', 'HÖHER'];
       case 3: return ['INNEN', 'AUSSEN'];
       case 4: return ['ROT', 'SCHWARZ'];
       default: return ['TIEFER', 'HÖHER'];
@@ -809,16 +800,20 @@
     }
 
     // Four stage slots: show active player's revealed cards, else placeholder.
-    Array.from(stageSlots.children).forEach((slot, i) => {
-      const card = active.revealed[i];
+    // Select by data-stage (not child order) so Task 5 can insert transient
+    // in-flight card elements into stageSlots without misaligning the render.
+    for (let stage = 1; stage <= 4; stage++) {
+      const slot = stageSlots.querySelector('[data-stage="' + stage + '"]');
+      if (!slot) continue;
+      const card = active.revealed[stage - 1];
       if (card) {
         slot.classList.remove('empty');
         slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
       } else {
         slot.classList.add('empty');
-        slot.innerHTML = '<span class="slot-num">' + (i + 1) + '</span>';
+        slot.innerHTML = '<span class="slot-num">' + stage + '</span>';
       }
-    });
+    }
 
     // Discard: top card face-up, else empty.
     const top = state.discard[state.discard.length - 1];
@@ -860,15 +855,26 @@
 
       const btns = document.createElement('div');
       btns.className = 'panel-btns';
-      const labels = buttonLabels(p.stage);
-      labels.forEach((label, choiceIndex) => {
-        const b = document.createElement('button');
-        b.className = 'ans-btn';
-        b.textContent = label;
-        b.disabled = !isActive;
-        b.addEventListener('click', () => onAnswer(idx, choiceIndex));
-        btns.appendChild(b);
-      });
+      if (p.finished) {
+        // Finished players: inert placeholders only — no stage labels (stage
+        // may be reset) and no click listener (status stays FERTIG).
+        for (let k = 0; k < 2; k++) {
+          const b = document.createElement('button');
+          b.className = 'ans-btn';
+          b.disabled = true;
+          btns.appendChild(b);
+        }
+      } else {
+        const labels = buttonLabels(p.stage);
+        labels.forEach((label, choiceIndex) => {
+          const b = document.createElement('button');
+          b.className = 'ans-btn';
+          b.textContent = label;
+          b.disabled = !isActive;
+          b.addEventListener('click', () => onAnswer(idx, choiceIndex));
+          btns.appendChild(b);
+        });
+      }
 
       panel.appendChild(head);
       panel.appendChild(st);
@@ -1322,6 +1328,12 @@
   // Face-down card back: neon synthwave grid + diagonal glow + monogram.
   function cardBackSVG() {
     const W = CARD_W, H = CARD_H;
+    // Monotonic counter mints unique <defs> IDs (bfBack<n>/bfClip<n>) so
+    // multiple card-backs can coexist in the DOM at once — needed for the
+    // Task 5 deal animation. Contract: each call returns a fresh, self-
+    // contained SVG string with its own IDs. Callers must NOT cache a
+    // previously-returned string and re-insert it expecting new IDs;
+    // call cardBackSVG() again for every distinct DOM card-back instance.
     const n = (cardBackSVG._n = (cardBackSVG._n || 0) + 1);
     const gradId = 'bfBack' + n, clipId = 'bfClip' + n;
     let grid = '';
