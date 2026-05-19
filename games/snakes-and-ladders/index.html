@@ -32,6 +32,7 @@
   html, body {
     width: 100%;
     height: 100dvh;
+    height: var(--app-vh, 100dvh);
     overflow: hidden;
     background: var(--bg);
     font-family: 'VT323', monospace;
@@ -68,6 +69,7 @@
     z-index: 2;
     width: 100vw;
     height: 100dvh;
+    height: var(--app-vh, 100dvh);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -81,24 +83,81 @@
     align-items: center;
     width: 100%;
     height: 100%;
-    padding: 28px 0 20px;
-    gap: 20px;
+    padding: max(10px, env(safe-area-inset-top)) 0 20px;
+    gap: 16px;
     overflow: hidden;
     position: relative;
   }
 
-  .menu-fs-btn {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 60;
-    background: transparent;
-    border: 2px solid var(--neon-cyan);
+  /* Content below the breadcrumb, centered so free space (incl. fullscreen)
+     splits evenly above the title and below the Play button. */
+  .menu-body {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  /* Topbar: breadcrumb · title · icon buttons */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+
+  .topbar a.bc {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    letter-spacing: 1px;
     color: var(--neon-cyan);
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    width: 32px;
-    height: 32px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-shadow: 0 0 4px var(--neon-cyan);
+    flex: none;
+  }
+  .topbar a.bc:hover, .topbar a.bc:active {
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
+  }
+  .topbar .bc-sep {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    color: rgba(0, 240, 255, 0.45);
+    flex: none;
+  }
+  .topbar .bc-current {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: rgba(0, 240, 255, 0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: none;
+    max-width: 42vw;
+  }
+
+  .tb-btns {
+    display: flex;
+    gap: 8px;
+    flex: none;
+  }
+
+  .menu-fs-btn {
+    background: transparent;
+    border: 1.5px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-size: 12px;
+    line-height: 1;
+    width: 22px;
+    height: 22px;
     cursor: pointer;
     text-shadow: 0 0 4px var(--neon-cyan);
     display: flex;
@@ -112,19 +171,24 @@
     text-shadow: none;
   }
 
+  .tb-spacer { flex: 1; min-width: 0; }
+
   .menu-title {
+    flex: none;
+    width: 100%;
+    text-align: center;
     font-family: 'Press Start 2P', monospace;
-    font-size: clamp(14px, 3.2vw, 22px);
+    font-size: clamp(14px, 4.8vw, 32px);
     color: var(--neon-pink);
     text-shadow:
-      0 0 8px var(--neon-pink),
-      2px 2px 0 var(--neon-cyan);
-    letter-spacing: 3px;
-    text-align: center;
-    line-height: 1.5;
-    padding: 12px 16px;
-    flex-shrink: 0;
+      0 0 10px var(--neon-pink),
+      3px 3px 0 var(--neon-cyan);
+    letter-spacing: 1px;
+    line-height: 1.6;
+    padding: 2px 16px 4px;
+    white-space: nowrap;
   }
+
 
   .menu-prompt {
     font-family: 'Press Start 2P', monospace;
@@ -176,15 +240,16 @@
     background: transparent;
     border: 2px solid var(--neon-cyan);
     color: var(--neon-cyan);
-    font-family: 'Press Start 2P', monospace;
-    font-size: 9px;
-    padding: 8px 12px;
+    font-size: 18px;
+    line-height: 1;
+    width: 40px;
+    height: 40px;
     cursor: pointer;
     text-shadow: 0 0 4px var(--neon-cyan);
-    letter-spacing: 1px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    padding: 0;
   }
   .menu-action-btn:hover, .menu-action-btn:active {
     background: var(--neon-cyan);
@@ -308,6 +373,7 @@
   .menu-board-wrap {
     flex: 1 1 0;
     width: 100%;
+    height: auto;
     min-height: 0;
     position: relative;
     display: flex;
@@ -476,19 +542,20 @@
   /* Controls bar above the board */
   .controls-bar {
     display: none;
-    justify-content: center;
+    justify-content: flex-end;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-shrink: 0;
+    padding: 0 12px;
   }
   .controls-bar.visible { display: flex; }
 
   .ctrl-btn {
     background: transparent;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    width: 28px;
-    height: 28px;
+    font-size: 12px;
+    line-height: 1;
+    width: 22px;
+    height: 22px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -496,7 +563,7 @@
     padding: 0;
   }
   .ctrl-btn.fs {
-    border: 2px solid var(--neon-cyan);
+    border: 1.5px solid var(--neon-cyan);
     color: var(--neon-cyan);
     text-shadow: 0 0 4px var(--neon-cyan);
   }
@@ -506,7 +573,7 @@
     text-shadow: none;
   }
   .ctrl-btn.menu {
-    border: 2px solid var(--neon-purple);
+    border: 1.5px solid var(--neon-purple);
     color: var(--neon-purple);
     text-shadow: 0 0 4px var(--neon-purple);
   }
@@ -514,10 +581,6 @@
     background: var(--neon-purple);
     color: var(--bg);
     text-shadow: none;
-  }
-
-  .sound-btn {
-    font-size: 14px;
   }
 
   /* Board container */
@@ -692,8 +755,16 @@
 <div id="app">
   <!-- START MENU -->
   <div class="menu" id="menu">
-    <button class="menu-fs-btn sound-btn" id="menuSoundBtn" aria-label="Sound" style="right: 52px;">🔊</button>
-    <button class="menu-fs-btn" id="menuFsBtn" aria-label="Fullscreen">⛶</button>
+    <div class="topbar">
+      <a class="bc" href="../../index.html">Arcade</a>
+      <span class="bc-sep">›</span>
+      <span class="bc-current">Snakes &amp; Ladders</span>
+      <div class="tb-spacer"></div>
+      <div class="tb-btns">
+        <button class="menu-fs-btn" id="menuFsBtn" aria-label="Fullscreen">⛶</button>
+      </div>
+    </div>
+    <div class="menu-body">
     <div class="menu-title">SNAKES &amp; LADDERS</div>
     <div class="menu-prompt">SELECT PLAYERS</div>
     <div class="player-buttons">
@@ -702,17 +773,18 @@
       <button class="p-btn" data-players="3">3</button>
       <button class="p-btn" data-players="4">4</button>
     </div>
-    <div class="menu-actions">
-      <button class="menu-action-btn" id="renewBtn">🎲 NEW LAYOUT</button>
-      <button class="menu-action-btn" id="settingsBtn">⚙ SETTINGS</button>
-    </div>
     <div class="menu-board-wrap">
       <div class="menu-board-inner">
         <div class="board" id="menuBoard"></div>
         <svg class="overlay" id="menuOverlay" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
       </div>
     </div>
+    <div class="menu-actions">
+      <button class="menu-action-btn" id="settingsBtn" aria-label="Settings" title="Settings">⚙</button>
+      <button class="menu-action-btn" id="renewBtn" aria-label="New layout" title="New layout">↻</button>
+    </div>
     <button class="play-btn" id="playBtn">▶ SPIELEN</button>
+    </div>
   </div>
 
   <!-- SETTINGS MODAL -->
@@ -746,9 +818,6 @@
   <div class="modal-backdrop" id="exitModal">
     <div class="modal">
       <div class="modal-title">EXIT GAME?</div>
-      <div class="modal-row" style="justify-content: center; text-align: center;">
-        <div class="modal-label" style="flex: none;">PROGRESS<br>WILL BE LOST</div>
-      </div>
       <div class="modal-actions">
         <button class="cancel" id="exitCancel">CANCEL</button>
         <button id="exitConfirm">EXIT</button>
@@ -760,15 +829,14 @@
 
   <!-- GAME -->
   <div class="game" id="game" style="display:none;">
-    <!-- Top row: players 2, 3, 4 (rotated 180°) -->
-    <div class="players-top" id="playersTop"></div>
-
-    <!-- Controls bar (sound + fullscreen + main menu) -->
+    <!-- Controls: upper-right (fullscreen + exit to menu) -->
     <div class="controls-bar" id="controlsBar">
-      <button class="ctrl-btn fs sound-btn" id="gameSoundBtn" aria-label="Sound">🔊</button>
-      <button class="ctrl-btn fs" id="fsBtn" aria-label="Fullscreen">⛶</button>
+      <button class="ctrl-btn fs" id="fsBtn" aria-label="Fullscreen" title="Fullscreen">⛶</button>
       <button class="ctrl-btn menu" id="restartBtn" aria-label="Main menu">☰</button>
     </div>
+
+    <!-- Top row: players 2, 3, 4 (rotated 180°) -->
+    <div class="players-top" id="playersTop"></div>
 
     <!-- Board -->
     <div class="board-wrap">
@@ -816,92 +884,6 @@
   let moving = false;
   let gameOver = false;
   let lastRoll = null;
-
-  // ============ SOUND ENGINE ============
-  // Tiny synthesized 8-bit sounds via the Web Audio API. No external files.
-  let audioCtx = null;
-  let soundEnabled = localStorage.getItem('snl-sound') !== 'off';
-
-  function ensureAudio() {
-    if (!audioCtx) {
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      } catch (e) {
-        audioCtx = null;
-      }
-    }
-    // Browsers suspend contexts created before a user gesture; try to resume
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
-    }
-    return audioCtx;
-  }
-
-  // Play a short tone. Returns a Promise that resolves when the tone finishes.
-  function tone(freq, durMs, { type = 'square', vol = 0.08, attack = 0.005, release = 0.04 } = {}) {
-    if (!soundEnabled) return;
-    const ctx = ensureAudio();
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const tEnd = t0 + durMs / 1000;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0, t0);
-    gain.gain.linearRampToValueAtTime(vol, t0 + attack);
-    gain.gain.setValueAtTime(vol, Math.max(t0 + attack, tEnd - release));
-    gain.gain.linearRampToValueAtTime(0, tEnd);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t0);
-    osc.stop(tEnd + 0.02);
-  }
-
-  // Sliding pitch (for ladder up / snake down)
-  function slide(freqStart, freqEnd, durMs, { type = 'square', vol = 0.07 } = {}) {
-    if (!soundEnabled) return;
-    const ctx = ensureAudio();
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const tEnd = t0 + durMs / 1000;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freqStart, t0);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(40, freqEnd), tEnd);
-    gain.gain.setValueAtTime(0, t0);
-    gain.gain.linearRampToValueAtTime(vol, t0 + 0.01);
-    gain.gain.linearRampToValueAtTime(0, tEnd);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t0);
-    osc.stop(tEnd + 0.02);
-  }
-
-  // Named sound events
-  const SFX = {
-    diceTick: () => tone(180 + Math.random() * 80, 30, { vol: 0.04, type: 'square' }),
-    diceLand: () => tone(440, 80, { vol: 0.08 }),
-    step:     () => tone(660, 25, { vol: 0.05, type: 'triangle' }),
-    snake:    () => slide(700, 120, 600, { type: 'sawtooth', vol: 0.08 }),
-    ladder:   () => slide(220, 880, 500, { type: 'square', vol: 0.07 }),
-    win: () => {
-      // Quick ascending arpeggio
-      const notes = [523, 659, 784, 1047]; // C E G C
-      notes.forEach((f, i) => setTimeout(() => tone(f, 140, { vol: 0.1 }), i * 110));
-    },
-  };
-
-  function setSoundEnabled(on) {
-    soundEnabled = on;
-    localStorage.setItem('snl-sound', on ? 'on' : 'off');
-    updateSoundIcons();
-  }
-
-  function updateSoundIcons() {
-    const icon = soundEnabled ? '🔊' : '🔇';
-    const els = document.querySelectorAll('.sound-btn');
-    els.forEach(e => e.textContent = icon);
-  }
 
   // ============ DOM ============
   const menu = document.getElementById('menu');
@@ -1495,7 +1477,6 @@
     let ticks = 0;
     const interval = setInterval(() => {
       diceEl.textContent = Math.floor(Math.random() * 6) + 1;
-      SFX.diceTick();
       ticks++;
       if (ticks >= 10) {
         clearInterval(interval);
@@ -1504,7 +1485,6 @@
         diceEl.classList.remove('rolling');
         rolling = false;
         lastRoll = result;
-        SFX.diceLand();
         movePlayer(result);
       }
     }, 60);
@@ -1528,7 +1508,6 @@
       positions[currentPlayer] = s;
       renderTokens();
       renderPlayersPanel();
-      SFX.step();
       await sleep(180);
     }
 
@@ -1536,7 +1515,6 @@
     if (SNAKES[target] !== undefined) {
       statusEl.textContent = `🐍 SNAKE! ${target} → ${SNAKES[target]}`;
       await sleep(300);
-      SFX.snake();
       await slideAlongSnake(currentPlayer, target, SNAKES[target]);
       positions[currentPlayer] = SNAKES[target];
       renderTokens();
@@ -1545,7 +1523,6 @@
     } else if (LADDERS[target] !== undefined) {
       statusEl.textContent = `⇧ LADDER! ${target} → ${LADDERS[target]}`;
       await sleep(300);
-      SFX.ladder();
       await slideAlongLadder(currentPlayer, target, LADDERS[target]);
       positions[currentPlayer] = LADDERS[target];
       renderTokens();
@@ -1572,7 +1549,6 @@
     gameOver = true;
     winTitle.textContent = `P${currentPlayer + 1} (${PLAYER_NAMES[currentPlayer]}) WINS!`;
     winOverlay.classList.add('show');
-    SFX.win();
   }
 
   function sleep(ms) {
@@ -1595,7 +1571,6 @@
   });
 
   playBtn.addEventListener('click', () => {
-    ensureAudio(); // unlock audio on user gesture
     startGame(selectedPlayers);
   });
 
@@ -1709,12 +1684,24 @@
               document.mozFullScreenElement || document.msFullscreenElement);
   }
 
+  const FS_WANT_KEY = 'mg_fs_want';
+  function wantFs() { try { return sessionStorage.getItem(FS_WANT_KEY) === '1'; } catch (e) { return false; } }
+  function setWantFs(on) {
+    try { on ? sessionStorage.setItem(FS_WANT_KEY, '1') : sessionStorage.removeItem(FS_WANT_KEY); } catch (e) {}
+  }
+  function enterFs() {
+    const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen ||
+                docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+    if (req) req.call(docEl).catch(() => {});
+  }
+
   function toggleFullscreen() {
     if (!isFullscreen()) {
-      const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen ||
-                  docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
-      if (req) req.call(docEl).catch(() => {});
+      setWantFs(true);
+      enterFs();
     } else {
+      // Explicit user exit — stop auto-restoring on later pages.
+      setWantFs(false);
       const exit = document.exitFullscreen || document.webkitExitFullscreen ||
                    document.mozCancelFullScreen || document.msExitFullscreen;
       if (exit) exit.call(document).catch(() => {});
@@ -1722,7 +1709,7 @@
   }
 
   function updateFsIcon() {
-    const icon = isFullscreen() ? '✕' : '⛶';
+    const icon = isFullscreen() ? '❐' : '⛶';
     fsBtn.textContent = icon;
     menuFsBtn.textContent = icon;
   }
@@ -1730,36 +1717,53 @@
   // After a fullscreen transition the viewport size changes, but the layout
   // sometimes does not re-flow until something triggers it. Forcing a tiny
   // style toggle + dispatching a resize event ensures bottom controls stay visible.
+  // Pin the app to the REAL viewport height. dvh is recomputed by the browser
+  // asynchronously across fullscreen transitions, so relying on it alone leaves
+  // the layout briefly oversized and clips the bottom player row. innerHeight is
+  // always the settled value once the matching resize event fires.
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-vh', window.innerHeight + 'px');
+  }
+
   function forceReflow() {
+    setAppHeight();
     // Toggle a harmless property on body to force the browser to recompute layout
     document.body.style.minHeight = '0';
     // Read offsetHeight to flush layout
     void document.body.offsetHeight;
     document.body.style.minHeight = '';
-    window.dispatchEvent(new Event('resize'));
   }
+
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', setAppHeight);
 
   fsBtn.addEventListener('click', toggleFullscreen);
   menuFsBtn.addEventListener('click', toggleFullscreen);
 
-  // Sound toggle buttons
-  const menuSoundBtn = document.getElementById('menuSoundBtn');
-  const gameSoundBtn = document.getElementById('gameSoundBtn');
-  function toggleSound() {
-    ensureAudio(); // initialize on user gesture so subsequent SFX work
-    setSoundEnabled(!soundEnabled);
+  // Navigation force-exits fullscreen and a fresh gesture is required to
+  // re-enter. If the user wanted fullscreen, restore it on their first
+  // interaction with this page (the tap/click they'd make anyway).
+  if (wantFs() && !isFullscreen()) {
+    const restore = () => {
+      if (wantFs() && !isFullscreen()) enterFs();
+      ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(ev =>
+        document.removeEventListener(ev, restore, true));
+    };
+    ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(ev =>
+      document.addEventListener(ev, restore, true));
   }
-  menuSoundBtn.addEventListener('click', toggleSound);
-  gameSoundBtn.addEventListener('click', toggleSound);
-  updateSoundIcons();
+
   ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
     .forEach(ev => document.addEventListener(ev, () => {
       updateFsIcon();
-      // The viewport height changes asynchronously; trigger a reflow after a frame
+      setAppHeight();
+      // The viewport height settles asynchronously; re-measure across a frame
+      // and a couple of delays to cover slow fullscreen transitions.
       requestAnimationFrame(() => {
         forceReflow();
-        // And once more after a short delay for slow transitions
         setTimeout(forceReflow, 250);
+        setTimeout(forceReflow, 600);
       });
     }));
 

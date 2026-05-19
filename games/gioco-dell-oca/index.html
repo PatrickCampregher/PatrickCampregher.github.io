@@ -40,23 +40,29 @@
     margin:0;border:0;padding:max(6px,env(safe-area-inset-top)) 0 0;
   }
 
-  /* Topbar (title sits inline at breadcrumb/button level) */
+  /* Topbar: full breadcrumb · spacer · icon buttons */
   .topbar{display:flex;align-items:center;gap:8px;flex:none;padding:0 10px;}
   .topbar a.bc{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.1em;color:var(--ink-soft);
     text-decoration:none;border-bottom:1px solid var(--gold);flex:none;}
   .topbar a.bc:hover{color:var(--oxblood);}
-  .gtitle{flex:1;min-width:0;text-align:center;font-family:'Cinzel',serif;font-weight:900;
-    color:var(--oxblood);font-size:clamp(14px,3.4vw,20px);letter-spacing:.04em;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bc-sep{font-family:'Cinzel',serif;font-size:11px;color:var(--ink-soft);opacity:.55;flex:none;}
+  .bc-current{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.1em;color:var(--ink-soft);
+    opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;max-width:52vw;}
+  .tb-spacer{flex:1;min-width:0;}
   .tb-btns{display:flex;gap:6px;flex:none;}
-  .ic-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;
-    background:transparent;border:1.5px solid var(--ink-soft);color:var(--ink-soft);font-size:14px;}
+  .ic-btn{width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+    background:transparent;border:1.5px solid var(--ink-soft);color:var(--ink-soft);
+    font-size:12px;line-height:1;padding:0;}
   .ic-btn:hover{color:var(--oxblood);border-color:var(--oxblood);}
+  .ic-btn[hidden]{display:none;}
 
   /* ===== SETUP ===== */
   .setup{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;
-    align-items:center;gap:14px;padding:14px 12px;text-align:center;}
+    align-items:center;justify-content:center;gap:14px;padding:14px 12px;text-align:center;}
   .setup.hide,.game,.win{display:none;}
+  .setup-title{font-family:'Cinzel',serif;font-weight:900;color:var(--oxblood);
+    font-size:clamp(24px,7vw,40px);letter-spacing:.04em;line-height:1.15;
+    text-shadow:0 2px 0 rgba(255,246,214,.5);}
   .pick-label{font-family:'Cinzel',serif;letter-spacing:.2em;font-size:12px;color:var(--oxblood);text-transform:uppercase;}
   .count-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
   .count-btn{width:50px;height:50px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);
@@ -90,12 +96,12 @@
   @keyframes boxglow{
     0%,100%{box-shadow:0 0 0 1px var(--gold-bright),0 0 6px 1px rgba(216,177,84,.55);}
     50%{box-shadow:0 0 0 2px var(--gold-bright),0 0 14px 4px rgba(216,177,84,.85);}}
-  .avatar{width:26px;height:26px;border-radius:50%;flex:none;
+  .avatar{width:42px;height:42px;border-radius:50%;flex:none;
     border:2px solid rgba(20,12,2,.85);
     box-shadow:0 0 0 2px rgba(255,245,220,.7),0 2px 4px rgba(0,0,0,.5);}
-  .dslot{width:34px;height:34px;flex:none;border:1.5px solid var(--ink-soft);
+  .dslot{width:50px;height:50px;flex:none;border:1.5px solid var(--ink-soft);
     background:rgba(255,248,222,.5);display:flex;align-items:center;justify-content:center;
-    font-family:'Cinzel',serif;font-weight:700;font-size:17px;color:var(--ink-soft);}
+    font-family:'Cinzel',serif;font-weight:700;font-size:20px;color:var(--ink-soft);}
   .dslot.empty{opacity:.3;}
   .dslot.prev{opacity:.9;color:var(--ink-soft);background:rgba(255,248,222,.35);}
   .dslot.live{border-color:var(--oxblood);color:var(--oxblood);cursor:pointer;
@@ -187,6 +193,10 @@
     background:linear-gradient(180deg,var(--verd),var(--verd-deep));
     border:2px solid var(--ink);padding:10px 26px;box-shadow:0 4px 0 var(--shadow);}
   .modal .mclose:active{transform:translateY(2px);box-shadow:0 2px 0 var(--shadow);}
+  .modal .modal-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px;}
+  .modal .modal-actions .mclose{margin-top:0;}
+  .modal .modal-actions .mclose.cancel{background:linear-gradient(180deg,var(--paper),var(--paper-dark));color:var(--ink);}
+  .modal .modal-actions .mclose.danger{background:linear-gradient(180deg,var(--oxblood),var(--oxblood-deep));color:var(--paper);}
   .perk-list{display:flex;flex-direction:column;gap:10px;margin:6px 0 12px;}
   .perk-row{display:flex;align-items:center;gap:10px;border:1.5px solid var(--ink-soft);
     background:rgba(255,250,232,.5);padding:8px 10px;}
@@ -211,7 +221,7 @@
   .win .sub{font-style:italic;color:var(--ink-soft);font-size:16px;max-width:460px;}
 
   @media (orientation:landscape) and (max-height:560px){
-    .gtitle{font-size:clamp(13px,3vw,17px);}
+    .setup-title{font-size:clamp(18px,4.5vw,26px);}
   }
 </style>
 </head>
@@ -220,8 +230,10 @@
   <div class="frame">
 
     <div class="topbar">
-      <a class="bc" href="../../index.html">‹ Arcade</a>
-      <div class="gtitle">Il Gioco dell'Oca</div>
+      <a class="bc" href="../../index.html">Arcade</a>
+      <span class="bc-sep">›</span>
+      <span class="bc-current">Il Gioco dell'Oca</span>
+      <div class="tb-spacer"></div>
       <div class="tb-btns">
         <button class="ic-btn" id="fsBtn" aria-label="Schermo intero" title="Schermo intero">⛶</button>
         <button class="ic-btn" id="restartBtn" aria-label="Ricomincia" title="Ricomincia" hidden>☰</button>
@@ -230,6 +242,7 @@
 
     <!-- SETUP -->
     <section class="setup" id="setup">
+      <h1 class="setup-title">Il Gioco dell'Oca</h1>
       <p class="pick-label">Quanti siete?</p>
       <div class="count-row" id="countRow"></div>
       <div class="menu-board"><div class="board" id="menuBoard"></div></div>
@@ -277,6 +290,19 @@
       <div class="perk-list" id="perkList"></div>
       <div class="free-line">Caselle libere: <b id="freeCount">0</b></div>
       <button class="mclose" id="setClose">Fatto</button>
+    </div>
+  </div>
+
+  <!-- Exit confirm -->
+  <div class="modal" id="exitModal">
+    <div class="card" role="dialog" aria-modal="true">
+      <div class="mtag">Partita in corso</div>
+      <h3>Uscire dalla partita?</h3>
+      <div class="mbody">I progressi di questa partita andranno persi.</div>
+      <div class="modal-actions">
+        <button class="mclose cancel" id="exitCancel">Annulla</button>
+        <button class="mclose danger" id="exitConfirm">Esci</button>
+      </div>
     </div>
   </div>
 </div>
@@ -812,6 +838,7 @@
   function clearRoll(){ gen++; if(rollIv){ clearInterval(rollIv); rollIv=null; } if(moveIv){ clearInterval(moveIv); moveIv=null; } busy=false; }
   function toMenu(){
     clearRoll(); started=false; closeModal();
+    $("exitModal").classList.remove("show");
     $("game").classList.remove("show"); $("win").classList.remove("show");
     $("setup").classList.remove("hide"); $("restartBtn").hidden=true;
   }
@@ -821,12 +848,18 @@
   $("setClose").addEventListener("click",()=>$("setModal").classList.remove("show"));
   $("setModal").addEventListener("click",e=>{ if(e.target===$("setModal")) $("setModal").classList.remove("show"); });
   $("againBtn").addEventListener("click",toMenu);
-  $("restartBtn").addEventListener("click",()=>{ if(confirm("Ricominciare la partita?")) toMenu(); });
+  $("restartBtn").addEventListener("click",()=>{
+    if(!started){ toMenu(); }                       // game over: no need to confirm
+    else { $("exitModal").classList.add("show"); }
+  });
+  $("exitCancel").addEventListener("click",()=>$("exitModal").classList.remove("show"));
+  $("exitConfirm").addEventListener("click",()=>{ $("exitModal").classList.remove("show"); toMenu(); });
+  $("exitModal").addEventListener("click",e=>{ if(e.target===$("exitModal")) $("exitModal").classList.remove("show"); });
 
   /* ---------- Modal close wiring ---------- */
   $("mClose").addEventListener("click",closeModal);
   $("modal").addEventListener("click",e=>{ if(e.target===$("modal")) closeModal(); });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); $("setModal").classList.remove("show"); } });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); $("setModal").classList.remove("show"); $("exitModal").classList.remove("show"); } });
 
   /* ---------- Fullscreen ---------- */
   const docEl=document.documentElement;
