@@ -358,30 +358,89 @@
     text-shadow: none;
   }
 
-  /* Top / bottom player rows */
+  /* Top / bottom player rows. Seat layout (set in JS per player count):
+     row-center  -> single controller, centered
+     row-corners -> two controllers pinned to the left/right corners
+     row-left    -> single controller pinned to the (left) corner */
   .players-top, .players-bottom {
-    display: grid;
-    gap: 8px;
+    display: flex;
+    gap: 12px;
     flex-shrink: 0;
-    padding: 0 10px;
-    align-items: start;
-    justify-items: center;
+    padding: 0 16px;
+    width: 100%;
+    align-items: flex-start;
+    justify-content: center;
   }
-  .players-bottom { grid-template-columns: 1fr; }
-  .players-top {
-    grid-template-columns: repeat(3, 1fr);
-    transform: rotate(180deg);
-  }
+  .players-top { transform: rotate(180deg); }
+  .players-top.row-corners,
+  .players-bottom.row-corners { justify-content: space-between; }
+  .players-top.row-left,
+  .players-bottom.row-left { justify-content: flex-start; }
   .players-top:empty, .players-bottom:empty { display: none; }
 
-  /* Center felt: deck + discard only, fills remaining space */
+  /* Center felt: deck + discard, with question/feedback above & below */
   .felt {
     flex: 1 1 0;
     min-height: 0;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .felt-row {
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: clamp(12px, 6vw, 36px);
+  }
+
+  /* Active / last-acting player's question + feedback, parked next to the
+     Stapel on whichever side that player's controller sits. The top zone is
+     flipped to read right-side-up for the rotated top-row controllers. */
+  .stage-msg {
+    width: 100%;
+    min-height: 5.4em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 12px;
+    text-align: center;
+  }
+  .stage-msg.stage-msg-top { transform: rotate(180deg); }
+  .stage-q {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
+  }
+  /* Shared answer buttons — only the active player's zone shows them,
+     directly under that player's question. */
+  .stage-btns {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    max-width: 280px;
+    margin-top: 2px;
+  }
+  /* Plain Richtig/Falsch result on top of the acting player's panel.
+     Inherits the panel's grey-out filter when it isn't their turn. */
+  .panel-fb {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+  .panel-fb.win {
+    color: var(--neon-green);
+    text-shadow: 0 0 6px var(--neon-green);
+  }
+  .panel-fb.lose {
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
   }
 
   .pile {
@@ -399,12 +458,14 @@
     text-transform: uppercase;
   }
 
-  /* Card-sized box used by deck/discard and (smaller) by panel spots */
+  /* Card-sized box used by deck/discard and (smaller) by panel spots.
+     Aspect matches the card art (134 x 243) so images fill edge-to-edge
+     with no letterboxing and their rounded corners actually show. */
   .slot {
-    --card-w: clamp(54px, 16vw, 92px);
+    --card-w: clamp(76px, 22vw, 128px);
     width: var(--card-w);
-    height: calc(var(--card-w) * 1.4);
-    border-radius: 9px;
+    height: calc(var(--card-w) * 1.814);
+    border-radius: 7px;
     flex: none;
     position: relative;
   }
@@ -417,6 +478,7 @@
     inset: 0;
     width: 100%;
     height: 100%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
   }
   .slot-num {
     position: absolute;
@@ -428,18 +490,19 @@
     color: rgba(0, 240, 255, 0.3);
     pointer-events: none;
   }
-  /* Discard reads a touch smaller so the deck is the centrepiece */
-  .felt .pile:not(.pile-deck) .slot { --card-w: clamp(44px, 12vw, 74px); }
+  /* Discard (Ablage) matches the deck (Stapel) size — same --card-w. */
 
-  /* Face-down deck stack with offset shadow cards + count badge */
+  /* Face-down deck stack: offset copies of the card-back image so the
+     Stapel reads as a real deck of cards (no SVG) + count badge. */
   .deck-stack { position: relative; }
   .deck-stack .deck-shadow {
     position: absolute;
     inset: 0;
-    border-radius: 9px;
-    background: #14082e;
-    border: 2px solid rgba(181, 55, 242, 0.5);
+    border-radius: 7px;
+    background: url('CardIcons/background.png') center / cover no-repeat;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
   }
+  .deck-stack.empty .deck-shadow { display: none; }
   .deck-stack .deck-shadow.s1 { transform: translate(4px, 4px); }
   .deck-stack .deck-shadow.s2 { transform: translate(8px, 8px); }
   .deck-count {
@@ -464,19 +527,24 @@
 
   /* Per-player controller */
   .panel {
-    width: 100%;
-    max-width: 230px;
+    width: auto;
+    max-width: 46vw;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    padding: 8px;
+    padding: 12px 14px;
     border: 2px solid var(--pc, var(--neon-cyan));
     border-radius: 10px;
     background: color-mix(in srgb, var(--bg) 86%, transparent);
     box-shadow: 0 0 8px color-mix(in srgb, var(--pc, var(--neon-cyan)) 30%, transparent);
     transition: background 0.32s ease, box-shadow 0.32s ease,
-                border-color 0.32s ease;
+                border-color 0.32s ease, filter 0.32s ease;
+  }
+  /* Only the player whose turn it is keeps colour — everyone else is
+     fully greyed out (cards included). */
+  .panel:not(.active) {
+    filter: grayscale(1) brightness(0.72);
   }
   .panel.active {
     background: color-mix(in srgb, var(--pc, var(--neon-cyan)) 12%, transparent);
@@ -495,19 +563,9 @@
     width: 100%;
     justify-content: center;
   }
-  .panel-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    background: var(--pc);
-    color: var(--pc);
-    box-shadow: 0 0 6px currentColor;
-    flex: none;
-  }
   .panel-name {
     font-family: 'VT323', monospace;
-    font-size: 18px;
+    font-size: 24px;
     letter-spacing: 1px;
     color: var(--pc, var(--neon-cyan));
     white-space: nowrap;
@@ -524,45 +582,27 @@
     color: var(--neon-green);
     text-shadow: 0 0 6px var(--neon-green);
   }
-  .panel-prompt {
-    font-family: 'VT323', monospace;
-    font-size: 16px;
-    letter-spacing: 1px;
-    color: var(--neon-pink);
-    text-shadow: 0 0 6px var(--neon-pink);
-    text-align: center;
-    min-height: 1.1em;
-  }
-  .panel-result {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    letter-spacing: 1px;
-    text-align: center;
-    min-height: 1em;
-  }
-  .panel-result.win {
-    color: var(--neon-green);
-    text-shadow: 0 0 6px var(--neon-green);
-  }
-  .panel-result.lose {
-    color: var(--neon-pink);
-    text-shadow: 0 0 6px var(--neon-pink);
-  }
+  /* Casino-style stack: each card sits half over the previous one. Later
+     spots paint on top so the newest card fans over the older ones; empty
+     placeholders recede behind every dealt card. */
   .panel-slots {
     display: flex;
-    gap: 5px;
     justify-content: center;
   }
-  .panel-slots .slot { --card-w: clamp(34px, 12vw, 50px); }
+  .panel-slots .slot { --card-w: clamp(50px, 17vw, 78px); }
+  .panel-slots .slot + .slot {
+    margin-left: calc(var(--card-w) * -0.5);
+  }
+  .panel-slots .slot:nth-child(1) { z-index: 1; }
+  .panel-slots .slot:nth-child(2) { z-index: 2; }
+  .panel-slots .slot:nth-child(3) { z-index: 3; }
+  .panel-slots .slot:nth-child(4) { z-index: 4; }
   .panel-slots .slot.empty {
-    border: 2px dashed color-mix(in srgb, var(--pc, var(--neon-cyan)) 35%, transparent);
+    z-index: 0;
+    border: 2px dashed color-mix(in srgb, var(--pc, var(--neon-cyan)) 22%, transparent);
     background: transparent;
   }
-  .panel-btns {
-    display: flex;
-    gap: 6px;
-    width: 100%;
-  }
+  .panel-slots .slot-num { display: none; }
   .ans-btn {
     flex: 1 1 0;
     min-width: 0;
@@ -706,18 +746,24 @@
   .card {
     --card-w: 84px;
     width: var(--card-w);
-    height: calc(var(--card-w) * 1.4);
+    height: calc(var(--card-w) * 1.814);
     display: block;
-    border-radius: 9px;
+    border-radius: 7px;
     background: transparent;
     user-select: none;
     -webkit-user-select: none;
     flex: none;
   }
-  .card svg {
+  .card svg,
+  .card img {
     display: block;
     width: 100%;
     height: 100%;
+  }
+  .card img {
+    object-fit: cover;
+    border-radius: 7px;
+    pointer-events: none;
   }
 
   /* ===== ANIMATIONS (Task 5) ===== */
@@ -726,12 +772,24 @@
   .fly-card {
     position: fixed;
     z-index: 9;
-    border-radius: 9px;
+    border-radius: 7px;
     pointer-events: none;
     perspective: 900px;
     will-change: transform;
     transition: left var(--fly-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1),
                 top  var(--fly-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  /* One playful full spin while the card travels deck -> slot. Ends at
+     360deg (== 0) so it rests seamlessly at the card's orientation. */
+  .fly-spin {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    animation: flySpin var(--fly-ms, 360ms) cubic-bezier(0.34, 0.8, 0.4, 1);
+  }
+  @keyframes flySpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
   }
   .fly-inner {
     position: relative;
@@ -749,7 +807,14 @@
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
   }
-  .fly-face svg, .fly-back svg { display: block; width: 100%; height: 100%; }
+  .fly-face svg, .fly-back svg,
+  .fly-face img, .fly-back img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 7px;
+  }
   .fly-back  { transform: rotateY(0deg); }
   .fly-face  { transform: rotateY(180deg); }
 
@@ -802,6 +867,7 @@
     .panel.active { animation: none; }
     .fly-card { transition: none; }
     .fly-inner { transition: none; }
+    .fly-spin { animation: none; }
     .slot .card.sweeping { transition: none; }
     .deck-stack.reshuffling .deck-shadow,
     .deck-stack.reshuffling #deckCard { animation: none; }
@@ -865,21 +931,24 @@
     <!-- Top row: players 2-4 (rotated 180°) -->
     <div class="players-top" id="playersTop"></div>
 
-    <!-- Center: deck (Stapel) + discard (Ablage) only -->
+    <!-- Center: deck (Stapel) + discard (Ablage), with the active /
+         last-acting player's question + feedback above or below it. -->
     <div class="felt" id="felt">
-      <div class="pile">
-        <div class="pile-label">Ablage</div>
-        <div class="slot empty" id="discardSlot"></div>
-      </div>
-      <div class="pile pile-deck">
-        <div class="pile-label">Stapel</div>
-        <div class="slot deck-stack" id="deckStack">
-          <div class="deck-shadow s2"></div>
-          <div class="deck-shadow s1"></div>
-          <div class="card" id="deckCard"></div>
-          <div class="deck-count" id="deckCount">0</div>
+      <div class="stage-msg stage-msg-top" id="stageMsgTop"></div>
+      <div class="felt-row">
+        <div class="pile">
+          <div class="slot empty" id="discardSlot"></div>
+        </div>
+        <div class="pile pile-deck">
+          <div class="slot deck-stack" id="deckStack">
+            <div class="deck-shadow s2"></div>
+            <div class="deck-shadow s1"></div>
+            <div class="card" id="deckCard"></div>
+            <div class="deck-count" id="deckCount">0</div>
+          </div>
         </div>
       </div>
+      <div class="stage-msg stage-msg-bottom" id="stageMsgBottom"></div>
     </div>
 
     <!-- Bottom row: player 1 -->
@@ -965,7 +1034,24 @@
   const discardSlot = document.getElementById('discardSlot');
   const playersTop = document.getElementById('playersTop');
   const playersBottom = document.getElementById('playersBottom');
+  const stageMsgTop = document.getElementById('stageMsgTop');
+  const stageMsgBottom = document.getElementById('stageMsgBottom');
   const restartBtn = document.getElementById('restartBtn');
+
+  // Deterministic "sloppy toss" transform for a discarded card. Seeded
+  // from the card identity so a given card keeps the SAME angle/offset on
+  // every re-render (no jitter), but each card looks carelessly placed.
+  function cardJitter(card) {
+    const key = card.isWeli ? 'weli' : (card.suit + card.rank);
+    let h = 0;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+    const rnd = (n) => { h = (h * 1103515245 + 12345) | 0; return (h >>> 17) % n; };
+    const rot = rnd(37) - 18;   // -18..18 deg
+    const dx  = rnd(25) - 12;   // -12..12 px
+    const dy  = rnd(21) - 10;   // -10..10 px
+    return 'transform:rotate(' + rot + 'deg) translate(' +
+      dx + 'px,' + dy + 'px);';
+  }
 
   // ============ RENDER ============
   // (Re)draws deck + discard + per-player panels from `state`.
@@ -986,25 +1072,91 @@
       deckCard.innerHTML = '';
     }
 
-    // Discard: top card face-up, else empty.
-    const top = state.discard[state.discard.length - 1];
-    if (top) {
+    // Discard: a messy pile — the last few cards tossed on at sloppy
+    // angles/offsets (newest on top), like nobody squared the stack.
+    const dn = state.discard.length;
+    if (dn) {
       discardSlot.classList.remove('empty');
-      discardSlot.innerHTML = '<div class="card">' + cardSVG(top) + '</div>';
+      const pile = state.discard.slice(Math.max(0, dn - 6));
+      discardSlot.innerHTML = pile.map(c =>
+        '<div class="card discard-card" style="' + cardJitter(c) + '">' +
+        cardSVG(c) + '</div>'
+      ).join('');
     } else {
       discardSlot.classList.add('empty');
       discardSlot.innerHTML = '';
     }
 
     renderControls();
+    renderStageMsg();
   }
 
-  // Per-player panels: name + stage + (active only) prompt/result + the
-  // player's own 4 card spots + the two stage-appropriate buttons.
-  // P1 -> bottom row; P2..P4 -> top row (rotated by CSS).
+  // Which screen row a player's controller sits in, per the seat plan:
+  //   1P: bottom centered
+  //   2P: bottom + top, each centered
+  //   3P: P1 bottom corner, P2/P3 top corners (one corner stays empty)
+  //   4P: one controller in every corner
+  // Bottom row holds P1 always (+ P4 when there are 4 players); everyone
+  // else sits up top (which CSS flips upright).
+  function playerSide(idx) {
+    const n = state.players.length;
+    if (idx === 0) return 'bottom';
+    if (n === 4 && idx === 3) return 'bottom';
+    return 'top';
+  }
+
+  // Park the active player's question + the two shared answer buttons next
+  // to the Stapel, on whichever side that player's controller sits. The
+  // buttons act for the active player. (Result feedback now lives on the
+  // acting player's own controller — see renderControls.)
+  function renderStageMsg() {
+    if (!stageMsgTop || !stageMsgBottom) return;
+    stageMsgTop.innerHTML = '';
+    stageMsgBottom.innerHTML = '';
+    const zoneFor = idx =>
+      (playerSide(idx) === 'bottom' ? stageMsgBottom : stageMsgTop);
+
+    // Question + the two answer buttons for the active player.
+    const ai = state.activePlayer;
+    const ap = state.players[ai];
+    if (ap && !ap.finished) {
+      const zone = zoneFor(ai);
+
+      const q = document.createElement('div');
+      q.className = 'stage-q';
+      q.textContent = stageQuestion(ap.stage);
+      zone.appendChild(q);
+
+      const btns = document.createElement('div');
+      btns.className = 'stage-btns';
+      btns.style.setProperty('--pc', PLAYER_COLORS[ai]);
+      buttonLabels(ap.stage).forEach((label, choiceIndex) => {
+        const b = document.createElement('button');
+        b.className = 'ans-btn';
+        b.textContent = label;
+        b.addEventListener('click', () => onAnswer(ai, choiceIndex));
+        btns.appendChild(b);
+      });
+      zone.appendChild(btns);
+    }
+  }
+
+  // Per-player panels: a plain Richtig/Falsch result line on top, then
+  // name + (FERTIG badge) + the player's own 4 stacked card spots. The
+  // question and answer buttons are rendered separately by the Stapel
+  // (renderStageMsg). Seats are placed per playerSide() + the row layout.
   function renderControls() {
     playersTop.innerHTML = '';
     playersBottom.innerHTML = '';
+
+    const n = state.players.length;
+    const bottomCount = state.players
+      .filter((_, i) => playerSide(i) === 'bottom').length;
+    const topCount = n - bottomCount;
+    const layout = (count) =>
+      (count >= 2 ? 'row-corners' : (n >= 3 ? 'row-left' : 'row-center'));
+    playersBottom.className = 'players-bottom ' + layout(bottomCount);
+    playersTop.className = 'players-top ' + layout(topCount);
 
     state.players.forEach((p, idx) => {
       const isActive = idx === state.activePlayer && !p.finished;
@@ -1014,34 +1166,29 @@
       panel.dataset.player = String(idx);
       panel.style.setProperty('--pc', PLAYER_COLORS[idx]);
 
+      // Plain result of this player's last action, on top of their panel.
+      // It greys out with the panel when it isn't their turn.
+      const lr = state.lastResult;
+      let fb = null;
+      if (lr && lr.idx === idx && lr.kind) {
+        fb = document.createElement('div');
+        fb.className = 'panel-fb ' + lr.kind;
+        fb.textContent = lr.kind === 'win' ? 'Richtig' : 'Falsch';
+      }
+
       const head = document.createElement('div');
       head.className = 'panel-head';
-      const dot = document.createElement('span');
-      dot.className = 'panel-dot';
       const nm = document.createElement('span');
       nm.className = 'panel-name';
       nm.textContent = p.name;
-      head.appendChild(dot);
       head.appendChild(nm);
 
-      const stg = document.createElement('div');
-      stg.className = 'panel-stage' + (p.finished ? ' done' : '');
-      stg.textContent = p.finished ? 'FERTIG' : ('Stufe ' + p.stage + '/4');
-
-      // Active-only stage prompt.
-      const prompt = document.createElement('div');
-      prompt.className = 'panel-prompt';
-      prompt.textContent = isActive ? stageQuestion(p.stage) : '';
-
-      // Result text lives on whichever player last acted (state.lastResult).
-      const res = document.createElement('div');
-      const lr = state.lastResult;
-      if (lr && lr.idx === idx) {
-        res.className = lr.kind ? ('panel-result ' + lr.kind) : 'panel-result';
-        res.textContent = lr.text;
-      } else {
-        res.className = 'panel-result';
-        res.textContent = '';
+      // Stage is read off the stacked cards now; only the FERTIG state
+      // still needs a badge. Question/feedback live by the Stapel.
+      const stg = p.finished ? document.createElement('div') : null;
+      if (stg) {
+        stg.className = 'panel-stage done';
+        stg.textContent = 'FERTIG';
       }
 
       // The player's own four card spots (cumulative progress).
@@ -1061,35 +1208,13 @@
         slots.appendChild(slot);
       }
 
-      const btns = document.createElement('div');
-      btns.className = 'panel-btns';
-      if (p.finished) {
-        for (let k = 0; k < 2; k++) {
-          const b = document.createElement('button');
-          b.className = 'ans-btn';
-          b.disabled = true;
-          btns.appendChild(b);
-        }
-      } else {
-        const labels = buttonLabels(p.stage);
-        labels.forEach((label, choiceIndex) => {
-          const b = document.createElement('button');
-          b.className = 'ans-btn';
-          b.textContent = label;
-          b.disabled = !isActive;
-          b.addEventListener('click', () => onAnswer(idx, choiceIndex));
-          btns.appendChild(b);
-        });
-      }
-
+      if (fb) panel.appendChild(fb);
       panel.appendChild(head);
-      panel.appendChild(stg);
-      panel.appendChild(prompt);
-      panel.appendChild(res);
+      if (stg) panel.appendChild(stg);
       panel.appendChild(slots);
-      panel.appendChild(btns);
 
-      (idx === 0 ? playersBottom : playersTop).appendChild(panel);
+      (playerSide(idx) === 'bottom' ? playersBottom : playersTop)
+        .appendChild(panel);
     });
   }
 
@@ -1304,14 +1429,22 @@
     fly.className = 'fly-card';
     fly.style.setProperty('--fly-ms', reduced ? '0ms' : '360ms');
     fly.style.setProperty('--flip-ms', reduced ? '0ms' : '360ms');
+    // Resting rotation: top-row controllers are rotated 180°, and the
+    // flyer lives in screen space, so it must settle at the player's
+    // orientation (no snap). The .fly-spin wrapper adds one full spin
+    // on top of this while it travels.
+    const restRot = playerSide(playerIndex) === 'top' ? 180 : 0;
+    if (restRot) fly.style.transform = 'rotate(' + restRot + 'deg)';
     fly.style.left = from.left + 'px';
     fly.style.top = from.top + 'px';
     fly.style.width = from.width + 'px';
     fly.style.height = from.height + 'px';
     fly.innerHTML =
+      '<div class="fly-spin">' +
       '<div class="fly-inner">' +
       '<div class="fly-back">' + cardBackSVG() + '</div>' +
       '<div class="fly-face">' + cardSVG(card) + '</div>' +
+      '</div>' +
       '</div>';
     document.body.appendChild(fly);
 
@@ -1325,7 +1458,7 @@
         return;
       }
 
-      // 1) slide deck -> slot.
+      // 1) slide deck -> slot, doing one full spin to the rest angle.
       await nextFrame();
       fly.style.left = to.left + 'px';
       fly.style.top = to.top + 'px';
@@ -1357,10 +1490,10 @@
       '.panel[data-player="' + playerIndex + '"] .panel-slots .slot .card'));
     if (!cards.length || reduced) return;
 
-    // Top-row players (every index except 0) live inside a rotate(180deg)
-    // container, so their local CSS axes are flipped. Negate the screen-space
-    // deltas so translate() still moves the cards toward the discard pile.
-    const inTopRow = playerIndex !== 0;
+    // Top-row controllers live inside a rotate(180deg) container, so their
+    // local CSS axes are flipped. Negate the screen-space deltas so
+    // translate() still moves the cards toward the discard pile.
+    const inTopRow = playerSide(playerIndex) === 'top';
 
     const target = discardSlot.getBoundingClientRect();
     let last = null;
@@ -1742,307 +1875,58 @@
     return array;
   }
 
-  // ============ SVG CARD FACES ============
-  // All drawing happens on a 240 x 336 viewBox (1 : 1.4).
-  const CARD_W = 240, CARD_H = 336;
-  const CARD_RED = '#e23426';
-  const CARD_BLACK = '#1a1430';
-
-  // --- Reusable suit emblems, drawn around the origin, ~ -1..1 box. ---
-  // Each returns SVG path/markup; caller wraps it in a <g transform> to place/scale.
-  function emblemSchell(fill) {
-    // Round sleigh-bell: body, slit, jingle holes, top loop.
-    return (
-      '<g fill="' + fill + '">' +
-      '<path d="M0,-0.86 C0.55,-0.86 0.92,-0.42 0.92,0.18 C0.92,0.5 0.74,0.66 0.74,0.78 ' +
-      'L-0.74,0.78 C-0.74,0.66 -0.92,0.5 -0.92,0.18 C-0.92,-0.42 -0.55,-0.86 0,-0.86 Z"/>' +
-      '<rect x="-0.82" y="0.78" width="1.64" height="0.16" rx="0.06"/>' +
-      '<rect x="-0.16" y="-1.08" width="0.32" height="0.26" rx="0.1"/>' +
-      '<path d="M-0.13,-0.92 a0.13 0.13 0 1 1 0.26 0" fill="none" stroke="' + fill +
-      '" stroke-width="0.12"/>' +
-      '</g>' +
-      '<ellipse cx="0" cy="0.34" rx="0.16" ry="0.2" fill="rgba(0,0,0,0.32)"/>' +
-      '<circle cx="-0.42" cy="-0.16" r="0.09" fill="rgba(255,255,255,0.45)"/>'
-    );
-  }
-  function emblemEichel(fill) {
-    // Acorn: nut body + textured cap + tiny stalk.
-    return (
-      '<g>' +
-      '<path d="M-0.6,-0.12 C-0.6,0.62 -0.34,0.96 0,0.96 C0.34,0.96 0.6,0.62 0.6,-0.12 Z" fill="' +
-      fill + '"/>' +
-      '<path d="M-0.72,-0.5 C-0.72,-0.18 -0.4,0.02 0,0.02 C0.4,0.02 0.72,-0.18 0.72,-0.5 ' +
-      'C0.72,-0.74 0.4,-0.92 0,-0.92 C-0.4,-0.92 -0.72,-0.74 -0.72,-0.5 Z" fill="' + fill + '"/>' +
-      '<rect x="-0.08" y="-1.16" width="0.16" height="0.3" rx="0.07" fill="' + fill + '"/>' +
-      '<g stroke="rgba(255,255,255,0.35)" stroke-width="0.05">' +
-      '<line x1="-0.4" y1="-0.66" x2="-0.4" y2="-0.16"/>' +
-      '<line x1="0" y1="-0.78" x2="0" y2="-0.12"/>' +
-      '<line x1="0.4" y1="-0.66" x2="0.4" y2="-0.16"/>' +
-      '</g>' +
-      '<ellipse cx="-0.2" cy="0.4" rx="0.12" ry="0.22" fill="rgba(255,255,255,0.28)"/>' +
-      '</g>'
-    );
-  }
-  function emblemHerz(fill) {
-    return (
-      '<path fill="' + fill + '" d="M0,0.92 C-0.2,0.6 -0.95,0.2 -0.95,-0.34 ' +
-      'C-0.95,-0.74 -0.62,-0.96 -0.32,-0.96 C-0.1,-0.96 0,-0.78 0,-0.66 ' +
-      'C0,-0.78 0.1,-0.96 0.32,-0.96 C0.62,-0.96 0.95,-0.74 0.95,-0.34 ' +
-      'C0.95,0.2 0.2,0.6 0,0.92 Z"/>' +
-      '<path d="M-0.5,-0.66 C-0.66,-0.5 -0.7,-0.28 -0.64,-0.06" stroke="rgba(255,255,255,0.4)" ' +
-      'stroke-width="0.09" fill="none" stroke-linecap="round"/>'
-    );
-  }
-  function emblemLaub(fill) {
-    // Leaf frond with stem and midrib veins.
-    return (
-      '<g>' +
-      '<path fill="' + fill + '" d="M0,-0.98 C0.6,-0.5 0.78,0.2 0.34,0.7 ' +
-      'C0.16,0.9 -0.16,0.9 -0.34,0.7 C-0.78,0.2 -0.6,-0.5 0,-0.98 Z"/>' +
-      '<rect x="-0.07" y="0.62" width="0.14" height="0.42" rx="0.06" fill="' + fill + '"/>' +
-      '<g stroke="rgba(255,255,255,0.4)" stroke-width="0.055" fill="none" stroke-linecap="round">' +
-      '<line x1="0" y1="-0.78" x2="0" y2="0.66"/>' +
-      '<path d="M0,-0.42 L0.36,-0.18 M0,-0.42 L-0.36,-0.18"/>' +
-      '<path d="M0,0.02 L0.34,0.26 M0,0.02 L-0.34,0.26"/>' +
-      '</g>' +
-      '</g>'
-    );
-  }
-  const EMBLEMS = {
-    schell: emblemSchell, eichel: emblemEichel, herz: emblemHerz, laub: emblemLaub
+  // ============ CARD ART ============
+  // Real card images live under CardIcons/. Folder + filename casing is
+  // inconsistent per suit, and Eichel spells out "könig" where the others
+  // use "koenig", so the mapping is explicit. The Weli and the face-down
+  // back sit at the CardIcons/ root.
+  //
+  // PAGE_BASE anchors the relative card paths to this game's directory.
+  // Without it, visiting /games/busfahren (no trailing slash) makes the
+  // browser resolve "CardIcons/..." against /games/ and every card 404s.
+  const PAGE_BASE = (function () {
+    let p = location.pathname;
+    if (p.endsWith('/')) return p;
+    if (/\.html?$/i.test(p)) return p.replace(/[^/]*$/, '');
+    return p + '/';
+  })();
+  const ART_BASE = PAGE_BASE + 'CardIcons/';
+  const ART_BACK = ART_BASE + 'background.png';
+  const ART_WELI = ART_BASE + 'Welli.png';
+  const ART_SUIT = {
+    schell: { dir: 'Schell', prefix: 'Schell' },
+    eichel: { dir: 'eichel', prefix: 'eichel' },
+    herz:   { dir: 'Herz',   prefix: 'herz' },
+    laub:   { dir: 'Laub',   prefix: 'laub' }
   };
 
-  function emblemAt(suit, cx, cy, scale, fill, rotate) {
-    const fn = EMBLEMS[suit];
-    if (!fn) return '';
-    return '<g transform="translate(' + cx + ' ' + cy + ') scale(' + scale + ')' +
-      (rotate ? ' rotate(180)' : '') + '">' + fn(fill) + '</g>';
+  // The on-disk rank token. König is the only per-suit special case.
+  function rankToken(suit, rank) {
+    if (rank === 'koenig') return suit === 'eichel' ? 'könig' : 'koenig';
+    return rank; // 7 8 9 10 unter ober ass
   }
 
-  // Pip layouts (unit coords, x in -1..1, y in -1..1) per rank.
-  // Lower half pips are flagged to be drawn rotated 180° like real cards.
-  function pipLayout(n) {
-    const C = 0, L = -0.62, R = 0.62;
-    const T = -0.78, B = 0.78, MT = -0.26, MB = 0.26, M = 0;
-    const pos = (x, y) => ({ x, y, flip: y > 0.001 });
-    switch (n) {
-      case 7:  return [pos(L,T),pos(R,T),pos(C,-0.46),pos(L,M),pos(R,M),pos(L,B),pos(R,B)];
-      case 8:  return [pos(L,T),pos(R,T),pos(C,MT),pos(L,M),pos(R,M),pos(C,MB),pos(L,B),pos(R,B)];
-      case 9:  return [pos(L,T),pos(R,T),pos(L,MT),pos(R,MT),pos(C,M),
-                       pos(L,MB),pos(R,MB),pos(L,B),pos(R,B)];
-      case 10: return [pos(L,T),pos(R,T),pos(C,-0.5),pos(L,MT),pos(R,MT),
-                       pos(L,MB),pos(R,MB),pos(C,0.5),pos(L,B),pos(R,B)];
-      default: return [];
-    }
+  function cardArtSrc(card) {
+    if (card.isWeli) return ART_WELI;
+    const s = ART_SUIT[card.suit];
+    return ART_BASE + s.dir + '/' + s.prefix + '_' +
+      rankToken(card.suit, card.rank) + '.png';
   }
 
-  // Court figures — clean stylized SVG so each rank reads distinctly.
-  // Drawn inside an inner panel rect (px coords, the panel is x:60..180 y:64..272).
-  function courtFigure(rank, accent, ink) {
-    const skin = '#f3d6b3', robe = accent, trim = '#fff6e0';
-    let crown = '';
-    if (rank === 'koenig') {
-      // Tall five-point crown.
-      crown = '<path d="M96,96 L96,74 L108,86 L120,66 L132,86 L144,74 L144,96 Z" fill="' +
-        '#ffd23f" stroke="' + ink + '" stroke-width="1.5"/>' +
-        '<circle cx="120" cy="64" r="3.4" fill="#ff2bd6"/>';
-    } else if (rank === 'ober') {
-      // Lower, rounded coronet.
-      crown = '<path d="M99,96 C99,80 109,74 120,74 C131,74 141,80 141,96 Z" fill="' +
-        '#ffd23f" stroke="' + ink + '" stroke-width="1.5"/>' +
-        '<circle cx="105" cy="84" r="2.6" fill="#ff2bd6"/>' +
-        '<circle cx="120" cy="80" r="2.6" fill="#ff2bd6"/>' +
-        '<circle cx="135" cy="84" r="2.6" fill="#ff2bd6"/>';
-    } else {
-      // Unter / footman: feathered cap.
-      crown = '<path d="M101,98 C101,84 110,77 120,77 C130,77 139,84 139,98 Z" fill="' +
-        accent + '" stroke="' + ink + '" stroke-width="1.5"/>' +
-        '<path d="M120,77 C128,66 138,64 146,68 C140,74 132,78 124,82 Z" fill="#39ff14"/>';
-    }
-    return (
-      // Shoulders / robe.
-      '<path d="M84,272 C84,210 96,150 120,150 C144,150 156,210 156,272 Z" fill="' + robe +
-      '" stroke="' + ink + '" stroke-width="1.6"/>' +
-      // Collar.
-      '<path d="M104,158 L120,182 L136,158 Z" fill="' + trim + '"/>' +
-      // Center placket.
-      '<rect x="118" y="172" width="4" height="96" fill="' + trim + '" opacity="0.7"/>' +
-      // Head.
-      '<circle cx="120" cy="118" r="22" fill="' + skin + '" stroke="' + ink +
-      '" stroke-width="1.4"/>' +
-      // Hair / beard hint for König.
-      (rank === 'koenig'
-        ? '<path d="M99,120 C99,138 108,150 120,150 C132,150 141,138 141,120" fill="none" stroke="' +
-          '#7a5a3a" stroke-width="3"/>'
-        : '') +
-      // Eyes.
-      '<circle cx="112" cy="116" r="2.4" fill="' + ink + '"/>' +
-      '<circle cx="128" cy="116" r="2.4" fill="' + ink + '"/>' +
-      crown
-    );
-  }
-
-  // Build a full card-face SVG string for the given card.
+  // <img> for a face-up card. encodeURI keeps the path slashes but
+  // percent-encodes the non-ASCII "ö" in eichel_könig.png.
   function cardSVG(card) {
-    const W = CARD_W, H = CARD_H;
-    let body = '';
-
-    if (card.isWeli) {
-      // Sun / globe motif: rays, disc, meridians, WELI banner.
-      const cx = W / 2, cy = H / 2 - 6;
-      let rays = '';
-      for (let i = 0; i < 16; i++) {
-        const a = (Math.PI * 2 * i) / 16;
-        const r1 = 60, r2 = 92;
-        rays += '<line x1="' + (cx + Math.cos(a) * r1).toFixed(1) +
-          '" y1="' + (cy + Math.sin(a) * r1).toFixed(1) +
-          '" x2="' + (cx + Math.cos(a) * r2).toFixed(1) +
-          '" y2="' + (cy + Math.sin(a) * r2).toFixed(1) + '"/>';
-      }
-      body =
-        '<g stroke="#ffd23f" stroke-width="5" stroke-linecap="round" opacity="0.9">' +
-        rays + '</g>' +
-        '<circle cx="' + cx + '" cy="' + cy + '" r="54" fill="#ffd23f"/>' +
-        '<circle cx="' + cx + '" cy="' + cy + '" r="54" fill="none" stroke="#ff2bd6" ' +
-        'stroke-width="3"/>' +
-        '<ellipse cx="' + cx + '" cy="' + cy + '" rx="22" ry="54" fill="none" stroke="' +
-        '#ff2bd6" stroke-width="2.4" opacity="0.7"/>' +
-        '<line x1="' + (cx - 54) + '" y1="' + cy + '" x2="' + (cx + 54) + '" y2="' + cy +
-        '" stroke="#ff2bd6" stroke-width="2.4" opacity="0.7"/>' +
-        '<text x="' + cx + '" y="' + (cy + 8) +
-        '" text-anchor="middle" font-family="\'Press Start 2P\', monospace" font-size="20" ' +
-        'fill="#0a0420">W</text>' +
-        '<text x="' + cx + '" y="' + (H - 40) +
-        '" text-anchor="middle" font-family="\'Press Start 2P\', monospace" font-size="18" ' +
-        'fill="#ff2bd6">WELI</text>';
-
-      const idx = cornerIndex('W', null, '#b537f2', true);
-      return wrapCard(body + idx, true, 'Weli');
-    }
-
-    const isRed = colorOf(card) === 'rot';
-    const ink = isRed ? CARD_RED : CARD_BLACK;
-    const rank = card.rank;
-
-    if (RANKS[rank] <= 10) {
-      // Number card: pip grid of the suit emblem.
-      const n = RANKS[rank];
-      const layout = pipLayout(n);
-      // Map unit coords into the central area.
-      const ax = W / 2, ay = H / 2, sx = 58, sy = 110, pip = 22;
-      let pips = '';
-      for (const p of layout) {
-        pips += emblemAt(card.suit,
-          (ax + p.x * sx), (ay + p.y * sy), pip, ink, p.flip);
-      }
-      body = pips;
-    } else if (rank === 'ass') {
-      // Ace: one large central emblem.
-      body = emblemAt(card.suit, W / 2, H / 2, 64, ink, false);
-    } else {
-      // Court: figure panel + suit emblems in two corners of the panel.
-      body =
-        '<rect x="58" y="62" width="124" height="212" rx="10" fill="rgba(0,0,0,0.04)" ' +
-        'stroke="' + ink + '" stroke-width="1.5"/>' +
-        courtFigure(rank, isRed ? '#ff5d73' : '#5a4b8a', ink) +
-        emblemAt(card.suit, 74, 78, 15, ink, false) +
-        emblemAt(card.suit, 166, 258, 15, ink, true);
-    }
-
-    const idx = cornerIndex(RANK_LABEL[rank], card.suit, ink, false);
-    return wrapCard(body + idx, false,
-      RANK_NAME[rank] + ' ' + SUIT_NAME[card.suit]);
+    const label = card.isWeli
+      ? 'Weli'
+      : (RANK_NAME[card.rank] + ' ' + SUIT_NAME[card.suit]);
+    return '<img class="card-art" draggable="false" alt="' +
+      attrEscape(label) + '" src="' + encodeURI(cardArtSrc(card)) + '">';
   }
 
-  // Corner index block: rank label + mini emblem, top-left and bottom-right (rotated).
-  function cornerIndex(label, suit, ink, isWeli) {
-    const mini = (x, y, rot) => suit
-      ? emblemAt(suit, x, y, 11, ink, rot)
-      : (isWeli
-          ? '<circle cx="' + x + '" cy="' + y + '" r="8" fill="#b537f2"/>' +
-            '<circle cx="' + x + '" cy="' + y + '" r="8" fill="none" stroke="#ffd23f" ' +
-            'stroke-width="1.6"/>'
-          : '');
-    const txt = (x, y, rot) =>
-      '<text x="' + x + '" y="' + y + '" text-anchor="middle" ' +
-      'font-family="\'Press Start 2P\', monospace" font-size="15" fill="' + ink + '"' +
-      (rot ? ' transform="rotate(180 ' + x + ' ' + y + ')"' : '') + '>' + label + '</text>';
-    return (
-      '<g>' +
-      txt(26, 34, false) + mini(26, 56, false) +
-      txt(CARD_W - 26, CARD_H - 22, true) + mini(CARD_W - 26, CARD_H - 46, true) +
-      '</g>'
-    );
-  }
-
-  // Wrap card body in the cream card face with border + rounded corners.
-  function wrapCard(inner, isWeli, label) {
-    const faceFill = '#f7f1e3';
-    const border = isWeli ? '#b537f2' : '#2a1f47';
-    return (
-      '<svg viewBox="0 0 ' + CARD_W + ' ' + CARD_H + '" xmlns="http://www.w3.org/2000/svg" ' +
-      'role="img" aria-label="' + attrEscape(label) + '">' +
-      '<rect x="3" y="3" width="' + (CARD_W - 6) + '" height="' + (CARD_H - 6) +
-      '" rx="16" fill="' + faceFill + '" stroke="' + border + '" stroke-width="3"/>' +
-      '<rect x="10" y="10" width="' + (CARD_W - 20) + '" height="' + (CARD_H - 20) +
-      '" rx="11" fill="none" stroke="' + (isWeli ? '#ffd23f' : '#d8cdb0') +
-      '" stroke-width="1.4"/>' +
-      inner +
-      '</svg>'
-    );
-  }
-
-  // Face-down card back: neon synthwave grid + diagonal glow + monogram.
+  // Face-down card back image.
   function cardBackSVG() {
-    const W = CARD_W, H = CARD_H;
-    // Monotonic counter mints unique <defs> IDs (bfBack<n>/bfClip<n>) so
-    // multiple card-backs can coexist in the DOM at once — needed for the
-    // Task 5 deal animation. Contract: each call returns a fresh, self-
-    // contained SVG string with its own IDs. Callers must NOT cache a
-    // previously-returned string and re-insert it expecting new IDs;
-    // call cardBackSVG() again for every distinct DOM card-back instance.
-    const n = (cardBackSVG._n = (cardBackSVG._n || 0) + 1);
-    const gradId = 'bfBack' + n, clipId = 'bfClip' + n;
-    let grid = '';
-    for (let x = 24; x < W; x += 24) {
-      grid += '<line x1="' + x + '" y1="14" x2="' + x + '" y2="' + (H - 14) + '"/>';
-    }
-    for (let y = 24; y < H; y += 24) {
-      grid += '<line x1="14" y1="' + y + '" x2="' + (W - 14) + '" y2="' + y + '"/>';
-    }
-    return (
-      '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" ' +
-      'role="img" aria-label="Verdeckte Karte">' +
-      '<defs>' +
-      '<linearGradient id="' + gradId + '" x1="0" y1="0" x2="1" y2="1">' +
-      '<stop offset="0" stop-color="#1a0a3a"/>' +
-      '<stop offset="0.55" stop-color="#0a0420"/>' +
-      '<stop offset="1" stop-color="#2a0a45"/>' +
-      '</linearGradient>' +
-      '<clipPath id="' + clipId + '">' +
-      '<rect x="3" y="3" width="' + (W - 6) + '" height="' + (H - 6) +
-      '" rx="16"/>' +
-      '</clipPath>' +
-      '</defs>' +
-      '<rect x="3" y="3" width="' + (W - 6) + '" height="' + (H - 6) +
-      '" rx="16" fill="url(#' + gradId + ')" stroke="#00f0ff" stroke-width="3"/>' +
-      '<g clip-path="url(#' + clipId + ')">' +
-      '<g stroke="#ff2bd6" stroke-width="1" opacity="0.32">' + grid + '</g>' +
-      '<g stroke="#00f0ff" stroke-width="2" opacity="0.5">' +
-      '<line x1="14" y1="' + H + '" x2="' + W + '" y2="14"/>' +
-      '<line x1="-20" y1="' + (H - 40) + '" x2="' + (W - 40) + '" y2="-20"/>' +
-      '<line x1="40" y1="' + (H + 20) + '" x2="' + (W + 20) + '" y2="40"/>' +
-      '</g>' +
-      '</g>' +
-      '<circle cx="' + (W / 2) + '" cy="' + (H / 2) + '" r="44" fill="rgba(10,4,32,0.6)" ' +
-      'stroke="#ffd23f" stroke-width="2.5"/>' +
-      '<text x="' + (W / 2) + '" y="' + (H / 2 + 12) +
-      '" text-anchor="middle" font-family="\'Press Start 2P\', monospace" font-size="26" ' +
-      'fill="#ff2bd6">B</text>' +
-      '<rect x="10" y="10" width="' + (W - 20) + '" height="' + (H - 20) +
-      '" rx="11" fill="none" stroke="#b537f2" stroke-width="1.4" opacity="0.7"/>' +
-      '</svg>'
-    );
+    return '<img class="card-art" draggable="false" ' +
+      'alt="Verdeckte Karte" src="' + encodeURI(ART_BACK) + '">';
   }
 
   // ============ INIT ============
