@@ -14,6 +14,7 @@
     --neon-yellow: #ffd23f;
     --neon-green: #39ff14;
     --neon-purple: #b537f2;
+    --neon-red: #ff2b4d;
     --dark-square: #14082e;
     --light-square: #1d0b3d;
     --p1: #ff8a00;
@@ -417,32 +418,6 @@
     color: var(--neon-pink);
     text-shadow: 0 0 6px var(--neon-pink);
   }
-  /* Shared answer buttons — only the active player's zone shows them,
-     directly under that player's question. */
-  .stage-btns {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-    max-width: 280px;
-    margin-top: 2px;
-  }
-  /* Plain Richtig/Falsch result on top of the acting player's panel.
-     Inherits the panel's grey-out filter when it isn't their turn. */
-  .panel-fb {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    letter-spacing: 1px;
-    text-align: center;
-  }
-  .panel-fb.win {
-    color: var(--neon-green);
-    text-shadow: 0 0 6px var(--neon-green);
-  }
-  .panel-fb.lose {
-    color: var(--neon-pink);
-    text-shadow: 0 0 6px var(--neon-pink);
-  }
-
   .pile {
     display: flex;
     flex-direction: column;
@@ -540,6 +515,7 @@
     box-shadow: 0 0 8px color-mix(in srgb, var(--pc, var(--neon-cyan)) 30%, transparent);
     transition: background 0.32s ease, box-shadow 0.32s ease,
                 border-color 0.32s ease, filter 0.32s ease;
+    position: relative;
   }
   /* Only the player whose turn it is keeps colour — everyone else is
      fully greyed out (cards included). */
@@ -556,21 +532,90 @@
     45%  { transform: scale(1.03); }
     100% { transform: scale(1); }
   }
+  /* Outcome flash on the acting player's box — replaces the old result text.
+     Overrides the inactive grey-out (and is placed after .panel.active so it
+     wins on ties) so the colour reads even once the turn has passed on. */
+  .panel.result-win,
+  .panel.result-lose {
+    filter: none;
+  }
+  /* Entrance pulse — only added on the FIRST paint of a result (renderControls)
+     so the sweep-to-Ablage re-render doesn't replay it. */
+  .panel.result-anim {
+    animation: resultPulse 0.5s ease-out;
+  }
+  .panel.result-win {
+    border-color: var(--neon-green);
+    background: color-mix(in srgb, var(--neon-green) 14%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--neon-green) 60%, transparent);
+  }
+  .panel.result-lose {
+    border-color: var(--neon-red);
+    background: color-mix(in srgb, var(--neon-red) 14%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--neon-red) 60%, transparent);
+  }
+  @keyframes resultPulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+  /* The ✓ / ✕ that pops up inside the player control. Rotates with its panel
+     (top-row panels are flipped 180°), so it reads upright for each seat. */
+  .panel-mark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    font-size: clamp(48px, 14vw, 96px);
+    font-weight: bold;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0.95;
+  }
+  /* Pop the ✓/✕ in only on the first paint — same gate as the box pulse. */
+  .panel.result-anim .panel-mark {
+    animation: markPop 0.45s ease-out;
+  }
+  .panel-mark.win {
+    color: var(--neon-green);
+    text-shadow: 0 0 12px var(--neon-green), 0 0 24px var(--neon-green);
+  }
+  .panel-mark.lose {
+    color: var(--neon-red);
+    text-shadow: 0 0 12px var(--neon-red), 0 0 24px var(--neon-red);
+  }
+  @keyframes markPop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+    60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+    100% { opacity: 0.95; transform: translate(-50%, -50%) scale(1); }
+  }
   .panel-head {
     display: flex;
     align-items: center;
     gap: 6px;
     width: 100%;
-    justify-content: center;
+    justify-content: space-between;
   }
   .panel-name {
     font-family: 'VT323', monospace;
-    font-size: 24px;
+    font-size: 16px;
     letter-spacing: 1px;
     color: var(--pc, var(--neon-cyan));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-align: left;
+  }
+  /* Right corner of the head: running count of this player's wrong answers. */
+  .panel-errors {
+    flex: none;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: var(--neon-red, #ff2b4d);
+    text-shadow: 0 0 6px color-mix(in srgb, var(--neon-red, #ff2b4d) 70%, transparent);
+    white-space: nowrap;
   }
   .panel-stage {
     font-family: 'Press Start 2P', monospace;
@@ -603,31 +648,103 @@
     background: transparent;
   }
   .panel-slots .slot-num { display: none; }
+  /* A player's seat: the optional decision-button bar stacked ABOVE the
+     controller panel (outside its frame), then the panel itself. */
+  .seat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+  }
+  /* Active player's icon-only decision buttons, floating just above their
+     panel. Built only for the player whose turn it is (renderControls), so
+     no one else's seat shows them. */
+  .panel-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 220px;
+    justify-content: center;
+  }
   .ans-btn {
     flex: 1 1 0;
     min-width: 0;
-    background: transparent;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
     border: 2px solid var(--pc, var(--neon-cyan));
+    border-radius: 10px;
     color: var(--pc, var(--neon-cyan));
-    font-family: 'Press Start 2P', monospace;
-    font-size: 9px;
-    letter-spacing: 1px;
-    padding: 9px 2px;
+    padding: 9px 12px;
     cursor: pointer;
-    text-shadow: 0 0 4px var(--pc, var(--neon-cyan));
-    transition: all 0.12s;
+    box-shadow: 0 0 6px color-mix(in srgb, currentColor 35%, transparent);
+    transition: transform 0.12s, background 0.12s, color 0.12s, box-shadow 0.12s;
+    animation: ansBlink 1.5s ease-in-out infinite;
   }
   .ans-btn:not(:disabled):hover,
   .ans-btn:not(:disabled):active {
     background: var(--pc, var(--neon-cyan));
     color: var(--bg);
-    text-shadow: none;
+    transform: scale(1.08);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--pc, var(--neon-cyan)) 75%, transparent);
+    animation: none;
   }
   .ans-btn:disabled {
     opacity: 0.28;
     cursor: not-allowed;
-    text-shadow: none;
     box-shadow: none;
+    animation: none;
+  }
+  /* Rot/Schwarz: the whole button is colour-filled, no glyph. currentColor
+     drives the blink glow so each pulses in its own colour. */
+  .ans-btn.fill-rot {
+    background: var(--neon-red);
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+  }
+  .ans-btn.fill-schwarz {
+    background: #0a0a0a;
+    border-color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.85);
+  }
+  .ans-btn.fill-rot:not(:disabled):hover,
+  .ans-btn.fill-rot:not(:disabled):active {
+    background: var(--neon-red);
+    color: var(--neon-red);
+    transform: scale(1.08);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--neon-red) 80%, transparent);
+  }
+  .ans-btn.fill-schwarz:not(:disabled):hover,
+  .ans-btn.fill-schwarz:not(:disabled):active {
+    background: #0a0a0a;
+    transform: scale(1.08);
+    box-shadow: 0 0 18px rgba(255, 255, 255, 0.5);
+  }
+  /* Gentle glow pulse to draw the eye to the active player's choices. */
+  @keyframes ansBlink {
+    0%, 100% {
+      box-shadow: 0 0 5px color-mix(in srgb, currentColor 28%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 15px color-mix(in srgb, currentColor 72%, transparent);
+    }
+  }
+  /* Icon glyph inside a decision button. Arrows/brackets are stroked in the
+     current colour (so they invert on hover); .swatch icons carry their own
+     literal fill (rot/schwarz) and are left untouched. */
+  .btn-ic {
+    width: clamp(20px, 6vw, 26px);
+    height: clamp(20px, 6vw, 26px);
+    display: block;
+  }
+  .btn-ic:not(.swatch) {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   /* ===== END SCREEN OVERLAY ===== */
@@ -865,6 +982,8 @@
   @media (prefers-reduced-motion: reduce) {
     .panel { transition: none; }
     .panel.active { animation: none; }
+    .panel.result-anim { animation: none; }
+    .panel.result-anim .panel-mark { animation: none; }
     .fly-card { transition: none; }
     .fly-inner { transition: none; }
     .fly-spin { animation: none; }
@@ -872,6 +991,7 @@
     .deck-stack.reshuffling .deck-shadow,
     .deck-stack.reshuffling #deckCard { animation: none; }
     .reshuffle-card { transition: none; }
+    .ans-btn { animation: none; }
   }
 </style>
 </head>
@@ -1000,6 +1120,12 @@
   // Built by startGame(); Task 4 mutates it inside onAnswer() then calls render().
   let state = null;
 
+  // Identity (idx:kind) of the outcome flash currently shown, so its entrance
+  // pulse plays only on the FIRST paint — the lose/finish path renders twice
+  // (once at decision, once after the sweep) and must not replay it. Reset
+  // when a new decision begins (onAnswer) or the board has no result.
+  let shownResultKey = null;
+
   const PLAYER_COLORS = ['var(--p1)', 'var(--p2)', 'var(--p3)', 'var(--p4)'];
 
   // The two decision-button captions for a given stage (1-based).
@@ -1010,6 +1136,26 @@
       case 3: return ['INNEN', 'AUSSEN'];
       case 4: return ['ROT', 'SCHWARZ'];
       default: return ['TIEFER', 'HÖHER'];
+    }
+  }
+
+  // Inline-SVG icons for the two decision buttons of a stage, parallel to
+  // buttonLabels (index 0 = first label, 1 = second). Arrows use currentColor
+  // so they take the player's tint and invert on hover. Stage 4 (Rot/Schwarz)
+  // has no glyph — the whole button is colour-filled (see renderControls).
+  function buttonIcons(stage) {
+    const down = '<svg class="btn-ic" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path d="M12 4v16M5 13l7 7 7-7"/></svg>';
+    const up = '<svg class="btn-ic" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path d="M12 20V4M5 11l7-7 7 7"/></svg>';
+    const inward = '<svg class="btn-ic" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path d="M3 12h7M7 9l3 3-3 3M21 12h-7M17 9l-3 3 3 3"/></svg>';
+    const outward = '<svg class="btn-ic" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path d="M11 12H3M6 9l-3 3 3 3M13 12h8M18 9l3 3-3 3"/></svg>';
+    switch (stage) {
+      case 1: case 2: return [down, up];
+      case 3: return [inward, outward];
+      default: return [down, up];
     }
   }
 
@@ -1105,10 +1251,9 @@
     return 'top';
   }
 
-  // Park the active player's question + the two shared answer buttons next
-  // to the Stapel, on whichever side that player's controller sits. The
-  // buttons act for the active player. (Result feedback now lives on the
-  // acting player's own controller — see renderControls.)
+  // Park the active player's question next to the Stapel, on whichever side
+  // that player's controller sits. The decision buttons now live on that
+  // player's own panel (renderControls); the centre shows only the question.
   function renderStageMsg() {
     if (!stageMsgTop || !stageMsgBottom) return;
     stageMsgTop.innerHTML = '';
@@ -1116,7 +1261,7 @@
     const zoneFor = idx =>
       (playerSide(idx) === 'bottom' ? stageMsgBottom : stageMsgTop);
 
-    // Question + the two answer buttons for the active player.
+    // Question for the active player.
     const ai = state.activePlayer;
     const ap = state.players[ai];
     if (ap && !ap.finished) {
@@ -1126,23 +1271,11 @@
       q.className = 'stage-q';
       q.textContent = stageQuestion(ap.stage);
       zone.appendChild(q);
-
-      const btns = document.createElement('div');
-      btns.className = 'stage-btns';
-      btns.style.setProperty('--pc', PLAYER_COLORS[ai]);
-      buttonLabels(ap.stage).forEach((label, choiceIndex) => {
-        const b = document.createElement('button');
-        b.className = 'ans-btn';
-        b.textContent = label;
-        b.addEventListener('click', () => onAnswer(ai, choiceIndex));
-        btns.appendChild(b);
-      });
-      zone.appendChild(btns);
     }
   }
 
-  // Per-player panels: a plain Richtig/Falsch result line on top, then
-  // name + (FERTIG badge) + the player's own 4 stacked card spots. The
+  // Per-player panels: name + (FERTIG badge) + the player's own 4 stacked
+  // card spots. A win/loss lights the box green/red with a ✓/✕ overlay. The
   // question and answer buttons are rendered separately by the Stapel
   // (renderStageMsg). Seats are placed per playerSide() + the row layout.
   function renderControls() {
@@ -1158,6 +1291,11 @@
     playersBottom.className = 'players-bottom ' + layout(bottomCount);
     playersTop.className = 'players-top ' + layout(topCount);
 
+    // No result on the board → forget the last-shown flash so the next one
+    // animates fresh (covers start/menu and any cleared state).
+    const lr = state.lastResult;
+    if (!lr) shownResultKey = null;
+
     state.players.forEach((p, idx) => {
       const isActive = idx === state.activePlayer && !p.finished;
 
@@ -1166,14 +1304,20 @@
       panel.dataset.player = String(idx);
       panel.style.setProperty('--pc', PLAYER_COLORS[idx]);
 
-      // Plain result of this player's last action, on top of their panel.
-      // It greys out with the panel when it isn't their turn.
-      const lr = state.lastResult;
-      let fb = null;
+      // Visual feedback for this player's last action: their box lights up
+      // green/red and a ✓/✕ pops up inside the control. The result class is
+      // added to the panel; both clear on the next action. The entrance pulse
+      // (result-anim) is added only the first time a given result is painted
+      // so the post-sweep re-render doesn't replay it.
+      let mark = null;
       if (lr && lr.idx === idx && lr.kind) {
-        fb = document.createElement('div');
-        fb.className = 'panel-fb ' + lr.kind;
-        fb.textContent = lr.kind === 'win' ? 'Richtig' : 'Falsch';
+        const key = lr.idx + ':' + lr.kind;
+        if (key !== shownResultKey) panel.classList.add('result-anim');
+        shownResultKey = key;
+        panel.classList.add('result-' + lr.kind);
+        mark = document.createElement('div');
+        mark.className = 'panel-mark ' + lr.kind;
+        mark.textContent = lr.kind === 'win' ? '✓' : '✕';
       }
 
       const head = document.createElement('div');
@@ -1181,7 +1325,13 @@
       const nm = document.createElement('span');
       nm.className = 'panel-name';
       nm.textContent = p.name;
+      // Right corner: running tally of this player's wrong answers.
+      const err = document.createElement('span');
+      err.className = 'panel-errors';
+      err.title = 'Fehler';
+      err.textContent = '✕ ' + (p.errors || 0);
       head.appendChild(nm);
+      head.appendChild(err);
 
       // Stage is read off the stacked cards now; only the FERTIG state
       // still needs a badge. Question/feedback live by the Stapel.
@@ -1198,7 +1348,9 @@
         const slot = document.createElement('div');
         slot.dataset.spot = String(s);
         const card = p.revealed[s - 1];
-        if (card) {
+        // A card mid-deal stays hidden until its ghost lands (dealing guard),
+        // so render() never pops it in ahead of the animation.
+        if (card && !dealing.has(idx + ':' + s)) {
           slot.className = 'slot';
           slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
         } else {
@@ -1208,13 +1360,47 @@
         slots.appendChild(slot);
       }
 
-      if (fb) panel.appendChild(fb);
+      // The active player's two decision buttons sit at the top of their own
+      // panel — icon-only, and built ONLY for the player whose turn it is, so
+      // nobody else's panel shows them. The 180° flip on the top row keeps
+      // them oriented "above the controls" for each seated player.
+      let actions = null;
+      if (isActive) {
+        actions = document.createElement('div');
+        actions.className = 'panel-actions';
+        const icons = buttonIcons(p.stage);
+        buttonLabels(p.stage).forEach((label, choiceIndex) => {
+          const b = document.createElement('button');
+          b.className = 'ans-btn';
+          if (p.stage === 4) {
+            // Rot/Schwarz: the whole button IS the colour — no inner glyph.
+            b.classList.add(choiceIndex === 0 ? 'fill-rot' : 'fill-schwarz');
+          } else {
+            b.innerHTML = icons[choiceIndex];
+          }
+          b.setAttribute('aria-label', label);
+          b.title = label;
+          b.addEventListener('click', () => onAnswer(idx, choiceIndex));
+          actions.appendChild(b);
+        });
+      }
+
       panel.appendChild(head);
       if (stg) panel.appendChild(stg);
       panel.appendChild(slots);
+      if (mark) panel.appendChild(mark);
+
+      // Seat = the optional action bar stacked ABOVE the panel + the panel.
+      // Wrapping keeps the buttons outside (above) the controller frame; the
+      // 180° flip on the top row still reads them "above" for that seat.
+      const seat = document.createElement('div');
+      seat.className = 'seat';
+      seat.style.setProperty('--pc', PLAYER_COLORS[idx]);
+      if (actions) seat.appendChild(actions);
+      seat.appendChild(panel);
 
       (playerSide(idx) === 'bottom' ? playersBottom : playersTop)
-        .appendChild(panel);
+        .appendChild(seat);
     });
   }
 
@@ -1236,8 +1422,10 @@
   //                 stage-2 card — and the just-drawn card ONLY via the
   //                 `card` parameter (never via revealed[revealed.length-1]).
   //
-  // Drawing exactly the boundary value is an auto loss; the Weli
-  // (value Infinity, isWeli) always wins.
+  // Drawing exactly the boundary value is an auto loss; the Weli (isWeli)
+  // always wins the current stage. When a Weli is drawn its numeric value is
+  // assigned contextually (assignWeliValue) before it becomes a reference for
+  // a later stage, so the comparisons below just read the stored value.
   function resolveStage(stage, choiceIndex, card, revealed) {
     if (stage === 1) {
       // choiceIndex 0 = TIEFER (< 10), 1 = HÖHER (> 10). Exactly 10 = lose.
@@ -1248,10 +1436,10 @@
     }
 
     if (stage === 2) {
-      // Compare against the stage-1 card. Weli first card => value Infinity.
+      // Compare against the stage-1 card (its value is already concrete,
+      // even if it was a Weli — see assignWeliValue).
       if (card.isWeli) return 'win';
-      const first = revealed[0];
-      const ref = first.isWeli ? Infinity : first.value;
+      const ref = revealed[0].value;
       if (card.value === ref) return 'lose';
       if (choiceIndex === 1) return card.value > ref ? 'win' : 'lose';
       return card.value < ref ? 'win' : 'lose';
@@ -1261,8 +1449,8 @@
       // INNEN (0) / AUSSEN (1) relative to cards 1 & 2. Landing on a bound
       // = lose. Weli => win. Both bounds equal: only "außen" can win.
       if (card.isWeli) return 'win';
-      const v0 = revealed[0].isWeli ? Infinity : revealed[0].value;
-      const v1 = revealed[1].isWeli ? Infinity : revealed[1].value;
+      const v0 = revealed[0].value;
+      const v1 = revealed[1].value;
       const lo = Math.min(v0, v1);
       const hi = Math.max(v0, v1);
       if (card.value === lo || card.value === hi) return 'lose';
@@ -1274,6 +1462,24 @@
     if (card.isWeli) return 'win';
     const want = choiceIndex === 0 ? 'rot' : 'schwarz';
     return colorOf(card) === want ? 'win' : 'lose';
+  }
+
+  // A drawn Weli always wins, but for stages whose card later becomes a
+  // numeric reference it must adopt a concrete "best" value matching the just-
+  // made choice (it used to be Infinity, which forced the next guess):
+  //   Stage 1: TIEFER -> 7 (lowest), HÖHER -> Ass (14, highest).
+  //   Stage 2: lower  -> first card - 1, higher -> first card + 1.
+  // `revealed` includes the just-drawn Weli as its last element; revealed[0]
+  // is the stage-1 card. Stages 3 & 4 auto-win and never become a numeric
+  // reference, so no value is assigned (it stays null).
+  function assignWeliValue(stage, choiceIndex, card, revealed) {
+    if (!card.isWeli) return;
+    if (stage === 1) {
+      card.value = choiceIndex === 1 ? RANKS.ass : RANKS['7'];
+    } else if (stage === 2) {
+      const first = revealed[0].value;
+      card.value = choiceIndex === 1 ? first + 1 : first - 1;
+    }
   }
 
   // Draw the top card. Reshuffles the discard back into the deck when empty.
@@ -1352,8 +1558,9 @@
       }
     } else {
       // Wrong / boundary / auto-loss — ONLY this player resets to Stufe 1
-      // and clears their own spots. Turn passes on.
+      // and clears their own spots. Turn passes on. Tally the misstep.
       p.stage = 1;
+      p.errors = (p.errors || 0) + 1;
       discardRevealed(p);
       setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose', playerIndex);
       advanceTurn();
@@ -1362,11 +1569,20 @@
   }
 
   // ============ ANIMATION (Task 5) ============
-  // Purely presentational. Sequences visuals AROUND the unchanged Task 4
-  // seam (resolveStage/applyOutcome). A busy flag locks input so a player
-  // cannot double-trigger while a sequence is in flight.
-
-  let animBusy = false;
+  // Purely presentational. "Fast" model: a click resolves the outcome and
+  // hands the turn over SYNCHRONOUSLY (see onAnswer), so the next player can
+  // act at once — the card motion then plays on its own, non-blocking, on a
+  // transient ghost that never depends on (or fights) render().
+  //
+  // `dealing` maps "playerIndex:spot" -> the token of the deal whose resting
+  // card is still flying in; render() draws those slots empty so the card only
+  // appears once its ghost lands. The token (dealSeq) makes same-slot deals
+  // unique: when a player loses and returns to the same stage while an older
+  // deal is still airborne, only the CURRENT owner may clear/reveal the slot —
+  // a stale deal can't yank the guard out from under the newer card (which is
+  // what left cards invisible when spamming).
+  const dealing = new Map();
+  let dealSeq = 0;
 
   function prefersReducedMotion() {
     return window.matchMedia &&
@@ -1375,9 +1591,6 @@
 
   function nextFrame() {
     return new Promise(res => requestAnimationFrame(() => res()));
-  }
-  function wait(ms) {
-    return new Promise(res => setTimeout(res, ms));
   }
 
   // Resolve once a CSS transition/animation on `el` ends, or after `timeout`
@@ -1405,35 +1618,79 @@
     });
   }
 
-  // Disable every answer button immediately (input lock at click time, before
-  // the next render()). render()/renderControls() restores correct state.
-  function lockAnswerButtons() {
-    document.querySelectorAll('.ans-btn')
-      .forEach(b => { b.disabled = true; });
-  }
-
-  // Fly a face-down card from the deck stack to its stage slot, then 3D flip
-  // it to the face. Leaves the face card sitting in the slot (so it stays
-  // visible through the outcome). Returns when the flip has completed.
-  async function animateDealAndFlip(card, stage, playerIndex) {
-    const slot = document.querySelector(
+  // Non-blocking card motion for one already-resolved action. onAnswer has
+  // applied the outcome + rendered, so this runs purely on a transient ghost:
+  // deck -> the player's stage slot (spin + 3D flip), then on a sweep outcome
+  // (loss / stage-4 finish) it carries the ghost on to the discard pile. Never
+  // awaited, never calls render() — concurrent turns each fly their own ghost.
+  async function playCardAction(card, playerIndex, stage, willSweep, reshuffled, priorCards, dealToken) {
+    const dealKey = playerIndex + ':' + stage;
+    const slotFor = (spot) => document.querySelector(
       '.panel[data-player="' + playerIndex + '"] ' +
-      '.panel-slots .slot[data-spot="' + stage + '"]');
-    if (!slot) return;
-    const reduced = prefersReducedMotion();
+      '.panel-slots .slot[data-spot="' + spot + '"]');
+    // Reveal the resting (non-sweep) card and stop hiding it on future renders.
+    // Only act while WE still own the slot's guard — a newer same-slot deal
+    // (player lost and came back to this stage) must not be cleared by us.
+    const finishDeal = () => {
+      if (willSweep) return;
+      if (dealing.get(dealKey) !== dealToken) return;
+      dealing.delete(dealKey);
+      const s = slotFor(stage);
+      if (s && state && state.players[playerIndex] &&
+          state.players[playerIndex].revealed[stage - 1] === card) {
+        s.classList.remove('empty');
+        s.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
+      }
+    };
+
+    if (prefersReducedMotion()) { finishDeal(); return; }
+
+    // Top-row controllers are rotated 180°; ghosts live in screen space so they
+    // must settle at the player's orientation. .fly-spin adds a spin on top.
+    const restRot = playerSide(playerIndex) === 'top' ? 180 : 0;
+    // A static, screen-space ghost showing `html` at a slot's rect.
+    const makeGhost = (rect, html) => {
+      const g = document.createElement('div');
+      g.className = 'fly-card';
+      g.style.transition = 'none';
+      if (restRot) g.style.transform = 'rotate(' + restRot + 'deg)';
+      g.style.left = rect.left + 'px';
+      g.style.top = rect.top + 'px';
+      g.style.width = rect.width + 'px';
+      g.style.height = rect.height + 'px';
+      // Fill the slot-sized wrapper (don't inherit .card's fixed 84px width),
+      // so the ghost matches the panel card's actual size.
+      g.innerHTML = '<div class="card" style="width:100%;height:100%">' + html + '</div>';
+      document.body.appendChild(g);
+      return g;
+    };
+
+    // On a sweep, render() already emptied the player's slots in the model.
+    // Re-stand their PRIOR cards as static ghosts (synchronously, same paint as
+    // render — no flicker) so they stay on screen while the drawn card deals in;
+    // then everything sweeps to the Ablage together.
+    const priorGhosts = [];
+    if (willSweep && priorCards && priorCards.length) {
+      priorCards.forEach((c, i) => {
+        const s = slotFor(i + 1);
+        if (s) priorGhosts.push(makeGhost(s.getBoundingClientRect(), cardSVG(c)));
+      });
+    }
+    const removeGhosts = () => priorGhosts.forEach(g => { if (g.parentNode) g.remove(); });
+
+    // Deck recycled on this draw -> brief shuffle flourish first.
+    if (reshuffled) { try { await animateReshuffle(); } catch (e) {} }
+
+    const slot = slotFor(stage);
+    if (!slot) { finishDeal(); removeGhosts(); return; }
 
     const from = deckStack.getBoundingClientRect();
     const to = slot.getBoundingClientRect();
 
     const fly = document.createElement('div');
     fly.className = 'fly-card';
-    fly.style.setProperty('--fly-ms', reduced ? '0ms' : '360ms');
-    fly.style.setProperty('--flip-ms', reduced ? '0ms' : '360ms');
-    // Resting rotation: top-row controllers are rotated 180°, and the
-    // flyer lives in screen space, so it must settle at the player's
-    // orientation (no snap). The .fly-spin wrapper adds one full spin
-    // on top of this while it travels.
-    const restRot = playerSide(playerIndex) === 'top' ? 180 : 0;
+    fly.style.setProperty('--fly-ms', '360ms');
+    fly.style.setProperty('--flip-ms', '360ms');
     if (restRot) fly.style.transform = 'rotate(' + restRot + 'deg)';
     fly.style.left = from.left + 'px';
     fly.style.top = from.top + 'px';
@@ -1447,17 +1704,9 @@
       '</div>' +
       '</div>';
     document.body.appendChild(fly);
-
-    const cleanup = () => { if (fly.parentNode) fly.parentNode.removeChild(fly); };
+    const dropFly = () => { if (fly.parentNode) fly.parentNode.removeChild(fly); };
 
     try {
-      if (reduced) {
-        // Near-instant: drop the card straight into the slot.
-        slot.classList.remove('empty');
-        slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
-        return;
-      }
-
       // 1) slide deck -> slot, doing one full spin to the rest angle.
       await nextFrame();
       fly.style.left = to.left + 'px';
@@ -1471,46 +1720,32 @@
       fly.classList.add('flipped');
       await onceTransitionEnd(fly.querySelector('.fly-inner'), 600);
 
-      // 3) Settle: place the face card into the slot, drop the flyer.
-      slot.classList.remove('empty');
-      slot.innerHTML = '<div class="card">' + cardSVG(card) + '</div>';
+      if (willSweep) {
+        // 3) Now that the drawn card has LANDED, beat briefly so the verdict
+        // registers, then sweep it AND the prior cards to the Ablage together.
+        await new Promise(res => setTimeout(res, 260));
+        const target = discardSlot.getBoundingClientRect();
+        const all = priorGhosts.concat([fly]);
+        all.forEach(g => {
+          g.style.transition =
+            'left 0.34s ease-in, top 0.34s ease-in, ' +
+            'transform 0.34s ease-in, opacity 0.34s ease-in';
+          g.style.left = target.left + 'px';
+          g.style.top = target.top + 'px';
+          g.style.transform = 'rotate(' + (restRot + 120) + 'deg) scale(0.7)';
+          g.style.opacity = '0';
+        });
+        await onceTransitionEnd(all[all.length - 1], 600);
+      } else {
+        // 3) reveal the resting card under the ghost, then drop the ghost.
+        finishDeal();
+      }
     } finally {
-      // Guarantee the transient flyer is never orphaned, even if an
-      // await above throws. The parentNode guard makes a double-call safe.
-      cleanup();
+      // Never orphan a ghost or leave a card hidden, even if an await threw.
+      dropFly();
+      removeGhosts();
+      finishDeal();
     }
-  }
-
-  // Sweep the active player's currently-revealed slot cards toward the
-  // discard pile, then clear the slots. Used on lose + stage-4 finish,
-  // BEFORE discardRevealed mutates p.revealed.
-  async function animateSweepToDiscard(playerIndex) {
-    const reduced = prefersReducedMotion();
-    const cards = Array.from(document.querySelectorAll(
-      '.panel[data-player="' + playerIndex + '"] .panel-slots .slot .card'));
-    if (!cards.length || reduced) return;
-
-    // Top-row controllers live inside a rotate(180deg) container, so their
-    // local CSS axes are flipped. Negate the screen-space deltas so
-    // translate() still moves the cards toward the discard pile.
-    const inTopRow = playerSide(playerIndex) === 'top';
-
-    const target = discardSlot.getBoundingClientRect();
-    let last = null;
-    cards.forEach(c => {
-      const r = c.getBoundingClientRect();
-      let dx = (target.left + target.width / 2) - (r.left + r.width / 2);
-      let dy = (target.top + target.height / 2) - (r.top + r.height / 2);
-      if (inTopRow) { dx = -dx; dy = -dy; }
-      c.classList.add('sweeping');
-      // Force a frame so the transition picks up from the start state.
-      void c.offsetWidth;
-      c.style.transform =
-        'translate(' + dx + 'px,' + dy + 'px) rotate(120deg) scale(0.7)';
-      c.style.opacity = '0';
-      last = c;
-    });
-    if (last) await onceTransitionEnd(last, 600);
   }
 
   // Brief shuffle animation: pulse the deck and fly the (now face-down) top
@@ -1549,78 +1784,57 @@
     }
   }
 
-  // Decision-button handler. Resolves the active player's current stage from
-  // a freshly drawn card. The Task 4 outcome (resolveStage/applyOutcome) is
-  // computed up front and UNCHANGED; only its presentation is deferred so
-  // the just-drawn card visibly deals + flips into its slot (and, on
-  // lose/finish, sweeps to discard) BEFORE the discard/turn-pass + render.
-  async function onAnswer(playerIndex, choiceIndex) {
+  // Decision-button handler. FAST model: the outcome is resolved and the turn
+  // is handed over SYNCHRONOUSLY (no awaits before the turn passes), so the
+  // moment one player clicks the next player's buttons go live. The drawn
+  // card's motion then plays on its own (playCardAction), non-blocking. The
+  // Task-4 seam (resolveStage/applyOutcome) is unchanged.
+  function onAnswer(playerIndex, choiceIndex) {
     if (!state) return;
-    if (animBusy) return;                 // re-entrancy guard
     // Only the active, non-finished player may act.
     if (playerIndex !== state.activePlayer) return;
     const p = state.players[playerIndex];
     if (p.finished) return;
 
-    animBusy = true;
-    lockAnswerButtons();
-    state.lastResult = null;
+    // ---- Resolve the model synchronously (atomic against concurrent clicks:
+    // no awaits run between drawing the card and passing the turn). ----
+    const stage = p.stage;
+    const card = drawCard();
+    const reshuffled = state._lastReshuffled;
+    p.revealed.push(card);
+    assignWeliValue(stage, choiceIndex, card, p.revealed);
 
-    try {
-      const stage = p.stage;
-      const card = drawCard();
-      const reshuffled = state._lastReshuffled;
-      p.revealed.push(card);
+    const cardName = card.isWeli
+      ? 'Weli'
+      : (RANK_LABEL[card.rank] + ' ' + card.suit);
 
-      const cardName = card.isWeli
-        ? 'Weli'
-        : (RANK_LABEL[card.rank] + ' ' + card.suit);
+    const outcome = resolveStage(stage, choiceIndex, card, p.revealed);
+    const willSweep = (outcome === 'lose') || (outcome === 'win' && stage === 4);
 
-      // Outcome is decided NOW (rules unchanged); presentation deferred.
-      const outcome = resolveStage(stage, choiceIndex, card, p.revealed);
+    // The player's prior cards (everything before the just-drawn one). On a
+    // sweep they must stay on screen until the drawn card lands, then leave
+    // together — capture them before applyOutcome discards them.
+    const priorCards = willSweep ? p.revealed.slice(0, -1) : null;
 
-      // If the deck was recycled, shuffle-animate before dealing. Refresh the
-      // deck count badge first so it shows the recycled size mid-shuffle.
-      if (reshuffled) {
-        // Restore the deck stack to its non-empty face-down look (same refs
-        // and classes render() uses) so the reshuffle ghost flies onto a
-        // visible stack instead of an empty slot.
-        deckCard.style.display = '';
-        deckCard.innerHTML = cardBackSVG();
-        deckCount.style.display = '';
-        deckCount.textContent = String(state.deck.length);
-        deckStack.classList.remove('empty');
-        await animateReshuffle();
-      }
+    shownResultKey = null;   // new decision — let this player's flash animate fresh
 
-      // Deal + flip the drawn card into the acting player's stage slot.
-      await animateDealAndFlip(card, stage, playerIndex);
+    // A non-sweep win leaves the card resting in the slot; hide it (with a
+    // unique token) until its deal ghost lands (render() honours `dealing`).
+    const dealKey = playerIndex + ':' + stage;
+    let dealToken = 0;
+    if (!willSweep) { dealToken = ++dealSeq; dealing.set(dealKey, dealToken); }
 
-      // Surface the result text before the sweep so the player reads it.
-      const willSweep = (outcome === 'lose') || (outcome === 'win' && stage === 4);
-      if (willSweep) {
-        if (outcome === 'lose') {
-          setResult('FALSCH (' + cardName + ') — zurück zu Stufe 1', 'lose', playerIndex);
-        } else if (p.revealed.length === 4) {
-          setResult(p.name + ' ist FERTIG! (' + cardName + ')', 'win', playerIndex);
-        }
-        render();
-        await wait(prefersReducedMotion() ? 0 : 650);
-        await animateSweepToDiscard(playerIndex);
-      }
+    // Apply the (unchanged) outcome: discard/turn-pass/finish bookkeeping. On
+    // game end it has already rendered + shown the end screen and returns true.
+    const ended = applyOutcome(p, playerIndex, outcome, stage, cardName);
 
-      // Apply the Task 4 seam (unchanged outcome). It performs the
-      // discard/turn-pass/finish bookkeeping; on game end it rendered +
-      // showed the end screen and returns true.
-      // Bailed to menu/restart mid-animation: state was torn down while we
-      // awaited. Stop before touching it (finally still clears animBusy).
-      if (!state || state.players[playerIndex] !== p) return;
-      if (applyOutcome(p, playerIndex, outcome, stage, cardName)) return;
+    render();   // next player is active + clickable immediately
 
-      render();
-    } finally {
-      animBusy = false;
-    }
+    // Only retract our own guard (a newer deal may already own this slot).
+    if (ended) { if (dealing.get(dealKey) === dealToken) dealing.delete(dealKey); return; }
+
+    // Fire-and-forget the card animation; input is already free.
+    playCardAction(card, playerIndex, stage, willSweep, reshuffled, priorCards, dealToken);
   }
 
   // Build + show the end overlay: rank by finish order, last = BUSFAHRER.
@@ -1662,9 +1876,11 @@
 
   // ============ START / RESET ============
   function startGame() {
-    // Belt-and-suspenders: a fresh game must never inherit a stuck lock
-    // (e.g. if the player hit the menu button mid-animation last round).
-    animBusy = false;
+    // Belt-and-suspenders: a fresh game must never inherit hidden-card guards
+    // or stray ghosts (e.g. if the player hit the menu button mid-animation).
+    dealing.clear();
+    document.querySelectorAll('.fly-card, .reshuffle-card')
+      .forEach(el => el.remove());
     const names = [];
     for (let i = 0; i < selectedPlayers; i++) {
       const input = document.getElementById('name' + i);
@@ -1673,7 +1889,7 @@
     }
 
     state = {
-      players: names.map(name => ({ name, stage: 1, finished: false, revealed: [] })),
+      players: names.map(name => ({ name, stage: 1, finished: false, revealed: [], errors: 0 })),
       deck: shuffle(buildDeck()),
       discard: [],
       activePlayer: 0,
@@ -1689,9 +1905,10 @@
   }
 
   function backToMenu() {
-    // Leaving mid-animation must not leave the answer-lock latched, or the
-    // next game would be permanently unresponsive (onAnswer's animBusy guard).
-    animBusy = false;
+    // Leaving mid-animation must not strand hidden-card guards or ghosts.
+    dealing.clear();
+    document.querySelectorAll('.fly-card, .reshuffle-card')
+      .forEach(el => el.remove());
     state = null;
     endOverlay.style.display = 'none';
     game.style.display = 'none';
@@ -1851,8 +2068,10 @@
         });
       }
     }
-    // The Weli: suitless jolly that always wins (value Infinity).
-    deck.push({ id: 'weli', suit: null, rank: 'weli', value: Infinity, isWeli: true });
+    // The Weli: suitless jolly that always wins. Its numeric value is left
+    // null and assigned contextually when drawn (see assignWeliValue), so it
+    // leaves a concrete reference behind for later stages instead of Infinity.
+    deck.push({ id: 'weli', suit: null, rank: 'weli', value: null, isWeli: true });
     return deck;
   }
 
