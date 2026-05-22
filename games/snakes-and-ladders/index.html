@@ -1399,13 +1399,17 @@
   }
 
   // Layout map: for each player count, where each player sits.
-  // Slots: 0=top-left, 1=top-center, 2=top-right, 3=bot-left, 4=bot-center, 5=bot-right
+  // Slot DOM indices: 0=top-left, 1=top-center, 2=top-right, 3=bot-left, 4=bot-center, 5=bot-right.
+  // NOTE: .players-top is rotated 180°, so slots 0/2 appear MIRRORED on screen —
+  // slot 0 renders top-RIGHT and slot 2 renders top-LEFT. Seating is therefore
+  // ordered against the on-screen clock so play runs CLOCKWISE from P1 at the
+  // bottom: bottom → top-left → top-center → top-right → bottom-right.
   // playerIndex -> slot
   const LAYOUT = {
     1: [4],                  // P1 bottom-center
-    2: [4, 1],               // P1 bot-center, P2 top-center
-    3: [4, 0, 2],            // P1 bot-center, P2 top-left, P3 top-right
-    4: [3, 0, 2, 5],         // P1 bot-left, P2 top-left, P3 top-right, P4 bot-right
+    2: [4, 1],               // P1 bottom, P2 top (opposite)
+    3: [4, 2, 0],            // P1 bottom, P2 top-left, P3 top-right (clockwise)
+    4: [3, 2, 0, 5],         // P1 bottom-left, P2 top-left, P3 top-right, P4 bottom-right (clockwise)
   };
 
   function renderPlayersPanel() {

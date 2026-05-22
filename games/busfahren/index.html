@@ -840,6 +840,16 @@
     text-shadow: 0 0 6px var(--neon-yellow);
     flex: none;
   }
+  /* Per-player wrong-answer tally on the final standings. */
+  .end-errors {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--neon-red, #ff2b4d);
+    text-shadow: 0 0 6px color-mix(in srgb, var(--neon-red, #ff2b4d) 70%, transparent);
+    flex: none;
+    white-space: nowrap;
+  }
   .end-again {
     background: transparent;
     border: 3px solid var(--neon-green);
@@ -1162,11 +1172,11 @@
   // Header question text for a given stage (1-based). German UI.
   function stageQuestion(stage) {
     switch (stage) {
-      case 1: return 'Höher oder tiefer als 10?';
+      case 1: return 'Höher oder tiefer? (10 zählt als tiefer)';
       case 2: return 'Höher oder tiefer als die erste Karte?';
       case 3: return 'Innen oder außen?';
       case 4: return 'Rot oder schwarz?';
-      default: return 'Höher oder tiefer als 10?';
+      default: return 'Höher oder tiefer? (10 zählt als tiefer)';
     }
   }
 
@@ -1428,11 +1438,13 @@
   // a later stage, so the comparisons below just read the stored value.
   function resolveStage(stage, choiceIndex, card, revealed) {
     if (stage === 1) {
-      // choiceIndex 0 = TIEFER (< 10), 1 = HÖHER (> 10). Exactly 10 = lose.
+      // Deck splits cleanly in two: 7–10 (value <= 10) are TIEFER, Unter–Ass
+      // (value >= 11) are HÖHER. The 10 counts as tiefer, so there is no
+      // boundary auto-loss — every card lands in exactly one group.
+      // choiceIndex 0 = TIEFER, 1 = HÖHER.
       if (card.isWeli) return 'win';
-      if (card.value === 10) return 'lose';
-      if (choiceIndex === 1) return card.value > 10 ? 'win' : 'lose';
-      return card.value < 10 ? 'win' : 'lose';
+      if (choiceIndex === 1) return card.value >= 11 ? 'win' : 'lose';
+      return card.value <= 10 ? 'win' : 'lose';
     }
 
     if (stage === 2) {
@@ -1859,9 +1871,15 @@
       nm.className = 'end-name';
       nm.textContent = state.players[pIdx].name;
 
+      const err = document.createElement('span');
+      err.className = 'end-errors';
+      err.title = 'Fehler';
+      err.textContent = '✕ ' + (state.players[pIdx].errors || 0);
+
       li.appendChild(pos);
       li.appendChild(dot);
       li.appendChild(nm);
+      li.appendChild(err);
 
       if (isLast) {
         const tag = document.createElement('span');
