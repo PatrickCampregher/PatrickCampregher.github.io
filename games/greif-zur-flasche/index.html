@@ -156,7 +156,7 @@
   .face.bk{transform:rotateY(180deg);padding:6% 4%;gap:3%;container-type:size;}
   .face.bk svg{width:auto;height:58%;max-width:82%;}
   .face.bk .lbl{font-family:'Special Elite',serif;color:var(--stamp-deep);font-size:16cqh;
-    line-height:1.05;text-align:center;white-space:nowrap;max-width:96%;overflow:hidden;}
+    line-height:1.05;text-align:center;white-space:nowrap;max-width:98%;overflow:hidden;}
 
   /* right paper panel */
   .panel{position:relative;width:clamp(210px,26vw,300px);flex:none;display:flex;
@@ -782,10 +782,13 @@ function buildBoard(){
     const tile=document.createElement("div");
     tile.className="tile deal";
     tile.style.setProperty("--d",(i*22)+"ms");
+    // shrink long labels to the tile width (Special Elite ≈ .66em per char)
+    const lfs=Math.min(16,96/(card.lbl.length*0.66)).toFixed(1);
     tile.innerHTML=
       '<div class="in">'
       +'<div class="face fr">'+useSvg("i-cross")+'</div>'
-      +'<div class="face bk">'+useSvg(card.icon)+'<span class="lbl">'+esc(card.lbl)+'</span></div>'
+      +'<div class="face bk">'+useSvg(card.icon)
+      +'<span class="lbl" style="font-size:min(16cqh,'+lfs+'cqw)">'+esc(card.lbl)+'</span></div>'
       +'</div>';
     tile.addEventListener("click",()=>onTile(card,tile));
     card.el=tile;
