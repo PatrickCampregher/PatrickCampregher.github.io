@@ -27,8 +27,6 @@
     background:#241505;font-family:'EB Garamond',Georgia,serif;color:var(--ink);
     -webkit-tap-highlight-color:transparent;user-select:none;
   }
-  svg .knock{fill:var(--card);}
-
   /* ---------- shared textures ---------- */
   .paperbg{
     background:
@@ -128,10 +126,24 @@
 
   .tile{position:relative;perspective:700px;}
   .tile .in{position:absolute;inset:0;transform-style:preserve-3d;
-    transition:transform .55s cubic-bezier(.35,.15,.25,1), opacity .4s;}
+    transition:transform .55s cubic-bezier(.35,.15,.25,1);}
   .tile.flip .in{transform:rotateY(180deg);}
-  .tile.spent .in{opacity:.5;}
+  /* Never set opacity/filter on .tile .in or .face — grouping properties
+     flatten preserve-3d and the mirrored card back renders instead of the face. */
   .tile.spent{cursor:default;}
+  .tile.spent .face.bk{background:linear-gradient(150deg,#dccca3 0%,#cebd90 45%,#bda679 100%);}
+  .tile.spent .face.bk svg{opacity:.7;}
+  .tile.spent .face.bk .lbl{opacity:.75;}
+  @keyframes dealin{from{opacity:0;transform:scale(.55);}}
+  .tile.deal{animation:dealin .4s cubic-bezier(.34,1.4,.5,1) backwards;animation-delay:var(--d,0s);}
+  /* memory: matched pairs stay bright, stamped green */
+  .tile.won .face.bk{box-shadow:
+      inset 0 0 0 3px rgba(47,107,91,.55),
+      inset 0 2px 2px rgba(255,252,235,.75),
+      0 4px 7px rgba(10,5,0,.5);}
+  .tile.won .face.bk svg{color:var(--verd);opacity:1;}
+  @keyframes wonpop{0%{transform:rotateY(180deg) scale(1);}45%{transform:rotateY(180deg) scale(1.13);}100%{transform:rotateY(180deg) scale(1);}}
+  .tile.won .in{animation:wonpop .5s ease;}
   .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
     border-radius:12%;display:flex;flex-direction:column;align-items:center;justify-content:center;
     background:linear-gradient(150deg,#ecdcb2 0%,var(--card) 45%,var(--card-2) 100%);
@@ -158,7 +170,11 @@
     padding:10px 6px;}
   .pnl-btn:active{transform:translateY(2px);}
   .plist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:4px 0;}
-  .pl-row{display:flex;align-items:center;gap:8px;}
+  .pl-row{position:relative;display:flex;align-items:center;gap:8px;}
+  .gplus{position:absolute;right:44px;top:-2px;z-index:5;pointer-events:none;
+    font-family:'Special Elite',serif;font-size:15px;color:var(--red);
+    animation:gfloat .9s ease-out forwards;}
+  @keyframes gfloat{from{opacity:1;transform:translateY(4px);}to{opacity:0;transform:translateY(-16px);}}
   .pl-name{flex:1;min-width:0;text-align:left;font-size:clamp(17px,2.9vmin,24px);font-weight:600;
     color:var(--ink);padding:4px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .pl-row.cur .pl-name{color:var(--red);}
@@ -183,7 +199,11 @@
   .rank{display:flex;flex-direction:column;gap:8px;width:min(440px,94vw);}
   .rk{display:flex;align-items:center;gap:12px;background:var(--cream);border-radius:9px;
     box-shadow:0 3px 6px rgba(40,22,4,.35), inset 0 1px 0 #fff;padding:9px 14px;
-    font-size:clamp(16px,2.6vw,21px);font-weight:600;}
+    font-size:clamp(16px,2.6vw,21px);font-weight:600;
+    animation:rkin .45s ease backwards;animation-delay:var(--d,0s);}
+  @keyframes rkin{from{opacity:0;transform:translateX(-20px);}}
+  @keyframes crownwig{0%,100%{transform:rotate(-7deg);}50%{transform:rotate(9deg);}}
+  .rk.first svg{animation:crownwig 1.6s ease-in-out infinite;}
   .rk .pos{font-family:'Special Elite',serif;color:var(--ink-soft);width:26px;flex:none;}
   .rk .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .rk .ct{font-weight:700;color:var(--red);white-space:nowrap;}
@@ -204,6 +224,8 @@
       linear-gradient(160deg,#f0e2bc,#dfc990 100%);
     box-shadow:0 16px 40px rgba(0,0,0,.6), inset 0 0 0 5px rgba(160,118,52,.14);
     padding:18px 20px 20px;text-align:center;}
+  @keyframes sheetin{from{opacity:0;transform:translateY(14px) scale(.94);}}
+  .modal.show .sheet{animation:sheetin .22s ease-out;}
   .mtag{font-family:'Special Elite',serif;font-size:11px;letter-spacing:.28em;color:var(--ink-soft);text-transform:uppercase;}
   .mtitle{font-family:'Special Elite',serif;color:var(--red);font-size:clamp(21px,5vw,30px);margin:6px 0 4px;line-height:1.15;}
   .micon{height:64px;margin:6px auto 2px;color:var(--stamp-deep);}
@@ -235,6 +257,7 @@
     background:rgba(255,250,232,.5);border-radius:6px;padding:7px 10px;}
   .drow .dn{flex:1;min-width:0;text-align:left;font-weight:600;font-size:16px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .drow .dn small{font-size:.78em;font-style:italic;font-weight:400;color:var(--ink-soft);}
   .step{display:flex;align-items:center;gap:8px;flex:none;}
   .step button{width:32px;height:32px;border:2px solid var(--ink);border-radius:6px;background:var(--cream);
     color:var(--ink);font-weight:700;font-size:18px;line-height:1;}
@@ -261,6 +284,8 @@
   .wptr{position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;
     border-left:12px solid transparent;border-right:12px solid transparent;
     border-top:20px solid var(--red-deep);filter:drop-shadow(0 2px 2px rgba(0,0,0,.4));z-index:2;}
+  @keyframes ptrwig{from{transform:translateX(-56%) rotate(-8deg);}to{transform:translateX(-44%) rotate(8deg);}}
+  .wptr.spin{animation:ptrwig .12s linear infinite alternate;transform-origin:50% 15%;}
 
   /* =================== overlays: pong & memory =================== */
   .ovl{position:fixed;inset:0;z-index:150;display:none;flex-direction:column;}
@@ -283,6 +308,8 @@
     box-shadow:0 0 10px rgba(250,240,210,.6);}
   .pscore{position:absolute;top:3%;font-family:'Special Elite',serif;font-size:clamp(22px,6vmin,44px);
     color:rgba(240,228,190,.85);width:20%;text-align:center;pointer-events:none;}
+  @keyframes scorepop{40%{transform:scale(1.6);}}
+  .pscore.hit{animation:scorepop .45s ease;}
   #psL{left:22%;} #psR{right:22%;}
   .pname-tag{position:absolute;bottom:3%;font-size:clamp(13px,2.4vmin,17px);color:rgba(240,228,190,.7);
     width:34%;text-align:center;pointer-events:none;font-weight:600;}
@@ -297,6 +324,15 @@
   .ovl-sub{flex:none;text-align:center;font-family:'Special Elite',serif;color:#ecdcae;
     font-size:clamp(14px,2.4vmin,18px);padding-bottom:6px;}
   .ovl-sub b{color:#ffd88a;}
+  .ovl-sub b.low{color:#ff9d7d;}
+
+  /* bomb blast */
+  #boomflash{position:fixed;inset:0;z-index:260;pointer-events:none;opacity:0;
+    background:radial-gradient(circle at 50% 55%, rgba(255,246,205,.95) 0%, rgba(255,158,54,.8) 28%, rgba(120,30,5,0) 64%);}
+  #boomflash.go{animation:boomf .65s ease-out;}
+  @keyframes boomf{0%{opacity:0;}10%{opacity:1;}100%{opacity:0;}}
+  @keyframes tblshake{0%,100%{transform:none;}20%{transform:translate(-8px,4px);}40%{transform:translate(7px,-5px);}60%{transform:translate(-5px,-3px);}80%{transform:translate(4px,3px);}}
+  .table.shake{animation:tblshake .5s linear;}
 
   /* toast */
   #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);z-index:300;
@@ -327,20 +363,22 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <path id="p-bottle" d="M16 1h8a1 1 0 0 1 1 1v7h-10V2a1 1 0 0 1 1-1z M15 11h10v11c0 7 8 9 8 19v52a6 6 0 0 1-6 6H13a6 6 0 0 1-6-6V41c0-10 8-12 8-19V11z"/>
+    <g id="g-bottle-lab">
+      <use href="#p-bottle"/>
+      <rect x="12" y="52" width="16" height="21" rx="2" fill="#f2e6c2" opacity=".9"/>
+    </g>
     <g id="g-male">
       <circle cx="30" cy="11" r="10"/>
-      <rect x="11" y="24" width="38" height="12" rx="6"/>
-      <rect x="11" y="30" width="9" height="26" rx="4"/>
-      <rect x="40" y="30" width="9" height="26" rx="4"/>
-      <path d="M17 26h26v34a3 3 0 0 1-3 3h-5.2L33 98h-6L25.2 63H20a3 3 0 0 1-3-3z"/>
+      <path d="M22 24h16a6 6 0 0 1 6 6v30h-4v38h-9V64h-2v34h-9V60h-4V30a6 6 0 0 1 6-6z"/>
+      <rect x="9" y="25" width="8" height="31" rx="4"/>
+      <rect x="43" y="25" width="8" height="31" rx="4"/>
     </g>
     <g id="g-female">
       <circle cx="30" cy="11" r="10"/>
-      <rect x="12" y="24" width="36" height="11" rx="5.5"/>
-      <rect x="10" y="30" width="9" height="24" rx="4" transform="rotate(9 14 42)"/>
-      <rect x="41" y="30" width="9" height="24" rx="4" transform="rotate(-9 46 42)"/>
-      <path d="M23 25h14l10 43H13z"/>
-      <path d="M23 66h5.4L27 98h-6zM31.6 66H37l-2 32h-6z"/>
+      <path d="M25 24h10a5 5 0 0 1 5 4l7 36H13l7-36a5 5 0 0 1 5-4z"/>
+      <path d="M21 64h8v34h-9zM31 64h8l1 34h-9z"/>
+      <rect x="6" y="25" width="8" height="30" rx="4" transform="rotate(12 10 40)"/>
+      <rect x="46" y="25" width="8" height="30" rx="4" transform="rotate(-12 50 40)"/>
     </g>
 
     <symbol id="i-cross" viewBox="0 0 100 100">
@@ -348,61 +386,81 @@
       <use href="#p-bottle" fill="currentColor" transform="translate(50 50) rotate(-24) scale(.92) translate(-20 -50)"/>
     </symbol>
     <symbol id="i-bottle" viewBox="0 0 100 100">
-      <use href="#p-bottle" fill="currentColor" transform="translate(50 50) scale(.95) translate(-20 -50)"/>
+      <use href="#g-bottle-lab" fill="currentColor" transform="translate(50 50) scale(.95) translate(-20 -50)"/>
     </symbol>
     <symbol id="i-bottles" viewBox="0 0 100 100">
-      <use href="#p-bottle" fill="currentColor" transform="translate(2 46) scale(.55)"/>
-      <use href="#p-bottle" fill="currentColor" transform="translate(26 34) scale(.62)"/>
-      <use href="#p-bottle" fill="currentColor" transform="translate(52 42) scale(.58)"/>
-      <use href="#p-bottle" fill="currentColor" transform="translate(76 30) scale(.66)"/>
+      <use href="#g-bottle-lab" fill="currentColor" transform="translate(2 47) scale(.53)"/>
+      <use href="#g-bottle-lab" fill="currentColor" transform="translate(26 35) scale(.6)"/>
+      <use href="#g-bottle-lab" fill="currentColor" transform="translate(52 43) scale(.56)"/>
+      <use href="#g-bottle-lab" fill="currentColor" transform="translate(76 31) scale(.6)"/>
     </symbol>
     <symbol id="i-bomb" viewBox="0 0 100 100">
-      <circle cx="48" cy="62" r="30" fill="currentColor"/>
-      <rect x="41" y="25" width="14" height="10" rx="2" fill="currentColor"/>
-      <path d="M48 26c0-9 10-11 13-19" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-      <path d="M63 1l2.6 5.4 5.9 1-4.2 4.3 1 5.9-5.3-2.7-5.3 2.7 1-5.9-4.2-4.3 5.9-1z" fill="currentColor"/>
+      <circle cx="46" cy="63" r="31" fill="currentColor"/>
+      <ellipse cx="35" cy="52" rx="10" ry="6.5" fill="#f2e6c2" opacity=".5" transform="rotate(-33 35 52)"/>
+      <rect x="38" y="24" width="16" height="10" rx="3" fill="currentColor"/>
+      <path d="M47 24c-1-10 11-10 14-17" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M64 1l2.9 5.9 6.5 1-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5-4.7-4.6 6.5-1z" fill="currentColor"/>
+      <circle cx="78" cy="16" r="2.6" fill="currentColor"/>
+      <circle cx="71" cy="25" r="1.9" fill="currentColor"/>
     </symbol>
     <symbol id="i-rule" viewBox="0 0 100 100">
-      <text x="50" y="82" text-anchor="middle" font-family="Georgia,serif" font-weight="bold" font-size="92" fill="currentColor">§</text>
+      <path d="M24 6h36l16 16v72H24z" fill="currentColor"/>
+      <path d="M60 6l16 16H60z" fill="#f2e6c2" opacity=".9"/>
+      <text x="50" y="74" text-anchor="middle" font-family="Georgia,serif" font-weight="bold" font-size="46" fill="#f2e6c2">§</text>
     </symbol>
     <symbol id="i-cat" viewBox="0 0 100 100">
-      <circle cx="18" cy="26" r="7" fill="currentColor"/><rect x="34" y="21" width="50" height="10" rx="5" fill="currentColor"/>
-      <circle cx="18" cy="50" r="7" fill="currentColor"/><rect x="34" y="45" width="50" height="10" rx="5" fill="currentColor"/>
-      <circle cx="18" cy="74" r="7" fill="currentColor"/><rect x="34" y="69" width="50" height="10" rx="5" fill="currentColor"/>
+      <path d="M17 10h66a10 10 0 0 1 10 10v40a10 10 0 0 1-10 10H49L32 88V70H17A10 10 0 0 1 7 60V20A10 10 0 0 1 17 10z" fill="currentColor"/>
+      <g fill="#f2e6c2" opacity=".9">
+        <circle cx="24" cy="28" r="4.5"/><rect x="34" y="24" width="40" height="8" rx="4"/>
+        <circle cx="24" cy="47" r="4.5"/><rect x="34" y="43" width="32" height="8" rx="4"/>
+      </g>
     </symbol>
     <symbol id="i-tongue" viewBox="0 0 100 100">
       <path d="M50 50 C58 34 80 34 80 50 S58 66 50 50 C42 34 20 34 20 50 S42 66 50 50 Z"
         fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round"/>
     </symbol>
     <symbol id="i-nb" viewBox="0 0 100 100">
-      <use href="#g-male" fill="currentColor" transform="translate(2 22) scale(.56)"/>
-      <path d="M68 52H42m0 0l9-9m-9 9l9 9" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-      <use href="#p-bottle" fill="currentColor" transform="translate(70 24) scale(.54)"/>
+      <use href="#g-male" fill="currentColor" transform="translate(1 20) scale(.58)"/>
+      <rect x="43" y="47" width="25" height="7" rx="3.5" fill="currentColor"/>
+      <path d="M37 50.5L53 39v23z" fill="currentColor"/>
+      <use href="#g-bottle-lab" fill="currentColor" transform="translate(70 22) scale(.56)"/>
     </symbol>
     <symbol id="i-all" viewBox="0 0 100 100">
-      <use href="#g-male" fill="currentColor" opacity=".55" transform="translate(2 16) scale(.46)"/>
-      <use href="#g-male" fill="currentColor" opacity=".55" transform="translate(70 16) scale(.46)"/>
-      <use href="#g-male" fill="currentColor" transform="translate(33 6) scale(.58)"/>
+      <use href="#g-male" fill="currentColor" opacity=".45" transform="translate(0 18) scale(.48)"/>
+      <use href="#g-male" fill="currentColor" opacity=".45" transform="translate(71 18) scale(.48)"/>
+      <use href="#g-male" fill="currentColor" transform="translate(32 4) scale(.6)"/>
     </symbol>
     <symbol id="i-m" viewBox="0 0 60 100"><use href="#g-male" fill="currentColor"/></symbol>
     <symbol id="i-f" viewBox="0 0 60 100"><use href="#g-female" fill="currentColor"/></symbol>
     <symbol id="i-pong" viewBox="0 0 100 100">
-      <rect x="10" y="28" width="9" height="44" rx="4.5" fill="currentColor"/>
-      <rect x="81" y="28" width="9" height="44" rx="4.5" fill="currentColor"/>
-      <circle cx="50" cy="50" r="8" fill="currentColor"/>
-      <rect x="48" y="6" width="4" height="8" fill="currentColor" opacity=".5"/>
-      <rect x="48" y="86" width="4" height="8" fill="currentColor" opacity=".5"/>
+      <g fill="currentColor" opacity=".3">
+        <rect x="47" y="6" width="6" height="11" rx="2.5"/><rect x="47" y="29" width="6" height="11" rx="2.5"/>
+        <rect x="47" y="52" width="6" height="11" rx="2.5"/><rect x="47" y="75" width="6" height="11" rx="2.5"/>
+      </g>
+      <rect x="8" y="30" width="10" height="42" rx="5" fill="currentColor"/>
+      <rect x="82" y="30" width="10" height="42" rx="5" fill="currentColor"/>
+      <circle cx="60" cy="42" r="8" fill="currentColor"/>
+      <circle cx="47" cy="51" r="4.5" fill="currentColor" opacity=".45"/>
+      <circle cx="37" cy="58" r="3" fill="currentColor" opacity=".25"/>
     </symbol>
     <symbol id="i-quiz" viewBox="0 0 100 100">
-      <text x="50" y="80" text-anchor="middle" font-family="'Special Elite',Georgia,serif" font-size="88" fill="currentColor">?</text>
+      <text x="43" y="78" text-anchor="middle" font-family="'Special Elite',Georgia,serif" font-size="84" fill="currentColor">?</text>
+      <rect x="68" y="63" width="14" height="14" rx="2.5" fill="currentColor"/>
     </symbol>
     <symbol id="i-memory" viewBox="0 0 100 100">
-      <rect x="16" y="12" width="42" height="56" rx="7" fill="none" stroke="currentColor" stroke-width="6" transform="rotate(-8 37 40)"/>
-      <rect x="42" y="34" width="42" height="56" rx="7" fill="currentColor" transform="rotate(7 63 62)"/>
+      <rect x="14" y="10" width="42" height="56" rx="7" fill="none" stroke="currentColor" stroke-width="6" transform="rotate(-8 35 38)"/>
+      <g transform="rotate(7 62 61)">
+        <rect x="41" y="33" width="42" height="56" rx="7" fill="currentColor"/>
+        <text x="62" y="73" text-anchor="middle" font-family="Georgia,serif" font-weight="bold" font-size="36" fill="#f2e6c2">?</text>
+      </g>
     </symbol>
     <symbol id="i-crown" viewBox="0 0 100 100">
-      <path d="M16 68L9 30l21 13 20-28 20 28 21-13-7 38z" fill="currentColor"/>
-      <rect x="14" y="72" width="72" height="12" rx="4" fill="currentColor"/>
+      <path d="M16 66L9 28l21 13 20-28 20 28 21-13-7 38z" fill="currentColor"/>
+      <rect x="13" y="70" width="74" height="13" rx="4" fill="currentColor"/>
+      <g fill="#f2e6c2" opacity=".85">
+        <circle cx="28" cy="76.5" r="3.4"/><circle cx="50" cy="76.5" r="3.4"/><circle cx="72" cy="76.5" r="3.4"/>
+        <circle cx="50" cy="45" r="4.5"/>
+      </g>
     </symbol>
     <symbol id="i-cap" viewBox="0 0 100 100">
       <radialGradient id="capG" cx="36%" cy="30%" r="80%">
@@ -521,10 +579,11 @@
     <div class="ovl-title">Memory — finde alle Paare!</div>
     <button class="ovl-x" id="memoQuit" aria-label="Abbrechen">✕</button>
   </div>
-  <div class="ovl-sub">Versuche übrig: <b id="memoTries">15</b></div>
+  <div class="ovl-sub">Paare: <b id="memoPairs">0/8</b> &nbsp;·&nbsp; Zeit: <b id="memoTime">1:00</b></div>
   <div id="memoGrid"></div>
 </div>
 
+<div id="boomflash"></div>
 <div id="toast"></div>
 
 <script>
@@ -604,7 +663,8 @@ const QUIZ=[
 ];
 const WHEEL=[2,4,6,3,8,2,5,3];
 const MEMO_ICONS=["i-bottle","i-bomb","i-cap","i-m","i-f","i-tongue","i-quiz","i-all"];
-const MEMO_TRIES=15;
+const MEMO_TIME=60, MEMO_STAKE=5;
+const QUIZ_N=3;
 
 /* card catalogue: n = copies per deck size */
 const SPEC=[
@@ -720,7 +780,8 @@ function buildBoard(){
   b.innerHTML="";
   deck.forEach((card,i)=>{
     const tile=document.createElement("div");
-    tile.className="tile";
+    tile.className="tile deal";
+    tile.style.setProperty("--d",(i*22)+"ms");
     tile.innerHTML=
       '<div class="in">'
       +'<div class="face fr">'+useSvg("i-cross")+'</div>'
@@ -787,6 +848,17 @@ function addGulps(i,n){
     const nm=p.rowEl.querySelector(".pl-name");
     nm.innerHTML=esc(p.name)+': <b>'+p.gulps+'</b>';
     nm.classList.remove("bump"); void nm.offsetWidth; nm.classList.add("bump");
+    if(n>0){
+      // defer: card resolutions re-render the panel in the same task,
+      // which would destroy a chip appended to the old row element
+      setTimeout(()=>{
+        if(!p.rowEl||!p.rowEl.isConnected) return;
+        const chip=document.createElement("span");
+        chip.className="gplus"; chip.textContent="+"+n;
+        p.rowEl.appendChild(chip);
+        setTimeout(()=>chip.remove(),1000);
+      },0);
+    }
   }
 }
 
@@ -804,6 +876,7 @@ function endGame(subline){
     const total=p.gulps===1?"1 Schluck":p.gulps+" Schlücke";
     const row=document.createElement("div");
     row.className="rk"+(i===0&&p.gulps>0?" first":"");
+    row.style.setProperty("--d",(i*90)+"ms");
     row.innerHTML='<span class="pos">'+(i+1)+'.</span>'
       +(i===0&&p.gulps>0?useSvg("i-crown"):"")
       +'<span class="nm">'+esc(p.name)+'</span><span class="ct">'+total+'</span>';
@@ -830,9 +903,17 @@ function modal(o){
     act.appendChild(b);
   });
   $("modal").classList.add("show");
+  const sh=$("modal").querySelector(".sheet");       // replay pop-in per step
+  sh.style.animation="none"; void sh.offsetWidth; sh.style.animation="";
 }
 function closeModal(){ $("modal").classList.remove("show"); }
-function hideOverlays(){ stopPong(); $("pong").classList.remove("show"); $("memo").classList.remove("show"); }
+function hideOverlays(){
+  stopPong();
+  MM.done=true; MM.card=null;
+  if(MM.iv){ clearInterval(MM.iv); MM.iv=null; }
+  if(MM.endTm){ clearTimeout(MM.endTm); MM.endTm=null; }
+  $("pong").classList.remove("show"); $("memo").classList.remove("show");
+}
 
 /* player-picker grid html + wiring */
 function pickPlayers(opts,onPick){
@@ -844,13 +925,14 @@ function pickPlayers(opts,onPick){
   }};
 }
 
-/* distribution UI (reused by wheel / quiz / tongue / memory) */
+/* distribution UI (reused by wheel / quiz / tongue / memory) — lists ALL
+   players including the giver, so gulps can also stick to yourself */
 function openDistribute(card,amount,tag){
-  const others=players.map((p,i)=>({p,i})).filter(x=>x.i!==cur);
-  const give=others.map(()=>0);
+  const opts=players.map((p,i)=>({p,i}));
+  const give=opts.map(()=>0);
   const body=
-    '<div class="drows">'+others.map((o,k)=>
-      '<div class="drow"><span class="dn">'+esc(o.p.name)+'</span>'
+    '<div class="drows">'+opts.map((o,k)=>
+      '<div class="drow"><span class="dn">'+esc(o.p.name)+(o.i===cur?' <small>(du)</small>':'')+'</span>'
       +'<span class="step"><button data-k="'+k+'" data-d="-1">−</button>'
       +'<span class="cnt" id="dc'+k+'">0</span>'
       +'<button data-k="'+k+'" data-d="1">+</button></span></div>').join("")
@@ -858,14 +940,14 @@ function openDistribute(card,amount,tag){
   modal({tag:tag||"Verteilen",title:"Verteile "+amount+" Schlücke",body,
     actions:[{label:"Fertig!",fn:()=>{
       if(give.reduce((s,v)=>s+v,0)!==amount) return;
-      others.forEach((o,k)=>{ if(give[k]) addGulps(o.i,give[k]); });
+      opts.forEach((o,k)=>{ if(give[k]) addGulps(o.i,give[k]); });
       finishCard(card);
     },disabled:true}]});
   const confirmBtn=$("mActions").querySelector(".mbtn");
   const upd=()=>{
     const used=give.reduce((s,v)=>s+v,0);
     $("dleft").textContent=String(amount-used);
-    others.forEach((o,k)=>$("dc"+k).textContent=String(give[k]));
+    opts.forEach((o,k)=>$("dc"+k).textContent=String(give[k]));
     confirmBtn.disabled=used!==amount;
   };
   document.querySelectorAll("#mBody .step button").forEach(b=>{
@@ -933,9 +1015,15 @@ function openCard(card){
       break;
     }
     case "bomb":{
-      modal({tag:"Karte",title:"BOOM! Die Bombe!",icon:"i-bomb",boom:true,
+      modal({tag:"Karte",title:"Die Bombe!",icon:"i-bomb",boom:true,
         body:"Volltreffer, <b>"+esc(p.name)+"</b>!<span class='big'>5 Schlücke für dich</span>Keine Diskussion.",
-        actions:[{label:"Runterspülen (+5)",cls:"danger",fn:()=>{ addGulps(cur,5); finishCard(card); }}]});
+        actions:[{label:"Zünden! (+5)",cls:"danger",fn:()=>{
+          const f=$("boomflash");
+          f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+          const tb=document.querySelector(".table");
+          tb.classList.remove("shake"); void tb.offsetWidth; tb.classList.add("shake");
+          addGulps(cur,5); finishCard(card);
+        }}]});
       break;
     }
     case "tongue":{
@@ -1036,6 +1124,8 @@ function spinWheel(card){
   wheelRot=base+4*360+want;
   const wg=document.getElementById("wheelG");
   wg.style.transform="rotate("+wheelRot+"deg)";
+  const ptr=document.querySelector("#mBody .wptr");
+  if(ptr) ptr.classList.add("spin");
   const val=WHEEL[target];
   setTimeout(()=>{
     if(g!==gen) return;
@@ -1045,43 +1135,57 @@ function spinWheel(card){
   },3600);
 }
 
-/* ---------- quiz ---------- */
+/* ---------- quiz: 3 questions, +1 to give per right, 1 to drink per wrong ---------- */
 function openQuiz(card){
-  const q=draw("quiz",QUIZ);
   const p=players[cur];
-  modal({tag:"Karte",title:"Mini-Quiz",icon:"i-quiz",
-    body:"<b>"+esc(p.name)+"</b>, ohne Hilfe der anderen:<span class='big' style='font-size:1.1em'>"+esc(q.q)+"</span>"
-      +'<div class="answers">'+q.a.map((a,k)=>'<button class="ans" data-k="'+k+'">'+esc(a)+'</button>').join("")+'</div>',
-    actions:[]});
-  document.querySelectorAll("#mBody .answers .ans").forEach(b=>{
-    b.addEventListener("click",()=>{
-      const k=+b.dataset.k;
-      document.querySelectorAll("#mBody .answers .ans").forEach(x=>{
-        x.disabled=true;
-        if(+x.dataset.k===q.c) x.classList.add("ok");
+  const qs=[], seen=new Set();
+  let guard=0;
+  while(qs.length<QUIZ_N && guard++<40){
+    const q=draw("quiz",QUIZ);
+    if(!seen.has(q.q)){ seen.add(q.q); qs.push(q); }
+  }
+  let idx=0, right=0, wrong=0;
+  const showQ=()=>{
+    const q=qs[idx];
+    modal({tag:"Minispiel",title:"Mini-Quiz — Frage "+(idx+1)+"/"+QUIZ_N,icon:"i-quiz",
+      body:"<b>"+esc(p.name)+"</b>, ohne Hilfe der anderen:<span class='big' style='font-size:1.1em'>"+esc(q.q)+"</span>"
+        +'<div class="answers">'+q.a.map((a,k)=>'<button class="ans" data-k="'+k+'">'+esc(a)+'</button>').join("")+'</div>'
+        +'<div class="dleft">Richtig: <b>'+right+'</b> · Falsch: <b>'+wrong+'</b></div>',
+      actions:[]});
+    document.querySelectorAll("#mBody .answers .ans").forEach(b=>{
+      b.addEventListener("click",()=>{
+        const k=+b.dataset.k;
+        document.querySelectorAll("#mBody .answers .ans").forEach(x=>{
+          x.disabled=true;
+          if(+x.dataset.k===q.c) x.classList.add("ok");
+        });
+        if(k===q.c) right++;
+        else { b.classList.add("no"); wrong++; }
+        const act=$("mActions"); act.innerHTML="";
+        const btn=document.createElement("button");
+        btn.className="mbtn";
+        btn.textContent=idx<QUIZ_N-1?"Nächste Frage":"Ergebnis";
+        btn.addEventListener("click",()=>{ idx++; if(idx<QUIZ_N) showQ(); else showResult(); });
+        act.appendChild(btn);
       });
-      if(k===q.c){
-        const act=$("mActions");
-        act.innerHTML="";
-        const ok=document.createElement("button");
-        ok.className="mbtn"; ok.textContent="Richtig! Verteile 2 →";
-        ok.addEventListener("click",()=>openDistribute(card,2,"Belohnung"));
-        act.appendChild(ok);
-      }else{
-        b.classList.add("no");
-        const act=$("mActions");
-        act.innerHTML="";
-        const no=document.createElement("button");
-        no.className="mbtn danger"; no.textContent="Falsch — trink 2!";
-        no.addEventListener("click",()=>{ addGulps(cur,2); finishCard(card); });
-        act.appendChild(no);
-      }
     });
-  });
+  };
+  const showResult=()=>{
+    let msg="<span class='big'>"+right+" richtig · "+wrong+" falsch</span>";
+    if(wrong>0) msg+="Du trinkst <b>"+wrong+" "+(wrong===1?"Schluck":"Schlücke")+"</b>.";
+    if(right>0) msg+=(wrong>0?"<br>":"")+"Dafür darfst du <b>"+right+" "+(right===1?"Schluck":"Schlücke")+"</b> verteilen.";
+    modal({tag:"Minispiel",title:"Quiz-Bilanz",icon:"i-quiz",body:msg,
+      actions:[{label:right>0?"Weiter zum Verteilen":"Okay",cls:(wrong>0&&!right)?"danger":"",fn:()=>{
+        if(wrong>0) addGulps(cur,wrong);
+        if(right>0) openDistribute(card,right,"Belohnung");
+        else finishCard(card);
+      }}]});
+  };
+  showQ();
 }
 
 /* ---------- pong minigame ---------- */
-const PG={iv:null,card:null,li:-1,ri:-1,keys:{},done:false};
+const PG={iv:null,endTm:null,card:null,li:-1,ri:-1,keys:{},done:false};
 function openPongSetup(card){
   const p=players[cur];
   if(players.length===2){
@@ -1091,7 +1195,7 @@ function openPongSetup(card){
   const opts=players.map((q,i)=>({label:q.name,i})).filter(o=>o.i!==cur);
   const picker=pickPlayers(opts,o=>startPong(card,cur,o.i));
   modal({tag:"Minispiel",title:"Pong — wähle deinen Gegner!",icon:"i-pong",
-    body:"<b>"+esc(p.name)+"</b> spielt Pong. Erster auf <b>3 Punkte</b> gewinnt — der Verlierer trinkt <b>3 Schlücke</b>."+picker.body,
+    body:"<b>"+esc(p.name)+"</b> spielt Pong bis <b>3 Punkte</b>. Jeder kassierte Punkt = <b>1 Schluck</b> am Ende — nur wer perfekt gewinnt, bleibt trocken!"+picker.body,
     actions:[]});
   picker.wire();
 }
@@ -1146,26 +1250,42 @@ function pgStep(){
 function pgPoint(side){
   if(side==="L") PG.sL++; else PG.sR++;
   $("psL").textContent=PG.sL; $("psR").textContent=PG.sR;
+  const el=side==="L"?$("psL"):$("psR");
+  el.classList.remove("hit"); void el.offsetWidth; el.classList.add("hit");
   if(PG.sL>=3||PG.sR>=3){ pgEnd(); return; }
   pgServe(side==="L"?-1:1,false);
 }
 function pgEnd(){
   PG.done=true;
   clearInterval(PG.iv); PG.iv=null;
-  const wi=PG.sL>PG.sR?PG.li:PG.ri, lo=PG.sL>PG.sR?PG.ri:PG.li;
+  const wi=PG.sL>PG.sR?PG.li:PG.ri;
+  const gL=PG.sR, gR=PG.sL;                  // your gulps = points you conceded
   $("pgMsg").textContent=players[wi].name+" gewinnt!";
-  const card=PG.card, g=gen;
-  setTimeout(()=>{
+  const card=PG.card, li=PG.li, ri=PG.ri, g=gen;
+  PG.card=null;
+  const line=(idx,n)=>"<b>"+esc(players[idx].name)+"</b> "
+    +(n===0?"bleibt trocken — perfektes Spiel!":"trinkt <b>"+n+" "+(n===1?"Schluck":"Schlücke")+"</b>.");
+  PG.endTm=setTimeout(()=>{
+    PG.endTm=null;
     if(g!==gen) return;
     $("pong").classList.remove("show");
     modal({tag:"Minispiel",title:"Pong — "+esc(players[wi].name)+" gewinnt!",icon:"i-pong",
-      body:"<b>"+esc(players[lo].name)+"</b> hat verloren und trinkt <b>3 Schlücke</b>.",
-      actions:[{label:"Prost! (+3)",fn:()=>{ addGulps(lo,3); finishCard(card); }}]});
+      body:"Endstand <b>"+PG.sL+" : "+PG.sR+"</b><br>"+line(li,gL)+"<br>"+line(ri,gR),
+      actions:[{label:"Prost!",fn:()=>{
+        if(gL) addGulps(li,gL);
+        if(gR) addGulps(ri,gR);
+        finishCard(card);
+      }}]});
   },1300);
 }
-function stopPong(){ if(PG.iv){ clearInterval(PG.iv); PG.iv=null; } PG.done=true; }
+function stopPong(){
+  if(PG.iv){ clearInterval(PG.iv); PG.iv=null; }
+  if(PG.endTm){ clearTimeout(PG.endTm); PG.endTm=null; }
+  PG.done=true;
+}
 $("pgQuit").addEventListener("click",()=>{
   const card=PG.card;
+  PG.card=null;
   stopPong(); $("pong").classList.remove("show");
   if(card) finishCard(card);
 });
@@ -1193,11 +1313,15 @@ document.addEventListener("keyup",e=>{
   if(e.key==="ArrowDown") PG.keys.down=false;
 });
 
-/* ---------- memory minigame ---------- */
-const MM={card:null,tries:0,first:null,lock:false,found:0};
+/* ---------- memory minigame: beat the clock ---------- */
+const MM={card:null,end:0,iv:null,endTm:null,first:null,lock:false,found:0,done:false};
+function fmtTime(s){ return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
 function openMemory(card){
-  MM.card=card; MM.tries=MEMO_TRIES; MM.first=null; MM.lock=false; MM.found=0;
-  $("memoTries").textContent=MM.tries;
+  MM.card=card; MM.first=null; MM.lock=false; MM.found=0; MM.done=false;
+  MM.end=Date.now()+MEMO_TIME*1000;
+  $("memoPairs").textContent="0/"+MEMO_ICONS.length;
+  const tEl=$("memoTime");
+  tEl.textContent=fmtTime(MEMO_TIME); tEl.classList.remove("low");
   const grid=$("memoGrid"); grid.innerHTML="";
   const icons=shuffle(MEMO_ICONS.concat(MEMO_ICONS).slice());
   icons.forEach(icon=>{
@@ -1210,47 +1334,61 @@ function openMemory(card){
     grid.appendChild(t);
   });
   $("memo").classList.add("show");
+  if(MM.iv) clearInterval(MM.iv);
+  MM.iv=setInterval(()=>{
+    const left=Math.max(0,Math.ceil((MM.end-Date.now())/1000));
+    tEl.textContent=fmtTime(left);
+    if(left<=10) tEl.classList.add("low");
+    if(left<=0) memoEnd(false);
+  },250);
 }
 function memoFlip(t){
-  if(MM.lock||t.classList.contains("flip")) return;
+  if(MM.done||MM.lock||t.classList.contains("flip")) return;
   t.classList.add("flip");
   if(!MM.first){ MM.first=t; return; }
-  const a=MM.first, b=t; MM.first=null; MM.lock=true;
-  const g=gen;
+  const a=MM.first, b=t; MM.first=null;
   if(a.dataset.icon===b.dataset.icon){
     MM.found++;
-    a.classList.add("spent"); b.classList.add("spent");
-    MM.lock=false;
+    $("memoPairs").textContent=MM.found+"/"+MEMO_ICONS.length;
+    a.classList.add("won"); b.classList.add("won");
     if(MM.found>=MEMO_ICONS.length) memoEnd(true);
   }else{
-    MM.tries--;
-    $("memoTries").textContent=MM.tries;
+    MM.lock=true;
+    const g=gen;
     setTimeout(()=>{
-      if(g!==gen) return;
+      if(g!==gen||MM.done) return;
       a.classList.remove("flip"); b.classList.remove("flip");
       MM.lock=false;
-      if(MM.tries<=0) memoEnd(false);
     },850);
   }
 }
 function memoEnd(win){
+  if(MM.done) return;
+  MM.done=true;
+  if(MM.iv){ clearInterval(MM.iv); MM.iv=null; }
+  if(!win) document.querySelectorAll("#memoGrid .tile").forEach(t=>t.classList.add("flip"));
   const card=MM.card, g=gen;
-  setTimeout(()=>{
+  MM.card=null;
+  MM.endTm=setTimeout(()=>{
+    MM.endTm=null;
     if(g!==gen) return;
     $("memo").classList.remove("show");
     if(win){
       modal({tag:"Minispiel",title:"Alle Paare gefunden!",icon:"i-memory",
-        body:"Starke Leistung — du darfst <b>3 Schlücke</b> verteilen.",
-        actions:[{label:"Verteilen",fn:()=>openDistribute(card,3,"Belohnung")}]});
+        body:"Starke Leistung — du darfst <b>"+MEMO_STAKE+" Schlücke</b> verteilen.",
+        actions:[{label:"Verteilen",fn:()=>openDistribute(card,MEMO_STAKE,"Belohnung")}]});
     }else{
-      modal({tag:"Minispiel",title:"Keine Versuche mehr!",icon:"i-memory",
-        body:"Das Gedächtnis lässt nach … <b>trink 3 Schlücke</b>.",
-        actions:[{label:"Autsch (+3)",cls:"danger",fn:()=>{ addGulps(cur,3); finishCard(card); }}]});
+      modal({tag:"Minispiel",title:"Zeit abgelaufen!",icon:"i-memory",
+        body:"Das Gedächtnis lässt nach … <b>trink "+MEMO_STAKE+" Schlücke</b>.",
+        actions:[{label:"Autsch (+"+MEMO_STAKE+")",cls:"danger",fn:()=>{ addGulps(cur,MEMO_STAKE); finishCard(card); }}]});
     }
-  },win?450:900);
+  },win?550:1400);
 }
 $("memoQuit").addEventListener("click",()=>{
   const card=MM.card;
+  MM.card=null; MM.done=true;
+  if(MM.iv){ clearInterval(MM.iv); MM.iv=null; }
+  if(MM.endTm){ clearTimeout(MM.endTm); MM.endTm=null; }
   $("memo").classList.remove("show");
   if(card) finishCard(card);
 });
