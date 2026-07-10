@@ -277,6 +277,11 @@
     color:var(--ink-soft);margin-top:14px;}
   .drow .ric{width:22px;height:22px;flex:none;color:var(--stamp-deep);}
   .drow .pct{flex:none;font-size:13px;font-style:italic;color:var(--ink-soft);min-width:34px;text-align:right;}
+  .seg{display:flex;gap:8px;justify-content:center;margin-top:10px;}
+  .seg button{width:64px;padding:10px 0;border:2px solid var(--ink);border-radius:6px;background:var(--cream);
+    font-family:'Special Elite',serif;font-size:17px;color:var(--ink);}
+  .seg button.on{background:var(--red);border-color:var(--red-deep);color:var(--cream);}
+  .step .cnt.lvl{min-width:56px;font-size:14px;font-family:'Special Elite',serif;}
 
   /* wheel */
   .wheelwrap{position:relative;width:min(66vw,300px);margin:12px auto 4px;}
@@ -675,26 +680,28 @@ const MEMO_ICONS=["i-bottle","i-bomb","i-cap","i-m","i-f","i-tongue","i-quiz","i
 const MEMO_TIME=60, MEMO_STAKE=5;
 const QUIZ_N=3;
 
-/* card catalogue: def = default copies in the deck (user-adjustable, 0 = none) */
+/* card catalogue: lvl = default frequency (0 Nie · 1 Selten · 2 Normal · 3 Oft) */
 const SPEC=[
- {t:"mini",  def:6, max:8,  icon:"i-mini",   lbl:"Minispiel",     name:"Minispiel"},
- {t:"wheel", def:4, max:8,  icon:"i-bottles",lbl:"Verteile",      name:"Verteile (Rad)"},
- {t:"bomb",  def:2, max:8,  icon:"i-bomb",   lbl:"Bombe",         name:"Bombe"},
- {t:"rule",  def:4, max:8,  icon:"i-rule",   lbl:"Regel",         name:"Regel"},
- {t:"cat",   def:4, max:8,  icon:"i-cat",    lbl:"Kategorie",     name:"Kategorie"},
- {t:"tongue",def:3, max:8,  icon:"i-tongue", lbl:"Zungenbrecher", name:"Zungenbrecher"},
- {t:"nb",    def:3, max:8,  icon:"i-nb",     lbl:"Nachbar trinkt",name:"Nachbar trinkt"},
- {t:"all",   def:2, max:8,  icon:"i-all",    lbl:"Alle trinken",  name:"Alle trinken"},
- {t:"men",   def:1, max:8,  icon:"i-m",      lbl:"Männer trinken",name:"Männer trinken"},
- {t:"women", def:1, max:8,  icon:"i-f",      lbl:"Frauen trinken",name:"Frauen trinken"},
- {t:"drink", def:6, max:10, icon:"i-bottle", lbl:"Trink #",       name:"Trink selbst"}
+ {t:"mini",  lvl:3, icon:"i-mini",   lbl:"Minispiel",     name:"Minispiel"},
+ {t:"wheel", lvl:2, icon:"i-bottles",lbl:"Verteile",      name:"Verteile (Rad)"},
+ {t:"bomb",  lvl:1, icon:"i-bomb",   lbl:"Bombe",         name:"Bombe"},
+ {t:"rule",  lvl:2, icon:"i-rule",   lbl:"Regel",         name:"Regel"},
+ {t:"cat",   lvl:2, icon:"i-cat",    lbl:"Kategorie",     name:"Kategorie"},
+ {t:"tongue",lvl:2, icon:"i-tongue", lbl:"Zungenbrecher", name:"Zungenbrecher"},
+ {t:"nb",    lvl:2, icon:"i-nb",     lbl:"Nachbar trinkt",name:"Nachbar trinkt"},
+ {t:"all",   lvl:1, icon:"i-all",    lbl:"Alle trinken",  name:"Alle trinken"},
+ {t:"men",   lvl:1, icon:"i-m",      lbl:"Männer trinken",name:"Männer trinken"},
+ {t:"women", lvl:1, icon:"i-f",      lbl:"Frauen trinken",name:"Frauen trinken"},
+ {t:"drink", lvl:3, icon:"i-bottle", lbl:"Trink #",       name:"Trink selbst"}
 ];
+const LEVELS=["Nie","Selten","Normal","Oft"];
+const SIZES=[24,30,36];
 const MINIS=[
  {k:"pong",  name:"Pong",   def:2},
  {k:"memory",name:"Memory", def:2},
  {k:"quiz",  name:"Quiz",   def:2}
 ];
-const DECK_MAX=48, DECK_MIN=6, MINI_W_MAX=5;
+const MINI_W_MAX=5;
 
 /* ================= helpers / state ================= */
 const $=id=>document.getElementById(id);
@@ -708,7 +715,7 @@ let slots=[];                    // setup: [{name,g}] × 8
 let players=[];                  // in game: {name,g,gulps}
 let cur=0, deck=[], started=false, busy=false, gen=0;
 let activeRules=[];
-let counts={}, miniW={};         // deck composition + minigame chance weights
+let levels={}, miniW={}, cardSize=36;   // frequency levels + minigame chances + deck size
 
 const queues={};
 function draw(name,arr){
@@ -730,13 +737,19 @@ function loadSlots(){
     const s=JSON.parse(localStorage.getItem(LS_PLAYERS))||[];
     s.slice(0,8).forEach((v,i)=>{ if(v&&typeof v.n==="string") slots[i]={name:v.n.slice(0,14),g:v.g==="f"?"f":"m"}; });
   }catch(e){}
-  counts=Object.fromEntries(SPEC.map(sp=>[sp.t,sp.def]));
+  levels=Object.fromEntries(SPEC.map(sp=>[sp.t,sp.lvl]));
   miniW=Object.fromEntries(MINIS.map(m=>[m.k,m.def]));
+  cardSize=36;
   try{
     const st=JSON.parse(localStorage.getItem(LS_DECK))||{};
+    if(SIZES.includes(st.size)) cardSize=st.size;
     SPEC.forEach(sp=>{
-      const v=st.counts&&st.counts[sp.t];
-      if(Number.isInteger(v)) counts[sp.t]=Math.max(0,Math.min(sp.max,v));
+      let v=st.levels&&st.levels[sp.t];
+      if(!Number.isInteger(v)&&st.counts&&Number.isInteger(st.counts[sp.t])){
+        const c=st.counts[sp.t];                 // migrate old count-based decks
+        v=c===0?0:c<=2?1:c<=4?2:3;
+      }
+      if(Number.isInteger(v)) levels[sp.t]=Math.max(0,Math.min(3,v));
     });
     MINIS.forEach(m=>{
       const v=st.mini&&st.mini[m.k];
@@ -748,17 +761,18 @@ function saveSlots(){
   try{ localStorage.setItem(LS_PLAYERS,JSON.stringify(slots.map(s=>({n:s.name,g:s.g})))); }catch(e){}
 }
 function saveDeck(){
-  try{ localStorage.setItem(LS_DECK,JSON.stringify({counts,mini:miniW})); }catch(e){}
+  try{ localStorage.setItem(LS_DECK,JSON.stringify({size:cardSize,levels,mini:miniW})); }catch(e){}
 }
 function resetDeck(){
-  counts=Object.fromEntries(SPEC.map(sp=>[sp.t,sp.def]));
+  levels=Object.fromEntries(SPEC.map(sp=>[sp.t,sp.lvl]));
   miniW=Object.fromEntries(MINIS.map(m=>[m.k,m.def]));
+  cardSize=36;
   saveDeck();
 }
 function miniWSum(){ return MINIS.reduce((s,m)=>s+(miniW[m.k]||0),0); }
 /* minigame cards are pointless without any playable game — drop them then */
-function effCount(sp){ let n=counts[sp.t]||0; if(sp.t==="mini"&&miniWSum()===0) n=0; return n; }
-function deckTotal(){ return SPEC.reduce((s,sp)=>s+effCount(sp),0); }
+function effLevel(sp){ let w=levels[sp.t]||0; if(sp.t==="mini"&&miniWSum()===0) w=0; return w; }
+function deckTotal(){ return SPEC.some(sp=>effLevel(sp)>0)?cardSize:0; }
 
 function renderSetup(){
   const grid=$("pgrid"); grid.innerHTML="";
@@ -787,13 +801,26 @@ function renderSetup(){
 }
 
 /* ================= deck / board ================= */
+/* fill the fixed deck size proportionally to the frequency levels
+   (largest remainder; every non-Nie type gets at least one card) */
 function composeDeck(){
+  const alloc=shuffle(SPEC.map(sp=>({sp,w:effLevel(sp)})));   // shuffle = random tie-breaks
+  const wsum=alloc.reduce((s,a)=>s+a.w,0);
+  if(!wsum) return [];
+  alloc.forEach(a=>{ const x=cardSize*a.w/wsum; a.n=Math.floor(x); a.rem=x-a.n; });
+  let used=alloc.reduce((s,a)=>s+a.n,0);
+  alloc.slice().sort((a,b)=>b.rem-a.rem).forEach(a=>{
+    if(used<cardSize&&a.w>0){ a.n++; used++; }
+  });
+  alloc.filter(a=>a.w>0&&a.n===0).forEach(a=>{
+    const donor=alloc.slice().sort((x,y)=>y.n-x.n)[0];
+    if(donor&&donor.n>1){ donor.n--; a.n++; }
+  });
   const list=[];
-  SPEC.forEach(sp=>{
-    const n=effCount(sp);
-    for(let k=0;k<n;k++){
-      const c={t:sp.t,icon:sp.icon,lbl:sp.lbl,spent:false};
-      if(sp.t==="drink"){ c.val=1+(k%3); c.lbl="Trink "+c.val; }
+  alloc.forEach(a=>{
+    for(let k=0;k<a.n;k++){
+      const c={t:a.sp.t,icon:a.sp.icon,lbl:a.sp.lbl,spent:false};
+      if(a.sp.t==="drink"){ c.val=1+(k%3); c.lbl="Trink "+c.val; }
       list.push(c);
     }
   });
@@ -862,7 +889,7 @@ function finishCard(card){
 function startGame(){
   const chosen=slots.filter(s=>s.name.trim());
   if(chosen.length<2){ toast("Mindestens 2 Spieler eintragen!"); return; }
-  if(deckTotal()<DECK_MIN){ toast("Zu wenige Karten im Deck — mindestens "+DECK_MIN+" (Einstellungen)."); return; }
+  if(deckTotal()===0){ toast("Alle Kartentypen stehen auf „Nie“ — Einstellungen anpassen!"); return; }
   players=chosen.map(s=>({name:s.name.trim(),g:s.g,gulps:0}));
   cur=0; started=true; busy=false; gen++; activeRules=[];
   buildBoard();
@@ -1480,11 +1507,14 @@ $("endBtn").addEventListener("click",()=>{
 
 /* ================= settings: deck composition ================= */
 function renderSettings(){
+  const sizeSeg='<div class="seg" id="segCards">'
+    +SIZES.map(n=>'<button data-n="'+n+'"'+(n===cardSize?' class="on"':'')+'>'+n+'</button>').join("")
+    +'</div>';
   const rows=SPEC.map(sp=>
     '<div class="drow">'+useSvg(sp.icon,"ric")
     +'<span class="dn">'+sp.name+'</span>'
     +'<span class="step"><button data-t="'+sp.t+'" data-d="-1">−</button>'
-    +'<span class="cnt" id="ct_'+sp.t+'">0</span>'
+    +'<span class="cnt lvl" id="lv_'+sp.t+'"></span>'
     +'<button data-t="'+sp.t+'" data-d="1">+</button></span></div>').join("");
   const minis=MINIS.map(m=>
     '<div class="drow"><span class="dn">'+m.name+'</span>'
@@ -1493,8 +1523,10 @@ function renderSettings(){
     +'<span class="cnt" id="mw_'+m.k+'">0</span>'
     +'<button data-m="'+m.k+'" data-d="1">+</button></span></div>').join("");
   modal({tag:"Einstellungen",title:"Kartendeck",
-    body:'<div class="drows set-list">'+rows+'</div>'
-      +'<div class="dleft">Karten im Deck: <b id="deckTotal">0</b></div>'
+    body:sizeSeg
+      +'<div class="set-head">Kartentypen</div>'
+      +'<div class="drows set-list">'+rows+'</div>'
+      +'<div class="rl-empty" id="allOff" hidden>Alles auf „Nie“ — so gibt es kein Deck.</div>'
       +'<div class="set-head">Minispiel-Chancen</div>'
       +'<div class="drows">'+minis+'</div>'
       +'<div class="rl-empty" id="miniOff" hidden>Alle Chancen auf 0 — es kommen keine Minispiel-Karten ins Deck.</div>',
@@ -1503,24 +1535,29 @@ function renderSettings(){
       {label:"Fertig",fn:closeModal}
     ]});
   const upd=()=>{
-    SPEC.forEach(sp=>{ $("ct_"+sp.t).textContent=String(counts[sp.t]||0); });
-    $("deckTotal").textContent=String(deckTotal());
+    SPEC.forEach(sp=>{ $("lv_"+sp.t).textContent=LEVELS[levels[sp.t]||0]; });
     const sum=miniWSum();
     MINIS.forEach(m=>{
       $("mw_"+m.k).textContent=String(miniW[m.k]||0);
       $("mp_"+m.k).textContent=(sum&&miniW[m.k])?Math.round(miniW[m.k]/sum*100)+"%":"aus";
     });
     $("miniOff").hidden=sum>0;
+    $("allOff").hidden=SPEC.some(sp=>effLevel(sp)>0);
   };
+  document.querySelectorAll("#segCards button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      cardSize=+b.dataset.n; saveDeck();
+      document.querySelectorAll("#segCards button").forEach(x=>x.classList.toggle("on",x===b));
+    });
+  });
   document.querySelectorAll("#mBody .step button").forEach(b=>{
     b.addEventListener("click",()=>{
       const d=+b.dataset.d;
       if(b.dataset.t){
-        const sp=SPEC.find(s=>s.t===b.dataset.t);
-        const next=(counts[sp.t]||0)+d;
-        if(next<0||next>sp.max) return;
-        if(d>0&&SPEC.reduce((s,x)=>s+(counts[x.t]||0),0)>=DECK_MAX) return;
-        counts[sp.t]=next;
+        const t=b.dataset.t;
+        const next=(levels[t]||0)+d;
+        if(next<0||next>3) return;
+        levels[t]=next;
       }else{
         const k=b.dataset.m;
         const next=(miniW[k]||0)+d;
