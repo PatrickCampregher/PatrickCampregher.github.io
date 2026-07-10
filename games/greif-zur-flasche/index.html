@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Greif zur Flasche</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
@@ -20,10 +20,13 @@
     --shadow:rgba(30,18,4,.5);
   }
   *{box-sizing:border-box;margin:0;padding:0;}
+  /* scroll stays possible as a safety net, but no scrollbar is ever shown */
+  *{scrollbar-width:none;}
+  *::-webkit-scrollbar{display:none;width:0;height:0;}
   button{font-family:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;color:inherit;background:none;border:none;}
   input{font-family:inherit;}
   html,body{
-    width:100%;height:100dvh;overflow:hidden;
+    width:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;
     background:#241505;font-family:'EB Garamond',Georgia,serif;color:var(--ink);
     -webkit-tap-highlight-color:transparent;user-select:none;
   }
@@ -216,7 +219,8 @@
   .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
     padding:18px;background:rgba(24,13,3,.66);}
   .modal.show{display:flex;}
-  .sheet{position:relative;max-width:480px;width:100%;max-height:92dvh;overflow-y:auto;
+  .sheet{position:relative;max-width:480px;width:100%;max-height:100%;
+    display:flex;flex-direction:column;overflow:hidden;
     border-radius:6px;border:2px solid rgba(90,60,22,.55);
     outline:1px solid rgba(160,120,60,.5);outline-offset:3px;
     background:
@@ -232,7 +236,9 @@
   .micon svg{height:100%;width:auto;}
   @keyframes shake{0%,100%{transform:rotate(0)}20%{transform:rotate(-7deg)}40%{transform:rotate(6deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(3deg)}}
   .micon.boom svg{animation:shake .6s ease infinite;}
-  .mbody{font-size:clamp(16px,3vw,19px);line-height:1.45;color:var(--ink);margin-top:6px;}
+  /* body scrolls internally (scrollbar hidden) — tag/title/actions always stay visible */
+  .mbody{font-size:clamp(16px,3vw,19px);line-height:1.45;color:var(--ink);margin-top:6px;
+    overflow-y:auto;min-height:0;}
   .mbody b{color:var(--red);}
   .mbody .big{display:block;font-size:1.5em;font-weight:600;margin:8px 0;}
   .mactions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px;}
@@ -376,6 +382,56 @@
     .panel{width:100%;max-height:38dvh;box-shadow:0 -7px 20px rgba(15,8,0,.6);}
     .panel .cap{display:none;}
     .plist{display:grid;grid-template-columns:1fr 1fr;column-gap:14px;}
+  }
+
+  /* =================== short screens (landscape phones) ===================
+     little height: compact chrome, height-capped visuals, multi-column lists —
+     every dialog must fit without scrolling */
+  @media (max-height:560px){
+    .modal{padding:6px;}
+    .sheet{max-width:min(94vw,720px);padding:8px 14px 10px;}
+    .mtitle{font-size:clamp(17px,5.4dvh,26px);margin:2px 0 0;}
+    .micon{height:clamp(26px,8dvh,48px);margin:3px auto 0;}
+    .mbody{font-size:clamp(14px,4.6dvh,18px);line-height:1.32;margin-top:2px;}
+    .mbody .big{font-size:1.28em;margin:4px 0;}
+    .mtag{display:none;}
+    .mactions{margin-top:7px;gap:8px;}
+    .mbtn{padding:8px 18px;font-size:14px;}
+    .answers{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+    .ans{font-size:14px;padding:8px 10px;}
+    .pickgrid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+    .drows{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:5px;margin-top:4px;}
+    .drow{padding:2px 8px;}
+    .drow .dn{font-size:14px;}
+    .drow .ric{width:18px;height:18px;}
+    .drow .try{width:26px;height:26px;font-size:11px;}
+    .drow .pct{font-size:11px;min-width:28px;}
+    .step{gap:6px;}
+    .step button{width:26px;height:26px;font-size:15px;border-width:1.5px;}
+    .step .cnt{font-size:15px;}
+    .step .cnt.lvl{min-width:44px;font-size:11px;}
+    .dleft{margin-top:5px;font-size:13px;}
+    .seg{margin-top:5px;gap:6px;}
+    .seg button{width:48px;padding:5px 0;font-size:14px;}
+    .set-head{margin-top:6px;}
+    .wheelwrap{width:min(66vw,300px,52dvh);margin:6px auto 2px;}
+    .spinwrap{width:min(70vw,300px,54dvh);margin:6px auto 0;}
+    .schip{font-size:11px;padding:2px 6px;max-width:76px;}
+    /* setup */
+    .setup-main{padding:max(24px,env(safe-area-inset-top)) 14px 10px;}
+    .setup-title{font-size:clamp(20px,8dvh,34px);margin:0 0 1.6dvh;}
+    .pgrid{gap:7px clamp(14px,4vw,50px);}
+    .prow input{padding:5px 10px;font-size:15px;}
+    .gbtn{width:28px;height:32px;}
+    .rail{width:clamp(140px,18vw,200px);}
+    .wbtn{padding:8px 6px;font-size:14px;}
+    .cap{width:clamp(30px,4vw,44px);}
+    /* end screen */
+    .end{gap:1.2dvh;padding-top:max(24px,env(safe-area-inset-top));}
+    .rank{gap:5px;}
+    .rk{padding:5px 12px;font-size:15px;gap:8px;}
+    .end-actions{gap:8px;}
+    .wbtn.inline{padding:8px 18px;}
   }
 </style>
 </head>
@@ -1293,15 +1349,22 @@ const PG={iv:null,endTm:null,card:null,li:-1,ri:-1,keys:{},done:false};
 function openPongSetup(card){
   const p=players[cur];
   if(players.length===2){
-    startPong(card,cur,cur===0?1:0);
+    pongReady(card,cur,cur===0?1:0);
     return;
   }
   const opts=players.map((q,i)=>({label:q.name,i})).filter(o=>o.i!==cur);
-  const picker=pickPlayers(opts,o=>startPong(card,cur,o.i));
+  const picker=pickPlayers(opts,o=>pongReady(card,cur,o.i));
   modal({tag:"Minispiel",title:"Pong — wähle deinen Gegner!",icon:"i-pong",
     body:"<b>"+esc(p.name)+"</b> spielt Pong bis <b>3 Punkte</b>. Jeder kassierte Punkt = <b>1 Schluck</b> am Ende — nur wer perfekt gewinnt, bleibt trocken!"+picker.body,
     actions:[]});
   picker.wire();
+}
+/* dedicated start step — the match begins only when both players are set */
+function pongReady(card,li,ri){
+  modal({tag:"Minispiel",title:"Pong — bereit?",icon:"i-pong",
+    body:"<b>"+esc(players[li].name)+"</b> (links) gegen <b>"+esc(players[ri].name)+"</b> (rechts) — erster auf <b>3 Punkte</b>, jeder kassierte Punkt = <b>1 Schluck</b>."
+      +"<br>Jeder steuert mit dem Daumen auf seiner Hälfte.",
+    actions:[{label:"Los geht's!",fn:()=>startPong(card,li,ri)}]});
 }
 function startPong(card,li,ri){
   closeModal();
