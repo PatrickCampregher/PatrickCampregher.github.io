@@ -697,11 +697,10 @@ const SPEC=[
 const LEVELS=["Nie","Selten","Normal","Oft"];
 const SIZES=[24,30,36];
 const MINIS=[
- {k:"pong",  name:"Pong",   def:2},
- {k:"memory",name:"Memory", def:2},
- {k:"quiz",  name:"Quiz",   def:2}
+ {k:"pong",  name:"Pong",   lvl:2},
+ {k:"memory",name:"Memory", lvl:2},
+ {k:"quiz",  name:"Quiz",   lvl:2}
 ];
-const MINI_W_MAX=5;
 
 /* ================= helpers / state ================= */
 const $=id=>document.getElementById(id);
@@ -738,7 +737,7 @@ function loadSlots(){
     s.slice(0,8).forEach((v,i)=>{ if(v&&typeof v.n==="string") slots[i]={name:v.n.slice(0,14),g:v.g==="f"?"f":"m"}; });
   }catch(e){}
   levels=Object.fromEntries(SPEC.map(sp=>[sp.t,sp.lvl]));
-  miniW=Object.fromEntries(MINIS.map(m=>[m.k,m.def]));
+  miniW=Object.fromEntries(MINIS.map(m=>[m.k,m.lvl]));
   cardSize=36;
   try{
     const st=JSON.parse(localStorage.getItem(LS_DECK))||{};
@@ -753,7 +752,7 @@ function loadSlots(){
     });
     MINIS.forEach(m=>{
       const v=st.mini&&st.mini[m.k];
-      if(Number.isInteger(v)) miniW[m.k]=Math.max(0,Math.min(MINI_W_MAX,v));
+      if(Number.isInteger(v)) miniW[m.k]=Math.max(0,Math.min(3,v));
     });
   }catch(e){}
 }
@@ -765,7 +764,7 @@ function saveDeck(){
 }
 function resetDeck(){
   levels=Object.fromEntries(SPEC.map(sp=>[sp.t,sp.lvl]));
-  miniW=Object.fromEntries(MINIS.map(m=>[m.k,m.def]));
+  miniW=Object.fromEntries(MINIS.map(m=>[m.k,m.lvl]));
   cardSize=36;
   saveDeck();
 }
@@ -1520,7 +1519,7 @@ function renderSettings(){
     '<div class="drow"><span class="dn">'+m.name+'</span>'
     +'<span class="pct" id="mp_'+m.k+'"></span>'
     +'<span class="step"><button data-m="'+m.k+'" data-d="-1">−</button>'
-    +'<span class="cnt" id="mw_'+m.k+'">0</span>'
+    +'<span class="cnt lvl" id="mw_'+m.k+'"></span>'
     +'<button data-m="'+m.k+'" data-d="1">+</button></span></div>').join("");
   modal({tag:"Einstellungen",title:"Kartendeck",
     body:sizeSeg
@@ -1529,7 +1528,7 @@ function renderSettings(){
       +'<div class="rl-empty" id="allOff" hidden>Alles auf „Nie“ — so gibt es kein Deck.</div>'
       +'<div class="set-head">Minispiel-Chancen</div>'
       +'<div class="drows">'+minis+'</div>'
-      +'<div class="rl-empty" id="miniOff" hidden>Alle Chancen auf 0 — es kommen keine Minispiel-Karten ins Deck.</div>',
+      +'<div class="rl-empty" id="miniOff" hidden>Alle Minispiele auf „Nie“ — es kommen keine Minispiel-Karten ins Deck.</div>',
     actions:[
       {label:"Standard",cls:"plain",fn:()=>{ resetDeck(); renderSettings(); }},
       {label:"Fertig",fn:closeModal}
@@ -1538,8 +1537,8 @@ function renderSettings(){
     SPEC.forEach(sp=>{ $("lv_"+sp.t).textContent=LEVELS[levels[sp.t]||0]; });
     const sum=miniWSum();
     MINIS.forEach(m=>{
-      $("mw_"+m.k).textContent=String(miniW[m.k]||0);
-      $("mp_"+m.k).textContent=(sum&&miniW[m.k])?Math.round(miniW[m.k]/sum*100)+"%":"aus";
+      $("mw_"+m.k).textContent=LEVELS[miniW[m.k]||0];
+      $("mp_"+m.k).textContent=sum?Math.round((miniW[m.k]||0)/sum*100)+"%":"";
     });
     $("miniOff").hidden=sum>0;
     $("allOff").hidden=SPEC.some(sp=>effLevel(sp)>0);
@@ -1561,7 +1560,7 @@ function renderSettings(){
       }else{
         const k=b.dataset.m;
         const next=(miniW[k]||0)+d;
-        if(next<0||next>MINI_W_MAX) return;
+        if(next<0||next>3) return;
         miniW[k]=next;
       }
       saveDeck(); upd();
