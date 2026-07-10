@@ -1526,9 +1526,11 @@ function renderSettings(){
       +'<div class="set-head">Kartentypen</div>'
       +'<div class="drows set-list">'+rows+'</div>'
       +'<div class="rl-empty" id="allOff" hidden>Alles auf „Nie“ — so gibt es kein Deck.</div>'
+      +'<div id="miniSec">'
       +'<div class="set-head">Minispiel-Chancen</div>'
       +'<div class="drows">'+minis+'</div>'
-      +'<div class="rl-empty" id="miniOff" hidden>Alle Minispiele auf „Nie“ — es kommen keine Minispiel-Karten ins Deck.</div>',
+      +'<div class="rl-empty" id="miniOff" hidden>Alle Minispiele auf „Nie“ — es kommen keine Minispiel-Karten ins Deck.</div>'
+      +'</div>',
     actions:[
       {label:"Standard",cls:"plain",fn:()=>{ resetDeck(); renderSettings(); }},
       {label:"Fertig",fn:closeModal}
@@ -1541,6 +1543,7 @@ function renderSettings(){
       $("mp_"+m.k).textContent=sum?Math.round((miniW[m.k]||0)/sum*100)+"%":"";
     });
     $("miniOff").hidden=sum>0;
+    $("miniSec").hidden=(levels.mini||0)===0;   // chances are moot without Minispiel cards
     $("allOff").hidden=SPEC.some(sp=>effLevel(sp)>0);
   };
   document.querySelectorAll("#segCards button").forEach(b=>{
