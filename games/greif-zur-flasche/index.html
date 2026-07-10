@@ -277,11 +277,26 @@
     color:var(--ink-soft);margin-top:14px;}
   .drow .ric{width:22px;height:22px;flex:none;color:var(--stamp-deep);}
   .drow .pct{flex:none;font-size:13px;font-style:italic;color:var(--ink-soft);min-width:34px;text-align:right;}
+  .drow .try{width:32px;height:32px;flex:none;border:2px solid var(--ink);border-radius:6px;
+    background:var(--cream);color:var(--red);font-size:13px;line-height:1;}
   .seg{display:flex;gap:8px;justify-content:center;margin-top:10px;}
   .seg button{width:64px;padding:10px 0;border:2px solid var(--ink);border-radius:6px;background:var(--cream);
     font-family:'Special Elite',serif;font-size:17px;color:var(--ink);}
   .seg button.on{background:var(--red);border-color:var(--red-deep);color:var(--cream);}
   .step .cnt.lvl{min-width:56px;font-size:14px;font-family:'Special Elite',serif;}
+
+  /* spin the bottle */
+  .spinwrap{position:relative;width:min(70vw,300px);aspect-ratio:1;margin:10px auto 2px;}
+  .schip{position:absolute;transform:translate(-50%,-50%);max-width:86px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:12px;
+    padding:4px 8px;border:1.5px solid var(--ink-soft);border-radius:999px;
+    background:rgba(255,250,232,.75);}
+  @keyframes chippop{40%{transform:translate(-50%,-50%) scale(1.35);}}
+  .schip.hit{background:var(--red);border-color:var(--red-deep);color:var(--cream);
+    animation:chippop .5s ease;}
+  .sbottle{position:absolute;left:33%;top:33%;width:34%;height:34%;color:var(--stamp-deep);
+    transition:transform 3.4s cubic-bezier(.12,.75,.18,1);}
+  .sbottle svg{width:100%;height:100%;display:block;}
 
   /* wheel */
   .wheelwrap{position:relative;width:min(66vw,300px);margin:12px auto 4px;}
@@ -692,14 +707,15 @@ const SPEC=[
  {t:"all",   lvl:1, icon:"i-all",    lbl:"Alle trinken",  name:"Alle trinken"},
  {t:"men",   lvl:1, icon:"i-m",      lbl:"Männer trinken",name:"Männer trinken"},
  {t:"women", lvl:1, icon:"i-f",      lbl:"Frauen trinken",name:"Frauen trinken"},
- {t:"drink", lvl:3, icon:"i-bottle", lbl:"Trink #",       name:"Trink selbst"}
+ {t:"drink", lvl:3, icon:"i-bottle", lbl:"Trink selbst",  name:"Trink selbst"}
 ];
 const LEVELS=["Nie","Selten","Normal","Oft"];
 const SIZES=[24,30,36];
 const MINIS=[
- {k:"pong",  name:"Pong",   lvl:2},
- {k:"memory",name:"Memory", lvl:2},
- {k:"quiz",  name:"Quiz",   lvl:2}
+ {k:"pong",  name:"Pong",           lvl:2},
+ {k:"memory",name:"Memory",         lvl:2},
+ {k:"quiz",  name:"Quiz",           lvl:2},
+ {k:"spin",  name:"Flaschendrehen", lvl:2}
 ];
 
 /* ================= helpers / state ================= */
@@ -715,6 +731,7 @@ let players=[];                  // in game: {name,g,gulps}
 let cur=0, deck=[], started=false, busy=false, gen=0;
 let activeRules=[];
 let levels={}, miniW={}, cardSize=36;   // frequency levels + minigame chances + deck size
+let practice=false, savedPlayers=[], savedCur=0;   // minigame try-out from the settings
 
 const queues={};
 function draw(name,arr){
@@ -819,7 +836,6 @@ function composeDeck(){
   alloc.forEach(a=>{
     for(let k=0;k<a.n;k++){
       const c={t:a.sp.t,icon:a.sp.icon,lbl:a.sp.lbl,spent:false};
-      if(a.sp.t==="drink"){ c.val=1+(k%3); c.lbl="Trink "+c.val; }
       list.push(c);
     }
   });
@@ -877,6 +893,7 @@ function onTile(card,tile){
 function markSpent(card){ card.spent=true; card.el.classList.add("spent"); }
 
 function finishCard(card){
+  if(practice){ endPractice(); return; }   // try-out from settings: nothing counts
   closeModal();
   markSpent(card);
   busy=false;
@@ -1051,13 +1068,7 @@ function openCorrect(i){
 function openCard(card){
   const p=players[cur];
   switch(card.t){
-    case "drink":{
-      const n=card.val;
-      modal({tag:"Karte",title:"Trink selbst!",icon:"i-bottle",
-        body:"<b>"+esc(p.name)+"</b>, das geht auf dich:<span class='big'>"+n+" "+(n===1?"Schluck":"Schlücke")+"</span>",
-        actions:[{label:"Wohl bekomm's!",fn:()=>{ addGulps(cur,n); finishCard(card); }}]});
-      break;
-    }
+    case "drink": openDrinkWheel(card); break;
     case "all":{
       modal({tag:"Karte",title:"Alle trinken!",icon:"i-all",
         body:"Einmal rundum — <b>jeder</b> nimmt einen Schluck.",
@@ -1161,6 +1172,7 @@ function openCard(card){
       for(const m of pool){ if((r-=miniW[m.k])<0){ pick=m.k; break; } }
       if(pick==="pong") openPongSetup(card);
       else if(pick==="memory") openMemory(card);
+      else if(pick==="spin") openSpinBottle(card);
       else openQuiz(card);
       break;
     }
@@ -1193,9 +1205,23 @@ function wheelSvg(){
 function openWheel(card){
   modal({tag:"Karte",title:"Verteile … dreh das Rad!",
     body:wheelSvg()+"<div>Wie viele Schlücke darfst du verteilen?</div>",
-    actions:[{label:"Drehen!",fn:spinWheel.bind(null,card)}]});
+    actions:[{label:"Drehen!",fn:()=>spinWheel(val=>{
+      modal({tag:"Karte",title:"Das Rad sagt: "+val+"!",icon:"i-bottles",
+        body:"Du darfst <b>"+val+" "+(val===1?"Schluck":"Schlücke")+"</b> verteilen — ganz wie du willst.",
+        actions:[{label:"Verteilen",fn:()=>openDistribute(card,val)}]});
+    })}]});
 }
-function spinWheel(card){
+function openDrinkWheel(card){
+  const p=players[cur];
+  modal({tag:"Karte",title:"Trink selbst … dreh das Rad!",
+    body:wheelSvg()+"<div>Wie viele Schlücke gehen auf dich, <b>"+esc(p.name)+"</b>?</div>",
+    actions:[{label:"Drehen!",fn:()=>spinWheel(val=>{
+      modal({tag:"Karte",title:"Das Rad sagt: "+val+"!",icon:"i-bottle",
+        body:"<b>"+esc(p.name)+"</b>, das geht auf dich:<span class='big'>"+val+" "+(val===1?"Schluck":"Schlücke")+"</span>",
+        actions:[{label:"Wohl bekomm's! (+"+val+")",fn:()=>{ addGulps(cur,val); finishCard(card); }}]});
+    })}]});
+}
+function spinWheel(done){
   const g=gen;
   const btn=$("mActions").querySelector(".mbtn"); if(btn) btn.disabled=true;
   const n=WHEEL.length, seg=360/n;
@@ -1210,12 +1236,7 @@ function spinWheel(card){
   const ptr=document.querySelector("#mBody .wptr");
   if(ptr) ptr.classList.add("spin");
   const val=WHEEL[target];
-  setTimeout(()=>{
-    if(g!==gen) return;
-    modal({tag:"Karte",title:"Das Rad sagt: "+val+"!",icon:"i-bottles",
-      body:"Du darfst <b>"+val+" "+(val===1?"Schluck":"Schlücke")+"</b> verteilen — ganz wie du willst.",
-      actions:[{label:"Verteilen",fn:()=>openDistribute(card,val)}]});
-  },3600);
+  setTimeout(()=>{ if(g===gen) done(val); },3600);
 }
 
 /* ---------- quiz: 3 questions, +1 to give per right, 1 to drink per wrong ---------- */
@@ -1476,6 +1497,45 @@ $("memoQuit").addEventListener("click",()=>{
   if(card) finishCard(card);
 });
 
+/* ---------- spin the bottle: whoever the neck picks drinks one per player ---------- */
+let spinRot=0;
+function openSpinBottle(card){
+  const n=players.length, R=39;
+  let body='<div class="spinwrap">';
+  players.forEach((p,i)=>{
+    const a=i*2*Math.PI/n;                     // 0 = top, clockwise — matches rotate()
+    const x=50+R*Math.sin(a), y=50-R*Math.cos(a);
+    body+='<div class="schip" id="sc'+i+'" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%">'+esc(p.name)+'</div>';
+  });
+  body+='<div class="sbottle" id="spinB" style="transform:rotate('+spinRot+'deg)">'+useSvg("i-bottle")+'</div></div>';
+  modal({tag:"Minispiel",title:"Flaschendrehen!",
+    body:body+'<div class="dleft" id="spinHint">Auf wen zeigt der Flaschenhals? Wen es trifft, der trinkt <b>'
+      +n+' Schlücke</b> — einen für jeden am Tisch!</div>',
+    actions:[{label:"Drehen!",fn:()=>spinBottle(card)}]});
+}
+function spinBottle(card){
+  const g=gen;
+  const btn=$("mActions").querySelector(".mbtn"); if(btn) btn.disabled=true;
+  const n=players.length;
+  const target=Math.floor(Math.random()*n);
+  const base=Math.ceil(spinRot/360)*360;
+  spinRot=base+4*360+target*360/n;             // 4 full turns, neck lands on the target
+  $("spinB").style.transform="rotate("+spinRot+"deg)";
+  setTimeout(()=>{
+    if(g!==gen) return;
+    const hint=$("spinHint"); if(!hint) return;
+    const chip=$("sc"+target); if(chip) chip.classList.add("hit");
+    hint.innerHTML="Die Flasche hat entschieden: <b>"+esc(players[target].name)+"</b> trinkt <b>"
+      +n+" "+(n===1?"Schluck":"Schlücke")+"</b>!";
+    const act=$("mActions"); act.innerHTML="";
+    const b=document.createElement("button");
+    b.className="mbtn";
+    b.innerHTML="Prost, "+esc(players[target].name)+"! (+"+n+")";
+    b.addEventListener("click",()=>{ addGulps(target,n); finishCard(card); });
+    act.appendChild(b);
+  },3600);
+}
+
 /* ================= panel buttons ================= */
 $("rulesBtn").addEventListener("click",()=>{
   const rules=activeRules.length
@@ -1516,7 +1576,8 @@ function renderSettings(){
     +'<span class="cnt lvl" id="lv_'+sp.t+'"></span>'
     +'<button data-t="'+sp.t+'" data-d="1">+</button></span></div>').join("");
   const minis=MINIS.map(m=>
-    '<div class="drow"><span class="dn">'+m.name+'</span>'
+    '<div class="drow"><button class="try" data-try="'+m.k+'" aria-label="'+m.name+' ausprobieren">&#x25B6;&#xFE0E;</button>'
+    +'<span class="dn">'+m.name+'</span>'
     +'<span class="pct" id="mp_'+m.k+'"></span>'
     +'<span class="step"><button data-m="'+m.k+'" data-d="-1">−</button>'
     +'<span class="cnt lvl" id="mw_'+m.k+'"></span>'
@@ -1569,9 +1630,36 @@ function renderSettings(){
       saveDeck(); upd();
     });
   });
+  document.querySelectorAll("#mBody .try").forEach(b=>{
+    b.addEventListener("click",()=>tryMini(b.dataset.try));
+  });
   upd();
 }
 $("settingsBtn").addEventListener("click",renderSettings);
+
+/* try out a minigame from the settings — dummy players, nothing counts */
+function tryMini(k){
+  savedPlayers=players; savedCur=cur;
+  practice=true; closeModal();
+  // use the entered players so the try-out looks like the real thing; pad to 2
+  const list=slots.filter(s=>s.name.trim()).map(s=>({name:s.name.trim(),g:s.g,gulps:0}));
+  if(!list.length) list.push({name:"Du",g:"m",gulps:0});
+  if(list.length<2) list.push({name:"Gegner",g:"f",gulps:0});
+  players=list;
+  cur=0;
+  toast("Probelauf — Schlücke zählen nicht!");
+  const card={};
+  if(k==="pong") openPongSetup(card);
+  else if(k==="memory") openMemory(card);
+  else if(k==="spin") openSpinBottle(card);
+  else openQuiz(card);
+}
+function endPractice(){
+  practice=false; gen++;          // gen bump kills stray minigame timers
+  hideOverlays(); closeModal();
+  players=savedPlayers; cur=savedCur;
+  renderSettings();
+}
 
 /* ================= nav / misc ================= */
 $("startBtn").addEventListener("click",startGame);
