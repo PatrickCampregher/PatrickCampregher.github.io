@@ -58,7 +58,7 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
   for (const b of world.boxes) {
     if (b.invisible || b.door) continue;
     if (b.kind === 'car' || b.kind === 'van' || b.kind === 'bus' || b.kind === 'streetlight' || b.kind === 'pole' || b.kind === 'barrel' || b.kind === 'hydrant' || b.kind === 'mailbox' || b.kind === 'debris' || b.kind === 'post') continue; // props built separately
-    if (b.kind === 'outer') continue;
+    if (b.kind === 'outer' || b.kind === 'machine') continue; // machines are built by machines.js
     const mat = b.mat || 'concrete';
     const set = textures.get(mat);
     const m = boxMeshFor(scene, b, set.scale);

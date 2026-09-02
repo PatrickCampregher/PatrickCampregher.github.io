@@ -54,6 +54,11 @@ export const MAP = {
     { x0: 12, z0: -22, x1: 24, z1: -8, y: 0.15, mat: 'concrete' },       // garage
   ],
 
+  // Straight staircases (see mapbuild.js schema). Empty for now.
+  stairs: [],
+  // Perk vending machines + Pack-a-Punch (see mapbuild.js schema). Filled by the perk system.
+  machines: [],
+
   walls: [
     // ---------------- BAR (x -22..-6, z 9..23) ----------------
     wall(-22, 9, -6, 9, 5.2, 'brick_dark', [glass(-19, 2.6), door(-14, 'bar_front'), glass(-9.5, 2.6)]),
