@@ -6,13 +6,13 @@ export const DEFAULT_BINDS = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
   jump: 'Space', sprint: 'ShiftLeft', crouch: 'ControlLeft', crouch2: 'KeyC',
   reload: 'KeyR', interact: 'KeyE', slot1: 'Digit1', slot2: 'Digit2', swap: 'KeyQ',
-  fire: 'Mouse0', ads: 'Mouse2', pause: 'Escape', scoreboard: 'Tab',
+  fire: 'Mouse0', ads: 'Mouse2', pause: 'Escape',
 };
 
 export const BIND_LABELS = {
   forward: 'Move Forward', back: 'Move Backward', left: 'Strafe Left', right: 'Strafe Right',
   jump: 'Jump', sprint: 'Sprint', crouch: 'Crouch', crouch2: 'Crouch (alt)', reload: 'Reload', interact: 'Interact / Use',
-  slot1: 'Weapon Slot 1', slot2: 'Weapon Slot 2', swap: 'Swap Weapon', fire: 'Fire', ads: 'Aim Down Sight', pause: 'Pause / Menu', scoreboard: 'Scoreboard',
+  slot1: 'Weapon Slot 1', slot2: 'Weapon Slot 2', swap: 'Swap Weapon', fire: 'Fire', ads: 'Aim Down Sight', pause: 'Pause / Menu',
 };
 
 export const PRESETS = {

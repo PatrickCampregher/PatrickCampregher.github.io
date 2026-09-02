@@ -122,7 +122,7 @@ export class MenuController {
       <div class="field"><label>Preset</label><select id="g-preset"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option><option value="ultra">ULTRA</option><option value="custom">CUSTOM</option></select></div>
       <div class="field"><label>Render Resolution Scale <span class="setting-val" id="g-res-v"></span></label><input type="range" id="g-res" min="0.5" max="1.5" step="0.05"></div>
       <div class="field"><label>Shadow Quality</label><select id="g-shadows"><option value="off">OFF</option><option value="low">LOW</option><option value="high">HIGH</option><option value="ultra">ULTRA (cascaded)</option></select></div>
-      <div class="field"><label>Texture Quality</label><select id="g-textures"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></div>
+      <div class="field"><label>Texture Quality <span class="setting-val">applies to the next game</span></label><select id="g-textures"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></div>
       <div class="field"><label>Effects Quality</label><select id="g-effects"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option><option value="ultra">ULTRA</option></select></div>
       <div class="field"><label>Anti-Aliasing</label><select id="g-aa"><option value="off">OFF</option><option value="fxaa">FXAA</option><option value="msaa">MSAA 4x</option></select></div>
       <div class="field"><label>Ambient Occlusion</label><select id="g-ao"><option value="1">ON</option><option value="0">OFF</option></select></div>

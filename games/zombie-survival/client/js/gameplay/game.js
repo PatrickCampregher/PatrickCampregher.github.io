@@ -90,6 +90,7 @@ export class Game {
     this.entities = new Entities(this);
     this.player = new LocalPlayer(this);
     this.lighting.finalizeStaticLights();
+    this._setupReflections();
     this._applyInit(this.initMsg);
     this.viewModel.setWeapon(WEAPONS.warden_p9, true);
     this._bindNetwork();
@@ -162,6 +163,33 @@ export class Game {
     } catch (e) { console.error(e); }
     this.input.endFrame();
     this.scene.render();
+  }
+
+  /** One-shot reflection probe for car paint and storefront glass (HIGH/ULTRA). */
+  _setupReflections() {
+    const g = this.settings.graphics;
+    if (!(g.effects === 'high' || g.effects === 'ultra') || !B().ReflectionProbe) return;
+    try {
+      const probe = new (B().ReflectionProbe)('townProbe', 128, this.scene);
+      probe.position = V3(0, 2.5, 0);
+      probe.refreshRate = B().RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
+      for (const m of this.mapVis.staticMeshes) if (m.name.startsWith('chunk_') || m.name === 'sky') probe.renderList.push(m);
+      const sky = this.scene.getMeshByName('sky'); if (sky && !probe.renderList.includes(sky)) probe.renderList.push(sky);
+      for (const [key, mat] of this.mats.cache) {
+        if (key.startsWith('vehicle_') || key === 'glass') { mat.reflectionTexture = probe.cubeTexture; if (key !== 'glass') mat.roughness = 0.45; }
+      }
+      this.probe = probe;
+    } catch (e) { console.warn('reflection probe unavailable', e); }
+  }
+
+  /** Re-register shadow casters after the shadow generator was rebuilt (graphics settings changed). */
+  reapplyShadows() {
+    const sg = this.lighting.shadow;
+    if (!sg) return;
+    for (const m of this.mapVis.shadowCasters) sg.addShadowCaster(m, false);
+    for (const m of this.entities.dynamicBaseMeshes()) sg.addShadowCaster(m, false);
+    sg.addShadowCaster(this.mapVis.boardBase, false);
+    this.entities.rigs.shadow = sg;
   }
 
   _dynamicLights(initial = false) {

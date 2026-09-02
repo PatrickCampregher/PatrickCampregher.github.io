@@ -166,7 +166,7 @@ class App {
     const init = await new Promise((resolve) => { this.pendingInit = (m) => { conn.startQueue(); resolve(m); }; setTimeout(() => resolve(null), 15000); });
     this.pendingInit = null;
     if (!init) { this.hideLoading(); this.menu.show('lobby'); this.menu.status('lobby-status', 'Did not receive game state from the host.', true); return; }
-    await audio.init(settings.audio);
+    try { await audio.init(settings.audio); } catch (e) { console.warn('audio unavailable', e); }
     const names = {};
     const game = new Game({
       canvas: this.canvas, conn: this.gameConn, settings, myId: this.myId, initMsg: init, hud: this.hud, input: this.input, names,
@@ -206,7 +206,7 @@ class App {
     this.leaveLobby();
   }
 
-  onGraphicsChanged() { if (this.game && this.game.lighting) { this.game.lighting.applySettings(); this.game.effects.quality = settings.graphics.effects === 'low' ? 0 : settings.graphics.effects === 'medium' ? 1 : 2; } }
+  onGraphicsChanged() { if (this.game && this.game.lighting) { this.game.lighting.applySettings(); this.game.reapplyShadows(); this.game.effects.quality = settings.graphics.effects === 'low' ? 0 : settings.graphics.effects === 'medium' ? 1 : 2; } }
   onFovChanged() { if (this.game && this.game.player) this.game.player.fovBase = settings.graphics.fov * Math.PI / 180; }
 
   // ---------------- overlays ----------------
