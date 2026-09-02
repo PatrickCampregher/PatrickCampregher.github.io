@@ -7,6 +7,18 @@
       "runtimeArgs": ["--yes", "serve", "."],
       "port": 5050,
       "autoPort": true
+    },
+    {
+      "name": "zombie",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["games/zombie-survival/server/index.js", "--port", "8080", "--no-browser", "--dev"],
+      "port": 8080
+    },
+    {
+      "name": "zombie2",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["games/zombie-survival/server/index.js", "--port", "8090", "--no-browser", "--dev"],
+      "port": 8090
     }
   ]
 }

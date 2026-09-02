@@ -1,0 +1,17 @@
+{
+  "name": "zombie-survival-lan",
+  "version": "1.0.0",
+  "description": "Browser-based cooperative round-based zombie survival for LAN play (Babylon.js + Node.js, zero dependencies)",
+  "type": "module",
+  "private": true,
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "start:second": "node server/index.js --port 8090 --no-browser",
+    "test": "node tools/test-sim.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

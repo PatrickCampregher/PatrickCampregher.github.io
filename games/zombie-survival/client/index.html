@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zombie Survival - Ashford Street</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ff3b2f'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23111'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+<canvas id="renderCanvas" tabindex="0"></canvas>
+<div id="labels" style="position:fixed;inset:0;pointer-events:none;z-index:9;"></div>
+<style>.plabel{position:absolute;left:0;top:0;font-family:var(--font-ui);font-size:12px;letter-spacing:1px;color:#cfe8ff;text-shadow:0 1px 2px #000,0 0 6px #000;white-space:nowrap;background:rgba(0,0,0,0.35);padding:1px 6px;}.plabel.down{color:#ff6a5a}</style>
+
+<!-- ---------------- LOADING ---------------- -->
+<div id="loading" class="hidden">
+  <h1 class="brand">ZOMBIE<span>SURVIVAL</span></h1>
+  <div class="loadbar" id="loadbar"><div></div></div>
+  <div class="hint" id="load-text">Loading</div>
+  <div class="tip">Tip: headshots give more points. Repair barricades between rounds. Open doors to find new weapons and Mystery Box locations.</div>
+</div>
+
+<!-- ---------------- MENU ---------------- -->
+<div id="menu">
+  <div id="menu-bg"></div>
+  <div class="menu-panel" id="menu-panel">
+    <!-- main -->
+    <div class="screen" id="scr-main">
+      <h1 class="brand">ZOMBIE<span>SURVIVAL</span></h1>
+      <div class="tagline">Ashford Street - round-based LAN co-op</div>
+      <button class="mbtn" id="btn-play">Play</button>
+      <button class="mbtn" id="btn-mp">Multiplayer</button>
+      <button class="mbtn" id="btn-settings">Settings</button>
+      <button class="mbtn" id="btn-controls">Controls</button>
+      <button class="mbtn" id="btn-quit">Quit</button>
+      <button class="mbtn small hidden" id="btn-rejoin">Rejoin current lobby</button>
+      <div class="field"><label>Your name</label><input type="text" id="player-name" maxlength="20" placeholder="Player name"></div>
+      <div class="status" id="main-status"></div>
+      <div class="hint" id="lan-info"></div>
+      <div class="back hint" id="ver"></div>
+    </div>
+    <!-- multiplayer -->
+    <div class="screen hidden" id="scr-mp">
+      <h2>Multiplayer<small>LAN - no accounts, no internet needed</small></h2>
+      <button class="mbtn" id="btn-host">Host Game</button>
+      <button class="mbtn" id="btn-find">Find LAN Games</button>
+      <button class="mbtn" id="btn-name">Join by Name</button>
+      <button class="mbtn" id="btn-direct">Direct Connect</button>
+      <div class="back"><button class="mbtn small" data-back="main">&larr; Back</button></div>
+    </div>
+    <!-- host -->
+    <div class="screen hidden" id="scr-host">
+      <h2>Host Game<small>Your computer runs the match</small></h2>
+      <div class="field"><label>Lobby name</label><input type="text" id="host-name" maxlength="32" placeholder="Patrick's Game"></div>
+      <div class="row">
+        <div class="field"><label>Max players</label><select id="host-max"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>8</option></select></div>
+        <div class="field"><label>Visibility</label><select id="host-public"><option value="public">Visible on LAN</option><option value="private">Hidden (direct connect only)</option></select></div>
+      </div>
+      <div class="row"><button class="mbtn primary" id="btn-host-go">Create Lobby</button></div>
+      <div class="status" id="host-status"></div>
+      <div class="hint">Friends on the same network start their own copy, choose <b>Find LAN Games</b> and click JOIN. If Windows Firewall asks, allow Node.js on private networks.</div>
+      <div class="back"><button class="mbtn small" data-back="mp">&larr; Back</button></div>
+    </div>
+    <!-- find -->
+    <div class="screen hidden" id="scr-find">
+      <h2>Find LAN Games<small>Searching this network...</small></h2>
+      <div class="lobby-list" id="lobby-list"></div>
+      <div class="row"><button class="mbtn small" id="btn-refresh">Refresh</button></div>
+      <div class="status" id="find-status"></div>
+      <div class="back"><button class="mbtn small" data-back="mp">&larr; Back</button></div>
+    </div>
+    <!-- join by name -->
+    <div class="screen hidden" id="scr-name">
+      <h2>Join by Name<small>Type the lobby name the host chose</small></h2>
+      <div class="field"><label>Lobby name</label><input type="text" id="join-name" maxlength="32" placeholder="Zombie Night"></div>
+      <div class="row"><button class="mbtn primary" id="btn-name-go">Join</button></div>
+      <div class="status" id="name-status"></div>
+      <div class="back"><button class="mbtn small" data-back="mp">&larr; Back</button></div>
+    </div>
+    <!-- direct -->
+    <div class="screen hidden" id="scr-direct">
+      <h2>Direct Connect<small>Host IP address (shown in the host's server window)</small></h2>
+      <div class="field"><label>Host IP[:port]</label><input type="text" id="direct-ip" maxlength="64" placeholder="192.168.1.20:8080"></div>
+      <div class="row"><button class="mbtn primary" id="btn-direct-go">Connect</button></div>
+      <div class="status" id="direct-status"></div>
+      <div class="back"><button class="mbtn small" data-back="mp">&larr; Back</button></div>
+    </div>
+    <!-- lobby -->
+    <div class="screen hidden" id="scr-lobby">
+      <div class="lobby-head"><div class="lname" id="lobby-name">Lobby</div><div class="lmeta" id="lobby-meta"></div></div>
+      <div class="players" id="lobby-players"></div>
+      <div class="hint" id="lobby-hint"></div>
+      <div class="row">
+        <button class="mbtn small" id="btn-ready">Ready</button>
+        <button class="mbtn primary" id="btn-start">Start Game</button>
+      </div>
+      <div class="field hidden" id="lobby-max-wrap"><label>Max players</label><select id="lobby-max"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option></select></div>
+      <div class="chat" id="chat-log"></div>
+      <div class="field"><input type="text" id="chat-input" maxlength="200" placeholder="Chat... (Enter to send)"></div>
+      <div class="status" id="lobby-status"></div>
+      <div class="back"><button class="mbtn small" id="btn-leave">&larr; Leave Lobby</button></div>
+    </div>
+    <!-- settings -->
+    <div class="screen hidden" id="scr-settings">
+      <h2>Settings</h2>
+      <div id="settings-home">
+        <div id="settings-body">
+          <div class="tabs"><div class="tab active" data-tab="graphics">Graphics</div><div class="tab" data-tab="controls">Controls</div><div class="tab" data-tab="audio">Audio</div></div>
+          <div id="settings-graphics" class="settings-grid"></div>
+          <div id="settings-controls" class="hidden"></div>
+          <div id="settings-audio" class="hidden settings-grid"></div>
+        </div>
+      </div>
+      <div class="back"><button class="mbtn small" data-back="main">&larr; Back</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------- HUD ---------------- -->
+<div id="hud" class="hidden">
+  <div id="hud-vignette"></div>
+  <div id="hud-damage"></div>
+  <div id="hud-scope" class="hidden"><div class="ring"></div><i class="h"></i><i class="v"></i></div>
+  <div id="hud-crosshair"><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="hud-hitmarker" class="hitmarker"><i></i><i></i><i></i><i></i></div>
+  <div class="corner" id="hud-tl"><div id="hud-team"></div></div>
+  <div id="hud-fps" class="hidden"></div>
+  <div id="hud-feed"></div>
+  <div class="corner" id="hud-bl">
+    <div id="hud-round-wrap"><div id="hud-round">1</div><div id="hud-round-label">ROUND</div><div id="hud-zleft"></div></div>
+    <div id="hud-points-wrap"><div id="hud-points">500</div><div class="lbl">POINTS</div><div id="hud-points-pop"></div></div>
+  </div>
+  <div id="hud-health"><div class="bar"><div id="hud-health-bar"></div></div></div>
+  <div class="corner" id="hud-br">
+    <div id="hud-weapon">Warden P9</div>
+    <div id="hud-ammo"><span id="hud-ammo-mag">12</span> <span id="hud-ammo-res">/ 96</span></div>
+    <div id="hud-reload" class="hidden">RELOADING</div>
+    <div id="hud-lowammo" class="hidden">LOW AMMO</div>
+    <div id="hud-slots"></div>
+  </div>
+  <div id="hud-prompt" class="hidden"><div class="txt"></div><div id="hud-prompt-bar" class="hidden"><div></div></div></div>
+  <div id="hud-notice" class="hidden"></div>
+  <div id="hud-banner" class="banner hidden"><div id="hud-banner-main"></div><div id="hud-banner-sub"></div></div>
+  <div id="hud-powerups"></div>
+  <div id="hud-revive" class="hidden"><div id="hud-revive-text">REVIVING...</div><div class="bar"><div id="hud-revive-bar"></div></div></div>
+  <div id="hud-downed" class="hidden"><div id="hud-downed-text"></div></div>
+</div>
+
+<!-- ---------------- PAUSE ---------------- -->
+<div id="pause" class="hidden">
+  <div class="menu-panel">
+    <h2>Paused<small>Click Resume to lock the mouse again</small></h2>
+    <button class="mbtn" id="btn-resume">Resume</button>
+    <button class="mbtn" id="btn-pause-settings">Settings</button>
+    <button class="mbtn" id="btn-pause-leave">Leave Game</button>
+    <div id="pause-settings" class="hidden"></div>
+  </div>
+</div>
+
+<!-- ---------------- GAME OVER ---------------- -->
+<div id="gameover" class="hidden">
+  <h1>GAME OVER</h1>
+  <div class="sub" id="go-round"></div>
+  <table class="stats-table" id="go-stats"></table>
+  <div class="hint" id="go-time"></div>
+  <div class="row"><button class="mbtn small" id="btn-go-lobby">Spectate</button><button class="mbtn small" id="btn-go-leave">Leave to Menu</button></div>
+  <div class="hint">Returning to the lobby automatically...</div>
+</div>
+
+<script src="vendor/babylon.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

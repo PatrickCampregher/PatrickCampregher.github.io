@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zombie Survival - how to play</title>
+<style>
+  body { margin: 0; background: #08070a; color: #e8e4dc; font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 60px; }
+  h1 { font-family: Impact, "Arial Narrow Bold", sans-serif; font-size: 56px; letter-spacing: 3px; margin: 0; color: #ff3b2f; text-shadow: 0 0 24px rgba(255,60,40,.4); }
+  h1 small { display: block; font-family: "Segoe UI", sans-serif; font-size: 13px; letter-spacing: 5px; color: #9a958c; margin-top: 6px; }
+  img { width: 100%; border: 1px solid #333; margin: 24px 0; }
+  h2 { font-family: Impact, "Arial Narrow Bold", sans-serif; letter-spacing: 2px; font-size: 26px; margin-top: 32px; color: #ffb347; }
+  ol, ul { line-height: 1.7; }
+  code { background: #1a1a1d; padding: 2px 6px; border-radius: 3px; color: #ffd24a; }
+  .box { border: 1px solid #333; background: #111014; padding: 16px 20px; margin: 16px 0; }
+  a { color: #8fd3ff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ZOMBIE SURVIVAL<small>ASHFORD STREET - ROUND-BASED LAN CO-OP - 1 TO 4 PLAYERS</small></h1>
+  <img src="thumb.jpg" alt="Gameplay screenshot">
+  <div class="box">This game runs its own small local server (for LAN multiplayer), so it cannot start from this static page.
+    Open the folder <code>games/zombie-survival</code> and run <code>START_GAME.bat</code> (Windows) or <code>start_game.sh</code> (macOS/Linux). The only requirement is <a href="https://nodejs.org">Node.js LTS</a>.</div>
+  <h2>PLAY WITH FRIENDS ON THE SAME WI-FI</h2>
+  <ol>
+    <li>Everyone copies the <code>zombie-survival</code> folder to their PC and runs <code>START_GAME.bat</code>.</li>
+    <li>The host picks <b>MULTIPLAYER &rarr; HOST GAME</b> and names the lobby (e.g. <i>Patrick's Game</i>).</li>
+    <li>Friends pick <b>MULTIPLAYER &rarr; FIND LAN GAMES</b>, see the lobby with players and ping, and click <b>JOIN</b>.</li>
+    <li>Everyone presses <b>READY</b>; the host presses <b>START GAME</b>.</li>
+  </ol>
+  <p>If Windows Firewall asks, click <b>Allow access</b>. No Internet or accounts are needed.</p>
+  <h2>HOW IT PLAYS</h2>
+  <ul>
+    <li>Survive endless rounds of zombies on a destroyed town street at night. Rounds scale forever.</li>
+    <li>Earn points for hits, kills, headshots, barricade repairs and revives. Spend them on doors, wall weapons, ammo and the Mystery Box.</li>
+    <li>13 original weapons, temporary powerups, a stuffed bear that relocates the box, downed/revive mechanics, game-over stats.</li>
+  </ul>
+  <h2>CONTROLS</h2>
+  <p>WASD move, mouse look, LMB shoot, RMB aim, R reload, E interact (hold to revive / repair), Space jump, Shift sprint, Ctrl/C crouch, 1/2/Q/wheel weapons, Esc pause. Everything is remappable in the game's settings.</p>
+  <p><a href="../../index.html">&larr; Back to the arcade</a></p>
+</div>
+</body>
+</html>
