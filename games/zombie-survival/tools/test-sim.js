@@ -58,9 +58,44 @@ for (const s of game.world.playerSpawns) if (!game.nav.isWalkable(s.x, s.z)) { c
     if (e.area !== 'street' && reach) { console.log('  non-street entry reachable with doors closed (door leak?):', id); bad++; }
   }
 }
+// multi-layer navigation: every walkable cell of every layer must be reachable by zombies (forward edges:
+// walking, stairs, one-way drops) from the entries once all doors are open -> no camping spots.
+{
+  const { NavGrid } = await import('../shared/nav.js');
+  for (const id in game.world.doors) { game.world.doors[id].closed = false; }
+  const nav = new NavGrid(MAP, game.world.boxes);
+  for (const id in game.world.doors) nav.openDoor(id);
+  const per = [];
+  for (let L = 0; L < nav.layers; L++) { let c = 0; for (let i = L * nav.n; i < (L + 1) * nav.n; i++) if (nav.walk[i]) c++; per.push(c); }
+  let links = 0; for (let i = 0; i < nav.N; i++) if (nav.link[i] >= 0) links++;
+  console.log(`  layers: ${nav.layers}, walkable per layer: ${per.join('/')}, stair links: ${links / 2 | 0}, drop edges: ${nav.dropFrom.size}`);
+  const sources = [];
+  for (const id in game.world.entries) { const e = game.world.entries[id]; sources.push(nav.cellAt(e.inside[0], e.inside[1], e.inside[2])); }
+  const reach = nav.reachableFrom(sources);
+  const sp = game.world.playerSpawns[0];
+  const playerReach = nav.reachableFrom([nav.cellAt(sp.x, sp.y, sp.z)]);
+  let unreachable = 0, example = null, enclosed = 0;
+  for (let i = 0; i < nav.N; i++) if (nav.walk[i] && !reach[i]) { if (!playerReach[i]) { enclosed++; continue; } unreachable++; if (!example) example = i; }
+  if (enclosed) console.log(`  note: ${enclosed} walkable cell(s) are enclosed (unreachable for players and zombies)`);
+  if (unreachable) { bad++; console.log(`  ${unreachable} walkable cell(s) zombies cannot reach (e.g. layer ${nav.layerOf(example)} at ${nav.centerX(example).toFixed(1)},${nav.centerZ(example).toFixed(1)} y=${nav.floorAt(example).toFixed(2)})`); }
+  else console.log('  zombie reachability: every walkable cell of every layer is reachable');
+  for (const id in game.world.doors) { game.world.doors[id].closed = true; }
+}
 console.log(bad ? `MAP CHECK: ${bad} problem(s)` : 'MAP CHECK: ok');
-
+// high-ground scenario: bot 1 stands on the highest upper-floor cell; zombies must climb to it.
+const HIGH = process.argv[4] === 'high';
+let highCell = -1;
 game.start();
+if (HIGH && game.nav.layers > 1) {
+  for (let i = game.nav.n; i < game.nav.N; i++) if (game.nav.walk[i] === 1 && (highCell < 0 || game.nav.floorY[i] > game.nav.floorY[highCell])) highCell = i;
+  const p1 = game.players.get(1);
+  for (const id in game.world.doors) { game.world.doors[id].closed = false; game.nav.openDoor(id); for (const a of game.world.doors[id].areas) game.unlocked.add(a); }
+  game.fieldsDirty++;
+  p1.x = game.nav.centerX(highCell); p1.z = game.nav.centerZ(highCell); p1.y = game.nav.floorAt(highCell); p1.acceptAny = true;
+  console.log(`HIGH GROUND: bot1 at ${p1.x.toFixed(1)},${p1.z.toFixed(1)} y=${p1.y.toFixed(2)} (layer ${game.nav.layerOf(highCell)})`);
+}
+let climbed = 0, attackedHigh = 0;
+
 let seq = 0;
 let t = 0;
 const ticks = Math.round(seconds * 1000 / TICK_MS);
@@ -75,7 +110,7 @@ for (let k = 0; k < ticks; k++) {
     seq++;
     const inp = { seq, x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: 0, flags: IN.ONGROUND, slot: p.slot, time: t * 1000 };
     game.handleBinary(p.lp, encodeInput(inp));
-    if (k % 5 === 0) {
+    if (k % 5 === 0 && !HIGH) {
       let best = null, bd = 1e9;
       for (const z of game.zombies.active) {
         if (z.state === ZSTATE.HIDDEN) continue;
@@ -98,6 +133,7 @@ for (let k = 0; k < ticks; k++) {
     }
   }
   const s0 = performance.now();
+  if (HIGH) { const p1 = game.players.get(1); for (const z of game.zombies.active) { if (z.y > 1.0) climbed++; if (Math.abs(z.y - p1.y) < 1 && Math.hypot(z.x - p1.x, z.z - p1.z) < 2.5) attackedHigh++; } if (p1.hp < 100) attackedHigh++; }
   game.step(TICK_MS / 1000);
   simMs += performance.now() - s0;
   maxAlive = Math.max(maxAlive, game.zombies.active.length);
@@ -108,6 +144,7 @@ for (let k = 0; k < ticks; k++) {
   if (game.gameOver) { console.log('GAME OVER at round', game.round); break; }
 }
 game.stop();
+if (HIGH) console.log(`HIGH GROUND: zombie-ticks above 1 m: ${climbed}, ticks with a zombie at bot1 / bot1 damaged: ${attackedHigh} ${climbed > 0 && attackedHigh > 0 ? '-> OK zombies climbed and attacked' : '-> FAIL'}`);
 const c1 = fakeLobby.lobby.players.get(1).conn;
 console.log(`shots=${shots} events: ${JSON.stringify(c1.events)}`);
 console.log(`sim time per tick: ${(simMs / ticks).toFixed(3)} ms (max alive ${maxAlive}); wall ${(performance.now() - t0).toFixed(0)} ms`);

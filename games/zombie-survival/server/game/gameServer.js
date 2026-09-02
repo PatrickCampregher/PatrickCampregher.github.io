@@ -200,7 +200,7 @@ export class GameServer {
     if (p.state === PSTATE.ALIVE) {
       const maxMove = PLAYER.sprintSpeed * 1.4 * dt + 0.4;
       const d = Math.hypot(inp.x - p.x, inp.z - p.z);
-      if ((d > maxMove && !p.acceptAny) || inp.y < -1 || inp.y > 12) { this._correct(p); return; }
+      if ((d > maxMove && !p.acceptAny) || inp.y < -1 || inp.y > 40) { this._correct(p); return; }
       if (this._insideSolid(inp.x, inp.y, inp.z)) { this._correct(p); return; }
       p.x = inp.x; p.y = inp.y; p.z = inp.z;
       p.acceptAny = false;
@@ -486,7 +486,7 @@ export class GameServer {
       const e = this.world.entries[id];
       if (!this.unlocked.has(e.area)) continue;
       if ((e.users || 0) >= 2) continue;
-      const cell = this.nav.cellOf(e.inside[0], e.inside[2]);
+      const cell = this.nav.cellAt(e.inside[0], e.inside[1], e.inside[2]);
       let best = Infinity;
       let inView = false;
       for (const p of targets) {

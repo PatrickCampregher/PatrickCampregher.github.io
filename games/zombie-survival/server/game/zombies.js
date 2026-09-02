@@ -1,7 +1,8 @@
 // Server-side zombie pool, spawning, AI (flow-field navigation), attacks and position history.
 import { ZOMBIE_TYPES, ZSTATE, ZOMBIE_RADIUS, ZOMBIE_HEIGHT, zombieHealthForRound, pickZombieType } from '../../shared/zombies.js';
 import { PSTATE, TICK_RATE } from '../../shared/constants.js';
-import { resolveCharacter, pushCircleOutOfBox, angleLerp, wrapAngle } from '../../shared/collision.js';
+import { pushCircleOutOfBox, angleLerp, wrapAngle } from '../../shared/collision.js';
+import { isFloorBox } from '../../shared/mapbuild.js';
 
 const MAX_ZOMBIES = 48;
 const HISTORY = 32; // ticks (~1s)
@@ -28,7 +29,7 @@ export class ZombieManager {
       lastCheckX: 0, lastCheckZ: 0, lastCheckT: 0, stuck: 0, farT: 0, limp: false, aux: 0,
       hist: new Float32Array(HISTORY * 4), histTick: new Int32Array(HISTORY), histN: 0,
       tearT: 0, enterT: 0, enterDur: 1, cell: -1, fieldDist: 65535, retargetT: 0, bias: 0,
-      lastHitBy: 0, vaultY: 0,
+      lastHitBy: 0, vaultY: 0, vy: 0, onGround: true,
     };
   }
 
@@ -60,7 +61,7 @@ export class ZombieManager {
     z.speedMul = 0.9 + g.rng() * 0.2;
     z.target = 0; z.staggerT = 0; z.attackHit = false; z.aiT = g.rng() * 0.2; z.nextCell = -1;
     z.stuck = 0; z.farT = 0; z.limp = false; z.aux = 0; z.histN = 0; z.tearT = 0; z.enterT = 0;
-    z.retargetT = 0; z.bias = g.rng() * 40; z.lastHitBy = 0; z.vaultY = 0;
+    z.retargetT = 0; z.bias = g.rng() * 40; z.lastHitBy = 0; z.vaultY = 0; z.vy = 0; z.onGround = true;
     z.lastCheckX = z.x; z.lastCheckZ = z.z; z.lastCheckT = g.time;
     this.active.push(z);
     entry.users = (entry.users || 0) + 1;
@@ -92,11 +93,11 @@ export class ZombieManager {
   // ---------------- Flow fields ----------------
   getField(player) {
     const g = this.game, nav = g.nav;
-    const cell = nav.cellOf(player.x, player.z);
+    const cell = nav.cellAt(player.x, player.y, player.z);
     let fc = this.fieldCache.get(player.id);
-    if (!fc) { fc = { dist: new Uint16Array(nav.n), cell: -2, time: -1, valid: false }; this.fieldCache.set(player.id, fc); }
+    if (!fc) { fc = { dist: new Uint16Array(nav.N), cell: -2, time: -1, valid: false }; this.fieldCache.set(player.id, fc); }
     let c = cell;
-    if (c < 0 || !nav.walk[c]) c = nav.nearestWalkable(player.x, player.z, 4);
+    if (c < 0 || !nav.walk[c]) c = nav.nearestWalkable(player.x, player.z, 4, c >= 0 ? nav.layerOf(c) : 0);
     if (c < 0) return fc;
     if ((fc.cell !== c && g.time - fc.time > 0.12) || g.fieldsDirty > fc.dirtyStamp || !fc.valid) {
       nav.computeField([c], fc.dist);
@@ -241,13 +242,13 @@ export class ZombieManager {
       if (z.aiT <= 0) {
         z.aiT = dist < 15 ? 0.1 : 0.3;
         const fc = this.fieldCache.get(tp.id);
-        const cell = nav.cellOf(z.x, z.z);
+        const cell = nav.cellAt(z.x, z.y, z.z);
         z.cell = cell;
         if (fc && fc.valid && cell >= 0) {
           z.fieldDist = fc.dist[cell];
           let next = nav.descend(fc.dist, cell);
           if (next < 0 && !nav.walk[cell]) {
-            const nw = nav.nearestWalkable(z.x, z.z, 3);
+            const nw = nav.nearestWalkable(z.x, z.z, 3, nav.layerOf(cell));
             next = nw;
           }
           z.nextCell = next;
@@ -257,7 +258,8 @@ export class ZombieManager {
         const tx = nav.centerX(z.nextCell), tz = nav.centerZ(z.nextCell);
         let ddx = tx - z.x, ddz = tz - z.z;
         const dl = Math.hypot(ddx, ddz);
-        if (dl < 0.12) { z.aiT = 0; wantX = z.dirX; wantZ = z.dirZ; }
+        // drop edge: keep walking straight over the ledge (gravity does the rest)
+        if (dl < 0.12 || (nav.floorY[z.nextCell] < z.y - 0.6 && dl < 0.3)) { z.aiT = 0; wantX = z.dirX; wantZ = z.dirZ; }
         else { wantX = ddx / dl; wantZ = ddz / dl; }
       } else { wantX = dx / dist; wantZ = dz / dist; }
     }
@@ -268,8 +270,9 @@ export class ZombieManager {
     const turnFactor = diff > 1.2 ? 0.45 : 1.0;
     let speed = type.speed * z.speedMul * turnFactor * (z.limp ? 0.7 : 1);
     if (g.round >= 15) speed *= 1 + Math.min(0.15, (g.round - 15) * 0.01);
-    const cellHere = nav.cellOf(z.x, z.z);
+    const cellHere = nav.cellAt(z.x, z.y, z.z);
     if (cellHere >= 0 && nav.walk[cellHere] === 2) speed *= 0.6;
+    if (!z.onGround) speed *= 0.5; // airborne (dropping off a ledge)
     z.dirX = Math.sin(z.yaw); z.dirZ = Math.cos(z.yaw);
     const vx = z.dirX * speed, vz = z.dirZ * speed;
     this._applyPhysics(z, dt, vx, vz);
@@ -281,8 +284,8 @@ export class ZombieManager {
         z.stuck += 2;
         if (z.stuck >= 4 && z.stuck < 8) {
           // nudge to nearest walkable cell center
-          const nw = nav.nearestWalkable(z.x + z.dirX * 0.8, z.z + z.dirZ * 0.8, 3);
-          if (nw >= 0) { z.x = nav.centerX(nw); z.z = nav.centerZ(nw); }
+          const nw = nav.nearestWalkable(z.x + z.dirX * 0.8, z.z + z.dirZ * 0.8, 3, cellHere >= 0 ? nav.layerOf(cellHere) : 0);
+          if (nw >= 0) { z.x = nav.centerX(nw); z.z = nav.centerZ(nw); z.y = Math.max(z.y, nav.floorAt(nw)); }
         } else if (z.stuck >= 8) { this.respawnNear(z); return; }
       } else z.stuck = 0;
       if (z.fieldDist === 65535 || z.fieldDist > 1400) { z.farT += 2; if (z.farT >= 10) { this.respawnNear(z); return; } }
@@ -292,7 +295,7 @@ export class ZombieManager {
 
   _pickTarget(z) {
     const g = this.game, nav = g.nav;
-    const cell = nav.cellOf(z.x, z.z);
+    const cell = nav.cellAt(z.x, z.y, z.z);
     let best = null, bd = Infinity;
     let anyAlive = false;
     for (const p of g.players.values()) if (p.state === PSTATE.ALIVE && (p.ready || g.time - p.joinedAt >= 45)) { anyAlive = true; break; }
@@ -342,12 +345,10 @@ export class ZombieManager {
     }
     z.x += (vx + sx * 1.6) * dt;
     z.z += (vz + sz * 1.6) * dt;
-    // ground + collision
-    const body = z;
-    body.vy = 0; body.onGround = true;
-    resolveZombie(g.world.hash, body);
+    // ground + collision (+ gravity when walking off a ledge)
+    resolveZombie(g.world.hash, z, dt);
     // vault height visual
-    const cell = g.nav.cellOf(z.x, z.z);
+    const cell = g.nav.cellAt(z.x, z.y, z.z);
     if (cell >= 0 && g.nav.walk[cell] === 2) z.vaultY = g.nav.vaultH[cell]; else z.vaultY = 0;
   }
 
@@ -398,10 +399,11 @@ export class ZombieManager {
   }
 }
 
-// Zombie-specific collision resolve: ignores zombie-pass gaps and vaultable boxes.
-const ZB = { x: 0, y: 0, z: 0, vy: 0, onGround: true };
+// Zombie-specific collision resolve: ignores zombie-pass gaps and vaultable boxes; floors/stairs of any
+// level are climbable in 0.55 m steps, ledges are dropped with gravity.
 const _out = { x: 0, z: 0 };
-function resolveZombie(hash, z) {
+const ZGRAVITY = 21;
+function resolveZombie(hash, z, dt) {
   const r = ZOMBIE_RADIUS;
   for (let pass = 0; pass < 2; pass++) {
     let moved = false;
@@ -415,15 +417,25 @@ function resolveZombie(hash, z) {
     }
     if (!moved) break;
   }
-  // floor: sidewalks/interiors are 0.15 slabs
+  // floor: highest floor/stair surface under the centre that is at most a step above the feet
   let floor = 0;
   const boxes = hash.query(z.x - 0.2, z.z - 0.2, z.x + 0.2, z.z + 0.2);
   for (let i = 0; i < boxes.length; i++) {
     const b = boxes[i];
-    if (b.kind !== 'floor') continue;
-    if (Math.abs(z.x - b.cx) <= b.hw && Math.abs(z.z - b.cz) <= b.hd && b.y1 > floor) floor = b.y1;
+    if (!isFloorBox(b)) continue;
+    if (b.y1 > z.y + 0.55 || b.y1 <= floor) continue;
+    if (b.yaw === 0) { if (Math.abs(z.x - b.cx) > b.hw || Math.abs(z.z - b.cz) > b.hd) continue; }
+    else { const dx = z.x - b.cx, dz = z.z - b.cz; const lx = dx * b.c - dz * b.s, lz = dx * b.s + dz * b.c; if (Math.abs(lx) > b.hw || Math.abs(lz) > b.hd) continue; }
+    floor = b.y1;
   }
-  z.y = floor;
+  if (z.y <= floor + 0.02) { z.y = floor; z.vy = 0; z.onGround = true; }
+  else {
+    // airborne: fall until the floor is reached
+    z.vy -= ZGRAVITY * dt;
+    z.y = Math.max(floor, z.y + z.vy * dt);
+    z.onGround = z.y <= floor + 0.001;
+    if (z.onGround) z.vy = 0;
+  }
 }
 
 function r2(v) { return Math.round(v * 100) / 100; }

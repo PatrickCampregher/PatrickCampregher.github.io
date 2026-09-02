@@ -48,6 +48,7 @@ export const MAP = {
     { x0: -24, z0: 5, x1: 24, z1: 9, y: 0.15, mat: 'sidewalk' },
     { x0: -24, z0: -8, x1: 24, z1: -5, y: 0.15, mat: 'sidewalk' },
     { x0: -22, z0: 9, x1: -6, z1: 23, y: 0.15, mat: 'wood_floor' },      // bar
+    { x0: -22, z0: 15, x1: -6, z1: 23, y: 3.5, mat: 'wood_floor', level: 1, area: 'bar' }, // bar upper floor (demo)
     { x0: -2, z0: 9, x1: 14, z1: 23, y: 0.15, mat: 'tile_floor' },       // shop
     { x0: -22, z0: -22, x1: -10, z1: -8, y: 0.15, mat: 'tile_checker' }, // diner
     { x0: -6, z0: -20, x1: 8, z1: -8, y: 0.15, mat: 'wood_floor' },      // house
@@ -55,7 +56,9 @@ export const MAP = {
   ],
 
   // Straight staircases (see mapbuild.js schema). Empty for now.
-  stairs: [],
+  stairs: [
+    { x: -14, z: 10, yaw: 0, w: 1.4, len: 5.0, y0: 0.15, y1: 3.5, level: 1, area: 'bar', mat: 'concrete' }, // bar staircase (demo)
+  ],
   // Perk vending machines + Pack-a-Punch (see mapbuild.js schema). Filled by the perk system.
   machines: [],
 
@@ -65,6 +68,7 @@ export const MAP = {
     wall(-22, 9, -22, 23, 5.2, 'brick_dark', [win(13, 'bar_w1'), win(19, 'bar_w2')]),
     wall(-22, 23, -6, 23, 5.2, 'brick_dark', [win(-17, 'bar_n1'), win(-11, 'bar_n2')]),
     wall(-6, 9, -6, 23, 5.2, 'brick_dark', [door(16, 'bar_alley', 1.5)]),
+    wall(-22, 15, -6, 15, 1.0, 'metal_dark', [hole(-14, 1.6), hole(-9, 1.6)], { y0: 3.5, rail: true, t: 0.08 }), // balcony railing (demo)
     // ---------------- SHOP (x -2..14, z 9..23) ----------------
     wall(-2, 9, 14, 9, 5.0, 'plaster', [glass(1.6, 3.0), door(6, 'shop_front'), glass(10.4, 3.0)]),
     wall(14, 9, 14, 23, 5.0, 'plaster', [win(13, 'shop_e1'), win(20, 'shop_e2')]),
@@ -118,7 +122,6 @@ export const MAP = {
     box(-13.5, 0.15, 22.4, 11, 2.4, 0.45, 'wood_dark', { kind: 'shelf' }),
     box(-18, 0.15, 13, 1.2, 0.8, 1.2, 'wood_dark', { vault: true, kind: 'table' }),
     box(-10, 0.15, 13, 1.2, 0.8, 1.2, 'wood_dark', { vault: true, kind: 'table' }),
-    box(-14, 0.15, 12, 1.2, 0.8, 1.2, 'wood_dark', { vault: true, kind: 'table' }),
     // shop shelves (aisles)
     box(2.5, 0.15, 15, 1.1, 1.9, 6, 'metal_shelf', { kind: 'shelf' }),
     box(9.5, 0.15, 15, 1.1, 1.9, 6, 'metal_shelf', { kind: 'shelf' }),

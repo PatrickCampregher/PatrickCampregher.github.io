@@ -34,8 +34,9 @@ export class PowerupManager {
     let type;
     if ((r -= wResupply) <= 0) type = 0; else if ((r -= wDouble) <= 0) type = 2; else if ((r -= wOne) <= 0) type = 1; else type = 3;
     // make sure the spot is walkable
-    const cell = g.nav.nearestWalkable(x, z, 3);
-    if (cell >= 0) { x = g.nav.centerX(cell); z = g.nav.centerZ(cell); }
+    const here = g.nav.cellAt(x, y, z);
+    const cell = g.nav.nearestWalkable(x, z, 3, here >= 0 ? g.nav.layerOf(here) : 0);
+    if (cell >= 0) { x = g.nav.centerX(cell); z = g.nav.centerZ(cell); y = g.nav.floorAt(cell); }
     const pu = { id: this.nextId++ & 0xffff, type, x, y: Math.max(0, y), z, t: 0 };
     this.list.push(pu);
     this.lastDrop = g.time;
