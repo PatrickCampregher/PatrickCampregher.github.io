@@ -15,11 +15,14 @@ export const BIND_LABELS = {
   slot1: 'Weapon Slot 1', slot2: 'Weapon Slot 2', swap: 'Swap Weapon', fire: 'Fire', ads: 'Aim Down Sight', pause: 'Pause / Menu',
 };
 
+// renderDistance: metres of clear visibility before the haze closes in (fog density + LOD ranges scale with it).
+// particles: atmosphere/effect particle density ('off' | 'low' | 'medium' | 'high').
+// grain: light animated film grain (ultra look).
 export const PRESETS = {
-  low: { resolutionScale: 0.75, shadows: 'off', textures: 'low', effects: 'low', aa: 'off', ao: false, bloom: false },
-  medium: { resolutionScale: 1.0, shadows: 'low', textures: 'medium', effects: 'medium', aa: 'fxaa', ao: false, bloom: true },
-  high: { resolutionScale: 1.0, shadows: 'high', textures: 'high', effects: 'high', aa: 'fxaa', ao: true, bloom: true },
-  ultra: { resolutionScale: 1.0, shadows: 'ultra', textures: 'high', effects: 'ultra', aa: 'msaa', ao: true, bloom: true },
+  low: { resolutionScale: 0.75, shadows: 'off', textures: 'low', effects: 'low', aa: 'off', ao: false, bloom: false, renderDistance: 100, particles: 'low', grain: false },
+  medium: { resolutionScale: 1.0, shadows: 'low', textures: 'medium', effects: 'medium', aa: 'fxaa', ao: false, bloom: true, renderDistance: 130, particles: 'medium', grain: false },
+  high: { resolutionScale: 1.0, shadows: 'high', textures: 'high', effects: 'high', aa: 'fxaa', ao: true, bloom: true, renderDistance: 170, particles: 'high', grain: false },
+  ultra: { resolutionScale: 1.0, shadows: 'ultra', textures: 'high', effects: 'ultra', aa: 'msaa', ao: true, bloom: true, renderDistance: 240, particles: 'high', grain: true },
 };
 
 export const DEFAULTS = {
@@ -28,6 +31,15 @@ export const DEFAULTS = {
   audio: { master: 0.8, sfx: 1.0, ambient: 0.6, ui: 0.6 },
   player: { name: '', lastLobby: 'Zombie Night', lastIp: '' },
 };
+
+/** Particle density multiplier (0..1) for a graphics settings object. */
+export function particleDensity(g) {
+  const v = g && g.particles;
+  if (v === 'off') return 0;
+  if (v === 'low') return 0.35;
+  if (v === 'medium') return 0.65;
+  return 1;
+}
 
 function deepMerge(base, over) {
   const out = Array.isArray(base) ? [...base] : { ...base };
@@ -42,7 +54,13 @@ function deepMerge(base, over) {
 export const settings = (() => {
   let stored = null;
   try { stored = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { stored = null; }
-  return deepMerge(DEFAULTS, stored);
+  const s = deepMerge(DEFAULTS, stored);
+  // settings saved before the render distance / particle options existed: fill them from the stored preset
+  if (stored && stored.graphics && stored.graphics.renderDistance == null && PRESETS[stored.graphics.preset]) {
+    const p = PRESETS[stored.graphics.preset];
+    s.graphics.renderDistance = p.renderDistance; s.graphics.particles = p.particles; s.graphics.grain = p.grain;
+  }
+  return s;
 })();
 
 export function saveSettings() {
