@@ -19,7 +19,14 @@ const PI = Math.PI;
 // ---------------------------------------------------------------------------------------------
 function weaponMaterials(mats, look, pap) {
   const key = (c, o) => `w_${c}_${o.metal ?? 0}_${o.rough ?? 0}_${o.emissive || ''}_${o.emissiveIntensity || ''}`;
-  const solid = (c, o) => mats.solid(key(c, o), c, o);
+  // weapon surfaces are seen edge-on at close range: tame the grazing-angle environment/specular reflections so dark
+  // polymer and wood stay dark (metals keep their full reflections)
+  const solid = (c, o) => {
+    const m = mats.solid(key(c, o), c, o);
+    if ((o.metal ?? 0) < 0.6 && !o.emissive) { m.environmentIntensity = 0.3; m.specularIntensity = 0.3; }
+    else if (o.emissive) { m.environmentIntensity = 0.2; m.specularIntensity = 0.2; }
+    return m;
+  };
   if (pap) {
     const g = look.glow || '#b45cff';
     return {
@@ -526,9 +533,10 @@ const BUILD = {
       c.box('hinge', 0.006, 0.006, 0.48, 0, 0.088, 0.28);
       c.box('hinge', 0.034, 0.03, 0.15, 0, 0.052, 0.19);
       c.box('hinge', 0.04, 0.04, 0.03, 0, 0.062, 0.045);
-      sightY = 0.094; sightZ = 0.04;
-      c.box('glow', 0.003, 0.003, 0.003, 0, sightY - 0.0025, 0.52);
-      c.box('dark', 0.006, 0.003, 0.006, 0, 0.0925, 0.52);
+      // raised sight line (tall fiber bead + ghost ring) so the comb and receiver stay below the eye line in ADS
+      sightY = 0.112; sightZ = 0.0;
+      c.frontPost(0.52, 0.0915, sightY, { base: [0.008, 0.003, 0.008] });
+      c.rearRing(sightZ, sightY, 0.087, { r: 0.0115, base: [0.016, 0.004] });
       c.stockFixed('accent', 0, 0.045, -0.2, 0.036, 0.06, 0.25, -0.1, 'dark');
       c.grip('accent', 0, 0.005, -0.06, 0.03, 0.07, 0.05, 0.6, 0);
       c.trigger(-0.01, 0.028, 0.05, 0.03); c.box('dark', 0.004, 0.016, 0.004, 0, 0.018, 0.0, 0.35);
@@ -598,8 +606,8 @@ const BUILD = {
         c.grip('accent', 0, 0.005, -0.06, 0.03, 0.07, 0.05, 0.6, 0);
         c.trigger(-0.02, 0.026, 0.05, 0.03);
       }
-      sightY = 0.097; sightZ = -0.06;
-      c.box('glow', 0.003, 0.003, 0.003, 0, sightY - 0.0025, 0.585); c.box('dark', 0.006, 0.003, 0.006, 0, 0.0945, 0.585);
+      sightY = 0.112; sightZ = -0.06;
+      c.frontPost(0.585, 0.093, sightY, { base: [0.008, 0.003, 0.008] });
       c.rearRing(sightZ, sightY, 0.09, { r: 0.0125, base: [0.02, 0.004] });
       c.box('dark', 0.03, 0.006, 0.05, 0, 0.028, 0.02);
       c.ejectPort(0.0215, 0.07, 0.02, 0.016, 0.04);
@@ -784,7 +792,8 @@ const BUILD = {
     let sightY, sightZ, muzzle, eject = [0.03, 0.07, 0.0];
     if (st === 'nova') {
       c.cyl('body', 0.022, 0.16, 0, 0.065, 0.06, 'z', null, 12);
-      c.sph('body', 0.027, 0, 0.065, -0.02, 8);
+      c.sph('body', 0.024, 0, 0.065, -0.02, 8);
+      c.box('accent', 0.014, 0.006, 0.17, 0, 0.09, 0.045);                                           // top rail carrying the sights
       c.cyl('accent', 0.02, 0.05, 0, 0.065, 0.16, 'z', 0.011, 12);
       c.cyl('glow', 0.007, 0.02, 0, 0.065, 0.192, 'z', null, 8);
       for (let i = 0; i < 3; i++) c.ring('glow', 0.024, 0.003, 0, 0.065, 0.02 + i * 0.05, 'z', 8);
@@ -793,10 +802,10 @@ const BUILD = {
       c.partMat.mag = 'glow'; c.box('mag', 0.02, 0.05, 0.028, 0, -0.045, -0.02, 0.25); c.box('mag', 0.026, 0.006, 0.036, 0, -0.07, -0.028, 0.25);
       c.ring('metal', 0.014, 0.003, 0, 0.018, 0.02, 'x', 8);
       c.box('dark', 0.004, 0.014, 0.004, 0, 0.018, 0.02, 0.3);
-      sightY = 0.1; sightZ = -0.035;
-      for (const s of [-1, 1]) c.box('glow', 0.003, 0.008, 0.003, s * 0.006, sightY - 0.004, sightZ);
-      c.box('dark', 0.018, 0.005, 0.006, 0, sightY - 0.0105, sightZ);
-      c.box('glow', 0.003, 0.012, 0.003, 0, sightY - 0.006, 0.14); c.box('dark', 0.008, 0.005, 0.008, 0, 0.0865, 0.14);
+      sightY = 0.112; sightZ = -0.035;
+      for (const s of [-1, 1]) c.box('glow', 0.003, 0.012, 0.003, s * 0.006, sightY - 0.006, sightZ);      // glowing rear posts (notch)
+      c.box('dark', 0.018, 0.007, 0.006, 0, 0.0965, sightZ);
+      c.box('glow', 0.003, 0.018, 0.003, 0, sightY - 0.009, 0.14); c.box('dark', 0.008, 0.007, 0.008, 0, 0.0965, 0.14);   // glowing front post
       c.screws([[0.02, 0.06, -0.01], [-0.02, 0.06, -0.01]]);
       muzzle = [0, 0.065, 0.205];
       if (pap) c.etch(0.088, -0.03, 0.13, 0.012, 3);
