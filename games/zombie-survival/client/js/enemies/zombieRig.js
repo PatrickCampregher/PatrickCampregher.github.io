@@ -21,10 +21,10 @@ const PART_DEFS = [
   { n: 'footR', s: [0.13, 0.09, 0.26], mat: 'shoe' },
   // zombie-only head details. at = [x, top y, z] relative to the head joint; every part lies inside the head box
   // (0.24 x 0.27 x 0.26 standing on the joint), so the shared head hit volume (shared/zombies.js) is unchanged.
-  { n: 'brow', s: [0.25, 0.05, 0.05], mat: 'skin', zombie: true, tint: 0.88, at: [0, 0.24, 0.125] },
+  { n: 'brow', s: [0.25, 0.04, 0.05], mat: 'skin', zombie: true, tint: 0.88, at: [0, 0.25, 0.125] },
   { n: 'jaw', s: [0.20, 0.07, 0.10], mat: 'skin', zombie: true, tint: 0.8, at: [0, 0.075, 0.105] },
-  { n: 'socketL', s: [0.075, 0.055, 0.02], mat: 'skin', zombie: true, tint: 0.28, at: [-0.055, 0.2, 0.128] },
-  { n: 'socketR', s: [0.075, 0.055, 0.02], mat: 'skin', zombie: true, tint: 0.28, at: [0.055, 0.2, 0.128] },
+  { n: 'socketL', s: [0.09, 0.07, 0.02], mat: 'skin', zombie: true, tint: 0.28, at: [-0.06, 0.21, 0.128] },
+  { n: 'socketR', s: [0.09, 0.07, 0.02], mat: 'skin', zombie: true, tint: 0.28, at: [0.06, 0.21, 0.128] },
   { n: 'hair', s: [0.25, 0.03, 0.27], mat: 'shoe', zombie: true, tint: 0.75, at: [0, 0.27, 0] },
 ];
 const HEAD_PARTS = ['head', 'brow', 'jaw', 'socketL', 'socketR', 'hair'];
