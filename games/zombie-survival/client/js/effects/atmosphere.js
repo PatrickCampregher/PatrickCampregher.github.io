@@ -96,7 +96,7 @@ export class Atmosphere {
       gravity: V3(0, 0.12, 0),
       dir: (out) => { out.x = wind.x + (Math.random() - 0.5) * 0.7; out.y = 0.25 + Math.random() * 0.55; out.z = wind.z + (Math.random() - 0.5) * 0.7; },
       c1: C4(1, 0.62, 0.22, 1), c2: C4(1, 0.42, 0.12, 1), cDead: C4(0.35, 0.06, 0, 0),
-      sizeGrad: [[0, 0.006], [0.15, 0.022], [0.8, 0.02], [1, 0.005]],
+      sizeGrad: [[0, 0.008], [0.15, 0.03], [0.8, 0.026], [1, 0.006]],
       colorGrad: [[0, C4(1, 0.75, 0.35, 0)], [0.1, C4(1, 0.6, 0.2, 1)], [0.6, C4(1, 0.35, 0.08, 0.9)], [1, C4(0.4, 0.05, 0, 0)]],
     });
     this.embers.metadata = { kind: 'embers' };

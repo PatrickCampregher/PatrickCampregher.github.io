@@ -117,7 +117,7 @@ export function buildSky(scene, mats, opts = {}) {
   hm.disableLighting = true; hm.alphaMode = B().Engine.ALPHA_ADD; hm.backFaceCulling = false; hm.alpha = 0.55;
   halo.material = hm; halo.position.copyFrom(moonPos); halo.billboardMode = B().Mesh.BILLBOARDMODE_ALL; halo.applyFog = false; halo.isPickable = false; halo.infiniteDistance = true;
   halo.alwaysSelectAsActiveMesh = true; moon.alwaysSelectAsActiveMesh = true;
-  dome.freezeWorldMatrix(); dome.doNotSyncBoundingInfo = true;
+  dome.doNotSyncBoundingInfo = true;
   // the sky is not part of the prepass (SSAO would otherwise sample an undefined depth behind it and mottle it)
   if (opts.rig) for (const mat of [m, mm, hm]) opts.rig.registerSkyMaterial(mat);
   return { dome, moon, halo, tex, moonDir };
@@ -323,8 +323,10 @@ export class LightingRig {
     if (!this.shadow) return;
     const map = this.shadow.getShadowMap(); if (!map) return;
     const rl = map.renderList; if (!rl) return;
+    // adopt meshes other modules added straight to the generator (zombie rig bases, machines, ...)
+    for (let i = 0; i < rl.length; i++) { const m = rl[i]; if (this.casters.indexOf(m) < 0) { this.casters.push(m); if (!m.isWorldMatrixFrozen) this.dynamicCasters.add(m); } }
     const cam = this.camera.position;
-    const reach = this.shadowExt * 1.35 + 10;
+    const reach = this.shadowFollow ? this.shadowExt * 1.35 + 10 : 150;
     rl.splice(0, rl.length);
     for (const m of this.casters) {
       if (m.isDisposed && m.isDisposed()) continue;

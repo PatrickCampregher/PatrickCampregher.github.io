@@ -110,8 +110,8 @@ function plaster(n, opts) {
     const streak = clamp01((fbm(u * 34, v * 2.2 + 5, 2) - 0.58) * 4) * Math.pow(v, 0.7) * stainAmt;
     // peeled plaster: soft mask, exposes brick underneath with a raised rim
     const peelN = fbm(u * 2.6 + 7, v * 2.6 + 1, 3) + (fbm(u * 18, v * 18, 2) - 0.5) * 0.12;
-    const peel = sstep(0.635, 0.665, peelN) * (opts.peel ?? stainAmt);
-    const rim = sstep(0.61, 0.635, peelN) * (1 - sstep(0.635, 0.66, peelN));
+    const peel = sstep(0.665, 0.69, peelN) * (opts.peel ?? stainAmt);
+    const rim = sstep(0.64, 0.665, peelN) * (1 - sstep(0.665, 0.685, peelN));
     let crack = 0;
     if (opts.cracks) { const big = fbm(u * 2 + 5, v * 2, 2) > 0.5 ? 1 : 0; crack = crackMask(u, v, 4, 0.004, 0, 0) * big; crack = Math.max(crack, crackMask(u, v, 9, 0.0025, 3, 8, 2) * big * 0.7); }
     const shade = 0.84 + nz * 0.2 + fine * 0.08;
@@ -540,9 +540,9 @@ export function chalkWeaponCanvas(n, look, name, cost) {
 const SETS = {
   brick_red: { gen: bricks, o: { color: '#8e4232', mortar: '#8f8a80', bw: 6, bh: 18, seed: 3, soot: 0.32 }, scale: 3 },
   brick_dark: { gen: bricks, o: { color: '#6e4a3e', mortar: '#7a756d', bw: 6, bh: 18, seed: 11, soot: 0.42 }, scale: 3 },
-  plaster: { gen: plaster, o: { color: '#bcb098', stain: 0.5, cracks: true, peel: 0.55 }, scale: 3 },
+  plaster: { gen: plaster, o: { color: '#bcb098', stain: 0.5, cracks: true, peel: 0.45 }, scale: 3 },
   plaster_stained: { gen: plaster, o: { color: '#a89b85', stain: 0.8, cracks: true, peel: 0.8 }, scale: 3 },
-  wallpaper: { gen: plaster, o: { color: '#9a8f78', stain: 0.5, stripes: '#7c6d5a', peel: 0.45 }, scale: 3 },
+  wallpaper: { gen: plaster, o: { color: '#9a8f78', stain: 0.5, stripes: '#7c6d5a', peel: 0.35 }, scale: 3 },
   concrete: { gen: concrete, o: { color: '#8d8a84', cracks: 1.5, oil: 0.5 }, scale: 4 },
   sidewalk: { gen: concrete, o: { color: '#a29e96', slabs: 2, cracks: 1, oil: 0.35 }, scale: 4 },
   asphalt: { gen: asphalt, o: { color: '#3d3d40', cracks: 1, wet: true }, scale: 6 },
