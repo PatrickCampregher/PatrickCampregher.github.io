@@ -1,9 +1,12 @@
 // Pooled visual effects: muzzle flashes, tracers, impacts, decals, blood, explosions, fire, arcs, shells.
 /* global BABYLON */
 import { softCircleCanvas, smokeCanvas, bulletHoleCanvas, bloodSplatCanvas, scorchCanvas, flameCanvas } from '../maps/textures.js';
+import { raycastWorld, bulletFilter } from '/shared/collision.js';
 
 const B = () => BABYLON;
 const V3 = (x, y, z) => new (BABYLON.Vector3)(x, y, z);
+// surfaces that can carry blood decals: solid world geometry, but not glass, fences or (openable) doors
+const decalSurface = (b) => bulletFilter(b) && !b.door;
 
 class Pool {
   constructor(n, make) { this.items = []; for (let i = 0; i < n; i++) this.items.push(make(i)); this.idx = 0; }
@@ -107,8 +110,8 @@ export class Effects {
       const mat = this.mats.decal(key, tex);
       return new Pool(n, () => { const m = B().MeshBuilder.CreatePlane('decal_' + key, { size, sideOrientation: B().Mesh.DOUBLESIDE }, this.scene); m.material = mat; m.isVisible = false; m.isPickable = false; m.receiveShadows = false; return m; });
     };
-    this.holes = mk(this.quality >= 2 ? 80 : 40, this.tHole, 0.12, 'hole');
-    this.bloodDecals = [0, 1, 2].map(i => mk(10, this.tBlood[i], 1.1, 'blood' + i));
+    this.holes = mk(this.quality >= 2 ? 80 : 48, this.tHole, 0.12, 'hole');
+    this.bloodDecals = [0, 1, 2].map(i => mk(14, this.tBlood[i], 1.1, 'blood' + i)); // 42 blood decals
     this.scorches = mk(8, this.tScorch, 4.5, 'scorch');
   }
 
@@ -197,19 +200,36 @@ export class Effects {
     if (kind !== 'glass' && kind !== 'fence') this._placeDecal(this.holes, x, y, z, nx, ny, nz, 0.8 + Math.random() * 0.5);
   }
 
-  blood(x, y, z, dir, big = false, headshot = false) {
-    const d = dir ? V3(dir.x, dir.y + 0.3, dir.z) : V3(0, 0.5, 0);
+  /**
+   * Blood for a zombie wound at (x,y,z). dir = bullet direction (optional). Particles splash along the bullet;
+   * decals are only placed on real surfaces found by raycasting the collision world (opts.hash = game.world.hash):
+   * a splat on the floor below the wound and a spray on the wall/prop the bullet continues into. Never mid-air.
+   */
+  blood(x, y, z, dir, big = false, headshot = false, opts = {}) {
+    const d = dir ? V3(dir.x, dir.y + 0.35, dir.z) : V3(0, 0.6, 0);
     this._burst(this.bloodPs, x, y, z, big ? 26 : 12, d, 0.9);
     if (this.quality >= 1) this._burst(this.bloodMist, x, y, z, big ? 6 : 3, d, 0.5);
-    if (headshot) this._burst(this.bloodPs, x, y + 0.1, z, 20, V3(0, 1, 0), 1.0);
-    if (this.quality >= 2 && (big || Math.random() < 0.35)) {
-      // floor splat under the hit
-      this._placeDecal(this.bloodDecals[Math.floor(Math.random() * 3)], x, Math.max(0.01, y - 1.0 * 0 + 0.0), z, 0, 1, 0, 0.7 + Math.random() * 0.7, 0.02);
+    if (headshot) this._burst(this.bloodPs, x, y + 0.1, z, 20, V3(dir ? dir.x * 0.5 : 0, 1, dir ? dir.z * 0.5 : 0), 1.0);
+    const hash = opts.hash;
+    if (!hash || this.quality < 1) return;
+    // splat on the floor (or box/stair top) below the wound
+    if (opts.floor !== false && (big || headshot || Math.random() < 0.5)) {
+      const f = raycastWorld(hash, x, y, z, 0, -1, 0, 3.0, 0, decalSurface);
+      if (f) this._placeDecal(this.bloodDecals[Math.floor(Math.random() * 3)], x, y - f.dist, z, f.nx, f.ny, f.nz, 0.55 + Math.random() * 0.5 + (big ? 0.3 : 0), 0.02);
+    }
+    // spray on whatever the bullet hits behind the zombie (walls of any orientation, props, vehicles, ceilings)
+    if (opts.wall !== false && dir) {
+      const w = raycastWorld(hash, x, y, z, dir.x, dir.y, dir.z, 2.5, 0, decalSurface);
+      if (w) this._placeDecal(this.bloodDecals[Math.floor(Math.random() * 3)], x + dir.x * w.dist, y + dir.y * w.dist, z + dir.z * w.dist, w.nx, w.ny, w.nz, (0.5 + Math.random() * 0.45) * (1.1 - w.dist / 3.5) + (big ? 0.2 : 0), 0.012);
     }
   }
 
-  bloodOnFloor(x, y, z, size = 1.3) {
-    this._placeDecal(this.bloodDecals[Math.floor(Math.random() * 3)], x, y, z, 0, 1, 0, size, 0.02);
+  /** Blood pool under a corpse at (x,y,z): projected down onto the floor / stair / box it lies on (nothing if none). */
+  bloodOnFloor(x, y, z, size = 1.3, hash = null) {
+    if (!hash) return;
+    const f = raycastWorld(hash, x, y + 0.6, z, 0, -1, 0, 3.6, 0, decalSurface);
+    if (!f) return;
+    this._placeDecal(this.bloodDecals[Math.floor(Math.random() * 3)], x, y + 0.6 - f.dist, z, f.nx, f.ny, f.nz, size, 0.02);
   }
 
   explosion(x, y, z, r) {

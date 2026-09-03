@@ -1,36 +1,55 @@
 // Shooting: validation, deterministic spread, lag-compensated hit detection, projectiles, explosions.
 import { WEAPONS, computeShotDirections, damageAtDistance, shotInterval } from '../../shared/weapons.js';
-import { raycastWorld, raySphere, rayVCylinder, bulletFilter } from '../../shared/collision.js';
-import { ZSTATE, ZOMBIE_HEAD_Y, ZOMBIE_HEAD_R, ZOMBIE_BODY_Y0, ZOMBIE_BODY_Y1, ZOMBIE_BODY_R, ZOMBIE_LEGS_Y0, ZOMBIE_LEGS_Y1, ZOMBIE_LEGS_R } from '../../shared/zombies.js';
+import { raycastWorld, bulletFilter } from '../../shared/collision.js';
+import { ZSTATE, zombieHitVolumes, rayZombie } from '../../shared/zombies.js';
 import { PSTATE, TICK_MS, BODY_PART } from '../../shared/constants.js';
 import { damageMod } from '../../shared/perks.js';
 
-const _hp = { x: 0, y: 0, z: 0, yaw: 0 };
+const _hp = { x: 0, y: 0, z: 0, yaw: 0 }, _hp0 = { x: 0, y: 0, z: 0, yaw: 0 };
+const _vol = {}, _hit = { part: 0 }, _st = { state: 0, aux: 0 };
+const SPEED_TICKS = 3; // ground speed = distance travelled over the last 3 ticks (~ the rig's smoothed speed)
 
-/** Find the closest zombie hit along a ray (lag compensated to `tick`). */
+/**
+ * Find the closest zombie hit along a ray (lag compensated to `tick`). Uses the shared pose-following hit volumes
+ * (shared/zombies.js) evaluated with the state/animation progress/speed the zombie had at that tick, so the
+ * server tests exactly the skull/torso/legs the shooter saw.
+ */
 export function traceZombies(game, ox, oy, oz, dx, dy, dz, maxDist, tick, exclude = null) {
   let best = null, bestT = maxDist, bestPart = 0;
+  const back = Math.max(0, (game.tick - tick) * TICK_MS / 1000); // seconds the shot lies in the past
   for (const z of game.zombies.active) {
     if (z.state === ZSTATE.HIDDEN || z.state === ZSTATE.DEAD) continue;
     if (exclude && exclude.has(z)) continue;
     game.zombies.positionAtTick(z, tick, _hp);
-    // quick reject: distance from ray to zombie center
     const cx = _hp.x, cy = _hp.y + z.vaultY, cz = _hp.z;
-    const lx = cx - ox, ly = cy + 0.9 - oy, lz = cz - oz;
+    // quick reject: distance from the ray to the zombie's centre (a leaning/climbing head can be ~1 m off the axis)
+    const lx = cx - ox, ly = cy + 0.95 - oy, lz = cz - oz;
     const tca = lx * dx + ly * dy + lz * dz;
-    if (tca < -1 || tca > bestT + 1.2) continue;
+    if (tca < -1.5 || tca > bestT + 1.5) continue;
     const d2 = lx * lx + ly * ly + lz * lz - tca * tca;
-    if (d2 > 1.4 * 1.4) continue;
-    const s = z.type.scale;
-    let t = raySphere(ox, oy, oz, dx, dy, dz, cx, cy + ZOMBIE_HEAD_Y * s, cz, ZOMBIE_HEAD_R * s * 1.15);
-    let part = BODY_PART.HEAD;
-    const tb = rayVCylinder(ox, oy, oz, dx, dy, dz, cx, cz, ZOMBIE_BODY_R * s, cy + ZOMBIE_BODY_Y0 * s, cy + ZOMBIE_BODY_Y1 * s);
-    if (tb >= 0 && (t < 0 || tb < t)) { t = tb; part = BODY_PART.BODY; }
-    const tl = rayVCylinder(ox, oy, oz, dx, dy, dz, cx, cz, ZOMBIE_LEGS_R * s, cy + ZOMBIE_LEGS_Y0 * s, cy + ZOMBIE_LEGS_Y1 * s);
-    if (tl >= 0 && (t < 0 || tl < t)) { t = tl; part = BODY_PART.LEGS; }
-    if (t >= 0 && t < bestT) { bestT = t; best = z; bestPart = part; }
+    if (d2 > 1.6 * 1.6) continue;
+    // pose at that tick: ground speed from the position history, state progress rewound by `back`
+    game.zombies.positionAtTick(z, tick - SPEED_TICKS, _hp0);
+    const speed = Math.hypot(_hp.x - _hp0.x, _hp.z - _hp0.z) / (SPEED_TICKS * TICK_MS / 1000);
+    pastStateAux(z, back, _st);
+    zombieHitVolumes(z.type.scale, _st.state, _st.aux, speed, z.limp, _vol);
+    const t = rayZombie(_vol, cx, cy, cz, _hp.yaw, ox, oy, oz, dx, dy, dz, bestT, _hit);
+    if (t >= 0 && t < bestT) { bestT = t; best = z; bestPart = _hit.part; }
   }
   return best ? { z: best, t: bestT, part: bestPart } : null;
+}
+
+/** State + animation progress (0..255) the zombie had `back` seconds ago - what the shooter's snapshots showed. */
+function pastStateAux(z, back, out) {
+  let state = z.state, aux = z.aux;
+  if (back > 0.001) {
+    const st = z.stateT - back;
+    if (state === ZSTATE.ATTACK) { if (st < 0) { state = ZSTATE.CHASE; aux = 0; } else aux = 255 * st / (z.type.attackWindup + z.type.attackRecover); }
+    else if (state === ZSTATE.STAGGER) { if (st < 0) { state = ZSTATE.CHASE; aux = 0; } }
+    else if (state === ZSTATE.ENTERING) aux = 255 * Math.max(0, z.enterT - back) / Math.max(1e-3, z.enterDur);
+    else if (state === ZSTATE.TEARING) { let p = ((z.tearT - back) / z.type.tearTime) % 1; if (p < 0) p += 1; aux = 255 * p; }
+  }
+  out.state = state; out.aux = aux < 0 ? 0 : aux > 255 ? 255 : aux;
 }
 
 export function processShot(game, player, msg) {

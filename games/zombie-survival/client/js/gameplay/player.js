@@ -245,7 +245,7 @@ export class LocalPlayer {
       const hp = V3(o.x + dir[0] * hitDist, o.y + dir[1] * hitDist, o.z + dir[2] * hitDist);
       g.effects.tracer(muzzle, hp, def);
       if (zh) {
-        g.effects.blood(hp.x, hp.y, hp.z, V3(dir[0], dir[1], dir[2]), def.damage > 100, zh.part === 1);
+        g.effects.blood(hp.x, hp.y, hp.z, V3(dir[0], dir[1], dir[2]), def.damage > 100, zh.part === 1, { hash: g.world.hash });
         if (def.splash) g.effects.explosion(hp.x, hp.y, hp.z, def.splash.radius);
       } else if (wh) {
         const kind = matKind(wh.box);

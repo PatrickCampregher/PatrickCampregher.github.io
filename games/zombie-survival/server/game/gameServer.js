@@ -729,7 +729,7 @@ export class GameServer {
     const zombies = [];
     for (const z of this.zombies.active) {
       if (z.state === ZSTATE.HIDDEN) continue;
-      zombies.push({ id: z.id, x: z.x, y: z.y + z.vaultY, z: z.z, yaw: z.yaw, type: z.type.id, state: z.state, hp: Math.max(1, Math.min(255, Math.round(255 * z.hp / z.maxHp))), aux: (z.aux & 127) | (z.limp ? 128 : 0) });
+      zombies.push({ id: z.id, x: z.x, y: z.y + z.vaultY, z: z.z, yaw: z.yaw, type: z.type.id, state: z.state, hp: Math.max(1, Math.min(255, Math.round(255 * z.hp / z.maxHp))), aux: (Math.round(z.aux * 127 / 255) & 127) | (z.limp ? 128 : 0) }); // 7-bit progress + limp flag
     }
     const snap = {
       tick: this.tick, time: this.time * 1000, round: this.round, roundState: this.roundState,
