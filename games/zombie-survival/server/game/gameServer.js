@@ -66,6 +66,7 @@ export class GameServer {
     const now = performance.now();
     let dt = (now - this._last) / 1000;
     this._last = now;
+    if (this.paused) return;
     if (dt > 0.1) dt = 0.1;
     try { this.step(dt); }
     catch (e) { console.error('[game] step error', e); }
@@ -178,6 +179,10 @@ export class GameServer {
         if (Array.isArray(msg.tp) && msg.tp.length >= 2) { p.x = +msg.tp[0]; p.z = +msg.tp[1]; p.y = +(msg.tp[2] || 0); p.acceptAny = true; this._correct(p); }
         if (msg.powerup != null) { this.powerups.lastDrop = -999; this.powerups.countThisRound = 0; const save = this.rng; this.rng = () => 0; this.powerups.maybeDrop(p.x + Math.sin(p.yaw) * 2.5, p.y, p.z + Math.cos(p.yaw) * 2.5); this.rng = save; const pu = this.powerups.list[this.powerups.list.length - 1]; if (pu && typeof msg.powerup === 'number') { pu.type = msg.powerup; this.broadcast({ t: 'powerup', ev: 'expire', id: pu.id }); this.broadcast({ t: 'powerup', ev: 'spawn', id: pu.id, type: pu.type, x: pu.x, y: pu.y, z: pu.z }); } }
         if (msg.bear) { this.box.uses = 99; this.box.forceBear = true; }
+        // deterministic stepping for recordings/tests: pause the real-time loop and advance by exact amounts
+        if (msg.pause != null) this.paused = !!msg.pause;
+        if (typeof msg.step === 'number' && Number.isFinite(msg.step)) { try { this.step(Math.max(0.001, Math.min(0.1, msg.step))); } catch (e) { console.error('[game] step error', e); } }
+        if (msg.openAll) { for (const id in this.world.doors) { const door = this.world.doors[id]; if (!door.closed) continue; door.closed = false; this.nav.openDoor(id); for (const a of door.areas) this.unlocked.add(a); this.broadcast({ t: 'door', id, by: p.id }); } this.fieldsDirty++; }
         if (msg.perk && PERKS[msg.perk]) this._grantPerk(p, msg.perk);
         if (msg.clearPerks) this._clearPerks(p, true);
         break;

@@ -34,8 +34,8 @@ export function createHttpServer({ onApi }) {
         req.on('end', () => {
           try {
             const name = String(url.searchParams.get('name') || 'shot').replace(/[^\w-]/g, '');
-            const m = body.match(/^data:image\/(png|jpeg);base64,/);
-            const ext = m && m[1] === 'jpeg' ? 'jpg' : 'png';
+            const m = body.match(/^data:(image\/png|image\/jpeg|audio\/wav|audio\/wave|video\/webm);base64,/);
+            const ext = !m ? 'png' : m[1] === 'image/jpeg' ? 'jpg' : m[1] === 'image/png' ? 'png' : m[1].startsWith('audio') ? 'wav' : 'webm';
             const b64 = m ? body.slice(m[0].length) : body;
             const dir = url.searchParams.get('dir') === 'root' ? ROOT : path.join(ROOT, 'tools', 'shots');
             fs.mkdirSync(dir, { recursive: true });
