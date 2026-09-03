@@ -5,8 +5,8 @@ import { haloCanvas, fbm } from './textures.js';
 const B = () => BABYLON;
 
 // Sky colours (sRGB, as painted on the dome) by elevation: 1 = zenith, 0 = horizon, -1 = nadir.
-const SKY_STOPS = [[1, '#04060e'], [0.55, '#080c1c'], [0.3, '#101528'], [0.14, '#1c1a2e'], [0.06, '#332631'], [0.015, '#4d3630'], [0.0, '#5a3d2f'], [-0.03, '#2c2224'], [-0.2, '#0e0c10'], [-1, '#050506']];
-export const HORIZON_SRGB = [0x3a / 255, 0x2b / 255, 0x2c / 255];
+const SKY_STOPS = [[1, '#0a1030'], [0.55, '#111a3e'], [0.3, '#181f46'], [0.14, '#22254a'], [0.06, '#302c44'], [0.015, '#3d3238'], [0.0, '#483a33'], [-0.03, '#2a2226'], [-0.2, '#0e0c10'], [-1, '#050506']];
+export const HORIZON_SRGB = [0x40 / 255, 0x33 / 255, 0x34 / 255];
 const srgbToLinear = (c) => Math.pow(c, 2.2);
 
 function lerpHex(a, b, t) { const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16); const ch = (s) => (((pa >> s) & 255) + (((pb >> s) & 255) - ((pa >> s) & 255)) * t) | 0; return `rgb(${ch(16)},${ch(8)},${ch(0)})`; }
@@ -44,20 +44,20 @@ export function buildSky(scene, mats, opts = {}) {
   {
     const yBand = elevToRow(0.45), yBand2 = elevToRow(0.2);
     const gg = ctx.createLinearGradient(0, Math.min(yBand, yBand2) - 60, 0, Math.max(yBand, yBand2) + 60);
-    gg.addColorStop(0, 'rgba(90,100,140,0)'); gg.addColorStop(0.5, 'rgba(90,100,140,0.08)'); gg.addColorStop(1, 'rgba(90,100,140,0)');
+    gg.addColorStop(0, 'rgba(110,120,170,0)'); gg.addColorStop(0.5, 'rgba(110,120,170,0.14)'); gg.addColorStop(1, 'rgba(110,120,170,0)');
     ctx.fillStyle = gg; ctx.fillRect(0, Math.min(yBand, yBand2) - 60, W, Math.abs(yBand - yBand2) + 120);
   }
   // stars
-  for (let i = 0; i < 2600; i++) {
-    const y = rnd() * H; const e = rowToElev(y); if (e < 0.05) continue;
-    const x = rnd() * W; const a = rnd();
-    const big = a > 0.94;
+  for (let i = 0; i < 2400; i++) {
+    const y = Math.floor(rnd() * H); const e = rowToElev(y); if (e < 0.05) continue;
+    const x = Math.floor(rnd() * W); const a = rnd();
+    const big = a > 0.9;
     const tint = rnd();
-    const col = tint < 0.15 ? '255,225,200' : tint < 0.3 ? '200,215,255' : '235,240,255';
-    const alpha = (0.2 + a * 0.7) * Math.min(1, (e - 0.05) * 6 + 0.2);
+    const col = tint < 0.15 ? '255,228,205' : tint < 0.3 ? '205,218,255' : '240,244,255';
+    const alpha = (0.35 + a * 0.65) * Math.min(1, (e - 0.05) * 6 + 0.25);
     ctx.fillStyle = `rgba(${col},${alpha.toFixed(2)})`;
     ctx.fillRect(x, y, big ? 2 : 1, big ? 2 : 1);
-    if (a > 0.985) { ctx.fillStyle = `rgba(${col},0.35)`; ctx.fillRect(x - 1, y, 4, 2); ctx.fillRect(x, y - 1, 2, 4); }
+    if (a > 0.97) { ctx.fillStyle = `rgba(${col},0.45)`; ctx.fillRect(x - 1, y - 1, 4, 4); ctx.fillStyle = `rgba(${col},0.2)`; ctx.fillRect(x - 3, y, 8, 2); ctx.fillRect(x, y - 3, 2, 8); }
   }
   // thin cloud wisps (noise), mostly low in the sky, lit faintly from below by the fires
   {
@@ -71,8 +71,8 @@ export function buildSky(scene, mats, opts = {}) {
         const a = Math.max(0, n - 0.56) * 2.4 * band;
         if (a <= 0) continue;
         const i = (y * W + x) * 4;
-        const warm = Math.max(0, 0.25 - e) * 2;
-        d[i] = d[i] + (70 + warm * 50 - d[i]) * a; d[i + 1] = d[i + 1] + (66 + warm * 25 - d[i + 1]) * a; d[i + 2] = d[i + 2] + (78 - d[i + 2]) * a;
+        const warm = Math.max(0, 0.25 - e) * 1.2;
+        d[i] = d[i] + (58 + warm * 30 - d[i]) * a * 0.8; d[i + 1] = d[i + 1] + (56 + warm * 14 - d[i + 1]) * a * 0.8; d[i + 2] = d[i + 2] + (68 - d[i + 2]) * a * 0.8;
       }
     }
     ctx.putImageData(img, 0, 0);
@@ -80,15 +80,15 @@ export function buildSky(scene, mats, opts = {}) {
   // smoke haze bands near the horizon
   for (let i = 0; i < 26; i++) {
     const e = (rnd() - 0.35) * 0.3; const y = elevToRow(e);
-    const gg = ctx.createLinearGradient(0, y - 12, 0, y + 12); gg.addColorStop(0, 'rgba(60,40,35,0)'); gg.addColorStop(0.5, `rgba(75,50,42,${0.08 + rnd() * 0.12})`); gg.addColorStop(1, 'rgba(60,40,35,0)'); ctx.fillStyle = gg; ctx.fillRect(0, y - 12, W, 24);
+    const gg = ctx.createLinearGradient(0, y - 12, 0, y + 12); gg.addColorStop(0, 'rgba(60,40,35,0)'); gg.addColorStop(0.5, `rgba(70,50,44,${0.06 + rnd() * 0.09})`); gg.addColorStop(1, 'rgba(60,40,35,0)'); ctx.fillStyle = gg; ctx.fillRect(0, y - 12, W, 24);
   }
   // distant fires: warm glows just below the horizon with dark smoke plumes leaning sideways above them
   const glows = opts.glows || 5;
   for (let i = 0; i < glows; i++) {
-    const x = ((i + 0.3 + rnd() * 0.5) / glows) * W; const r = 40 + rnd() * 90; const y = yHorizon - up * 4;
+    const x = ((i + 0.3 + rnd() * 0.5) / glows) * W; const r = 30 + rnd() * 60; const y = yHorizon - up * 3;
     const gg = ctx.createRadialGradient(x, y, 0, x, y, r);
-    const str = 0.35 + rnd() * 0.35;
-    gg.addColorStop(0, `rgba(255,130,45,${str})`); gg.addColorStop(0.35, `rgba(220,90,30,${str * 0.45})`); gg.addColorStop(1, 'rgba(120,40,20,0)');
+    const str = 0.16 + rnd() * 0.2;
+    gg.addColorStop(0, `rgba(255,150,60,${str})`); gg.addColorStop(0.35, `rgba(230,110,40,${str * 0.45})`); gg.addColorStop(1, 'rgba(120,50,20,0)');
     ctx.fillStyle = gg; ctx.fillRect(x - r, y - r, r * 2, r * 2);
     // plume
     const lean = (rnd() - 0.5) * 1.6; const len = 60 + rnd() * 70;

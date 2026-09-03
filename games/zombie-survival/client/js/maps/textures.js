@@ -110,8 +110,8 @@ function plaster(n, opts) {
     const streak = clamp01((fbm(u * 34, v * 2.2 + 5, 2) - 0.58) * 4) * Math.pow(v, 0.7) * stainAmt;
     // peeled plaster: soft mask, exposes brick underneath with a raised rim
     const peelN = fbm(u * 2.6 + 7, v * 2.6 + 1, 3) + (fbm(u * 18, v * 18, 2) - 0.5) * 0.12;
-    const peel = sstep(0.60, 0.64, peelN) * (opts.peel ?? stainAmt);
-    const rim = sstep(0.57, 0.60, peelN) * (1 - sstep(0.60, 0.63, peelN));
+    const peel = sstep(0.635, 0.665, peelN) * (opts.peel ?? stainAmt);
+    const rim = sstep(0.61, 0.635, peelN) * (1 - sstep(0.635, 0.66, peelN));
     let crack = 0;
     if (opts.cracks) { const big = fbm(u * 2 + 5, v * 2, 2) > 0.5 ? 1 : 0; crack = crackMask(u, v, 4, 0.004, 0, 0) * big; crack = Math.max(crack, crackMask(u, v, 9, 0.0025, 3, 8, 2) * big * 0.7); }
     const shade = 0.84 + nz * 0.2 + fine * 0.08;

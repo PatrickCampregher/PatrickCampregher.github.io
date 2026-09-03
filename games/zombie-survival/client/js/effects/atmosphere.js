@@ -11,7 +11,8 @@ const C4 = (r, g, b, a) => new (BABYLON.Color4)(r, g, b, a);
 
 // hard budgets at full density (particles alive)
 const BUDGET = { embers: 120, ash: 150, smokeColumn: 26, sparks: 48, haze: 10 };
-const CAM_CLEARANCE = 1.2;     // nothing spawns closer than this to the camera
+const CAM_CLEARANCE = 2.2;     // nothing spawns closer than this to the camera
+const CAM_KILL = 0.9;          // drifting particles that get this close to the lens are recycled
 const SPARK_RANGE = 70;        // sparks only fire within this distance of the camera
 
 export class Atmosphere {
@@ -75,6 +76,8 @@ export class Atmosphere {
     ps.minAngularSpeed = opts.spin ? -opts.spin : 0; ps.maxAngularSpeed = opts.spin || 0;
     ps.minInitialRotation = 0; ps.maxInitialRotation = Math.PI * 2;
     ps.updateSpeed = 1 / 60;
+    // size gradients are absolute sizes in Babylon; scale gives the per-particle variety
+    ps.minScaleX = opts.scale ? opts.scale[0] : 1; ps.maxScaleX = opts.scale ? opts.scale[1] : 1; ps.minScaleY = ps.minScaleX; ps.maxScaleY = ps.maxScaleX;
     if (opts.sizeGrad) for (const [k, v] of opts.sizeGrad) ps.addSizeGradient(k, v);
     if (opts.colorGrad) for (const [k, c] of opts.colorGrad) ps.addColorGradient(k, c);
     ps.isLocal = false;
@@ -89,11 +92,11 @@ export class Atmosphere {
     const wind = this.wind;
     this.embers = this._field('atm_embers', this.effects.tSoft, cap, {
       hx: 18, y0: -1.5, y1: 8, hz: 18, additive: true,
-      minSize: 0.028, maxSize: 0.06, minLife: 3.2, maxLife: 6.5, rate: cap / 4.4, preWarm: 120,
+      minSize: 0.012, maxSize: 0.028, minLife: 3.2, maxLife: 6.5, rate: cap / 4.4, preWarm: 120, scale: [0.7, 1.4],
       gravity: V3(0, 0.12, 0),
       dir: (out) => { out.x = wind.x + (Math.random() - 0.5) * 0.7; out.y = 0.25 + Math.random() * 0.55; out.z = wind.z + (Math.random() - 0.5) * 0.7; },
       c1: C4(1, 0.62, 0.22, 1), c2: C4(1, 0.42, 0.12, 1), cDead: C4(0.35, 0.06, 0, 0),
-      sizeGrad: [[0, 0.3], [0.15, 1], [0.8, 0.9], [1, 0.2]],
+      sizeGrad: [[0, 0.006], [0.15, 0.022], [0.8, 0.02], [1, 0.005]],
       colorGrad: [[0, C4(1, 0.75, 0.35, 0)], [0.1, C4(1, 0.6, 0.2, 1)], [0.6, C4(1, 0.35, 0.08, 0.9)], [1, C4(0.4, 0.05, 0, 0)]],
     });
     this.embers.metadata = { kind: 'embers' };
@@ -104,11 +107,11 @@ export class Atmosphere {
     const wind = this.wind;
     this.ash = this._field('atm_ash', this.tFlake, cap, {
       hx: 20, y0: 1, y1: 12, hz: 20,
-      minSize: 0.022, maxSize: 0.05, minLife: 6, maxLife: 10, rate: cap / 8, preWarm: 200, spin: 1.6,
+      minSize: 0.014, maxSize: 0.032, minLife: 6, maxLife: 10, rate: cap / 8, preWarm: 200, spin: 1.6, scale: [0.6, 1.5],
       dir: (out) => { out.x = wind.x * 0.5 + (Math.random() - 0.5) * 0.4; out.y = -(0.28 + Math.random() * 0.3); out.z = wind.z * 0.5 + (Math.random() - 0.5) * 0.4; },
-      c1: C4(0.6, 0.58, 0.56, 0.75), c2: C4(0.42, 0.4, 0.4, 0.7), cDead: C4(0.3, 0.3, 0.3, 0),
-      sizeGrad: [[0, 0.6], [0.2, 1], [1, 0.8]],
-      colorGrad: [[0, C4(0.55, 0.53, 0.5, 0)], [0.12, C4(0.55, 0.53, 0.5, 0.75)], [0.85, C4(0.4, 0.38, 0.36, 0.6)], [1, C4(0.3, 0.3, 0.3, 0)]],
+      c1: C4(0.3, 0.29, 0.28, 0.7), c2: C4(0.22, 0.21, 0.2, 0.65), cDead: C4(0.15, 0.15, 0.15, 0),
+      sizeGrad: [[0, 0.014], [0.2, 0.026], [1, 0.022]],
+      colorGrad: [[0, C4(0.3, 0.29, 0.27, 0)], [0.12, C4(0.3, 0.29, 0.27, 0.7)], [0.85, C4(0.2, 0.19, 0.18, 0.6)], [1, C4(0.15, 0.15, 0.15, 0)]],
     });
     this.ash.metadata = { kind: 'ash' };
   }
@@ -125,7 +128,8 @@ export class Atmosphere {
       ps.color1 = C4(0.075, 0.07, 0.065, 0.34); ps.color2 = C4(0.05, 0.045, 0.045, 0.28); ps.colorDead = C4(0.04, 0.04, 0.04, 0);
       ps.addColorGradient(0, C4(0.07, 0.065, 0.06, 0)); ps.addColorGradient(0.15, C4(0.07, 0.065, 0.06, 0.32)); ps.addColorGradient(0.7, C4(0.06, 0.06, 0.06, 0.2)); ps.addColorGradient(1, C4(0.05, 0.05, 0.05, 0));
       ps.minSize = 1.3 * f.size; ps.maxSize = 2.0 * f.size;
-      ps.addSizeGradient(0, 0.5); ps.addSizeGradient(0.5, 2.2); ps.addSizeGradient(1, 4.2);
+      ps.minScaleX = 0.8; ps.maxScaleX = 1.25; ps.minScaleY = 0.8; ps.maxScaleY = 1.25;
+      ps.addSizeGradient(0, 0.7 * f.size); ps.addSizeGradient(0.5, 2.6 * f.size); ps.addSizeGradient(1, 4.6 * f.size);
       ps.minLifeTime = 5.5; ps.maxLifeTime = 9;
       const rate = cap / 7.5;
       ps.emitRate = rate;
@@ -159,7 +163,8 @@ export class Atmosphere {
       ps.minEmitPower = 1.5; ps.maxEmitPower = 5.5;
       ps.color1 = C4(1, 0.95, 0.75, 1); ps.color2 = C4(1, 0.8, 0.45, 1); ps.colorDead = C4(1, 0.3, 0.05, 0);
       ps.addColorGradient(0, C4(1, 1, 0.9, 1)); ps.addColorGradient(0.4, C4(1, 0.75, 0.35, 1)); ps.addColorGradient(1, C4(0.9, 0.25, 0.05, 0));
-      ps.addSizeGradient(0, 1); ps.addSizeGradient(1, 0.35);
+      ps.minScaleX = 0.6; ps.maxScaleX = 1.4; ps.minScaleY = 0.6; ps.maxScaleY = 1.4;
+      ps.addSizeGradient(0, 0.04); ps.addSizeGradient(1, 0.014);
       ps.updateSpeed = 1 / 60;
       ps.preventAutoStart = true;
       ps.start();
@@ -200,10 +205,10 @@ export class Atmosphere {
     const wind = this.wind;
     this.haze = this._field('atm_haze', this.effects.tSmoke, cap, {
       hx: 26, y0: -0.4, y1: 1.6, hz: 26,
-      minSize: 5, maxSize: 9, minLife: 9, maxLife: 14, rate: cap / 11, preWarm: 240, spin: 0.08,
+      minSize: 5, maxSize: 9, minLife: 9, maxLife: 14, rate: cap / 11, preWarm: 240, spin: 0.08, scale: [0.8, 1.3],
       dir: (out) => { out.x = wind.x * 0.6 + (Math.random() - 0.5) * 0.3; out.y = 0.02; out.z = wind.z * 0.6 + (Math.random() - 0.5) * 0.3; },
       c1: C4(0.2, 0.19, 0.22, 0.05), c2: C4(0.16, 0.16, 0.2, 0.04), cDead: C4(0.15, 0.15, 0.18, 0),
-      sizeGrad: [[0, 0.7], [0.5, 1], [1, 1.3]],
+      sizeGrad: [[0, 5], [0.5, 8], [1, 12]],
       colorGrad: [[0, C4(0.2, 0.19, 0.22, 0)], [0.25, C4(0.2, 0.19, 0.22, 0.05)], [0.75, C4(0.18, 0.18, 0.21, 0.04)], [1, C4(0.15, 0.15, 0.18, 0)]],
     });
     // haze must stay well away from the camera: override the clearance for this field
@@ -226,6 +231,7 @@ export class Atmosphere {
     // the emitter field is centred a little ahead of the camera (where the player is looking)
     this.center.set(cp.x + this.fwd.x * 6, cp.y, cp.z + this.fwd.z * 6);
     // ember turbulence: cheap sinusoidal wobble on the particle velocities
+    const kill2 = CAM_KILL * CAM_KILL;
     if (this.embers) {
       const ps = this.embers.particles, t = this.time;
       for (let i = 0; i < ps.length; i++) {
@@ -233,6 +239,8 @@ export class Atmosphere {
         p.direction.x += Math.sin(t * 1.9 + ph) * 0.9 * dt;
         p.direction.z += Math.cos(t * 1.6 + ph * 1.3) * 0.9 * dt;
         p.direction.y += Math.sin(t * 2.6 + ph * 0.7) * 0.5 * dt;
+        const dx = p.position.x - cp.x, dy = p.position.y - cp.y, dz = p.position.z - cp.z;
+        if (dx * dx + dy * dy + dz * dz < kill2) p.age = p.lifeTime; // never a blob on the lens
       }
     }
     if (this.ash) {
@@ -241,6 +249,8 @@ export class Atmosphere {
         const p = ps[i]; const ph = p.id * 0.53;
         p.direction.x += Math.sin(t * 1.2 + ph) * 0.35 * dt;
         p.direction.z += Math.cos(t * 1.05 + ph) * 0.35 * dt;
+        const dx = p.position.x - cp.x, dy = p.position.y - cp.y, dz = p.position.z - cp.z;
+        if (dx * dx + dy * dy + dz * dz < kill2) p.age = p.lifeTime;
       }
     }
     // spark sources
