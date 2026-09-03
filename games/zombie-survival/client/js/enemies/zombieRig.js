@@ -228,6 +228,33 @@ export class Rig {
   die(kind) { this.deathT = 0; this.deathKind = kind; if (kind === 1) { this.headless = true; this.parts.head.isVisible = false; if (this.eyes) this.eyes.isVisible = false; } }
   get dead() { return this.deathT >= 0; }
 
+  // ---------------- verification helpers (hit volumes vs. the drawn skull) ----------------
+  /** Force the world matrices of the head's joint chain (needed when reading world-space data outside the render loop). */
+  _syncHead() {
+    this.root.computeWorldMatrix(true); this.body.computeWorldMatrix(true);
+    for (const n of ['pelvis', 'torso', 'neck', 'head']) this.joints[n].computeWorldMatrix(true);
+    return this.parts.head.computeWorldMatrix(true);
+  }
+  /** World-space centre of the visible head box. */
+  headWorldPos(out = new BABYLON.Vector3()) {
+    const wm = this._syncHead();
+    return BABYLON.Vector3.TransformCoordinatesToRef(new BABYLON.Vector3(0, -PART_DEFS[0].s[1] / 2, 0), wm, out);
+  }
+  /** World-space corners + AABB of the visible head box: { corners: [[x,y,z] x 8], min, max, center }. */
+  headBounds() {
+    const wm = this._syncHead();
+    const [w, h, d] = PART_DEFS[0].s;
+    const corners = [], min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < 8; i++) {
+      const p = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3((i & 1 ? 1 : -1) * w / 2, i & 2 ? 0 : -h, (i & 4 ? 1 : -1) * d / 2), wm);
+      corners.push([p.x, p.y, p.z]);
+      const v = [p.x, p.y, p.z];
+      for (let k = 0; k < 3; k++) { if (v[k] < min[k]) min[k] = v[k]; if (v[k] > max[k]) max[k] = v[k]; }
+    }
+    const c = this.headWorldPos();
+    return { corners, min, max, center: [c.x, c.y, c.z] };
+  }
+
   // ---------------- animation ----------------
   /** Call every frame. dt seconds; moved = distance moved since last frame (for stride); state/aux from network. */
   update(dt, moved, state, aux, limp, extra = {}) {

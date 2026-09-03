@@ -1,11 +1,11 @@
 // Remote entities: zombies, other players, powerups, projectiles - snapshot buffering + interpolation,
 // rig animation, hit reactions, positional sounds, name labels.
 /* global BABYLON */
-import { ZSTATE, ZOMBIE_TYPES, ZOMBIE_HEAD_Y, ZOMBIE_HEAD_R, ZOMBIE_BODY_Y0, ZOMBIE_BODY_Y1, ZOMBIE_BODY_R, ZOMBIE_LEGS_Y0, ZOMBIE_LEGS_Y1, ZOMBIE_LEGS_R, ZOMBIE_RADIUS } from '/shared/zombies.js';
+import { ZSTATE, ZOMBIE_TYPES, ZOMBIE_RADIUS, zombieHitVolumes, rayZombie, zombieHeadWorld } from '/shared/zombies.js';
 import { PSTATE, POWERUP_TYPES, POWERUP_INFO } from '/shared/constants.js';
 import { IN } from '/shared/protocol.js';
 import { WEAPON_LIST } from '/shared/weapons.js';
-import { raySphere, rayVCylinder, angleLerp } from '/shared/collision.js';
+import { angleLerp } from '/shared/collision.js';
 import { RigFactory } from '../enemies/zombieRig.js';
 import { cloneWeaponModel } from '../weapons/weaponModels.js';
 import { buildPowerupMesh } from '../maps/props.js';
@@ -56,7 +56,7 @@ export class Entities {
       }
       e.seenT = t;
       const b = e.buf;
-      b.push({ t, x: z.x, y: z.y, z: z.z, yaw: z.yaw, state: z.state, aux: z.aux & 127, limp: !!(z.aux & 128), hp: z.hp });
+      b.push({ t, x: z.x, y: z.y, z: z.z, yaw: z.yaw, state: z.state, aux: (z.aux & 127) * 255 / 127, limp: !!(z.aux & 128), hp: z.hp }); // aux: 7-bit progress -> 0..255
       if (b.length > BUF) b.shift();
     }
     for (const [id, e] of this.zombies) if (!seenZ.has(id) && !e.dead && t - e.seenT > 600) this._removeZombie(e);
@@ -249,10 +249,12 @@ export class Entities {
   onHit(m) {
     const e = this.zombies.get(m.z);
     const x = m.x, y = m.y, z = m.z2;
+    const hash = this.g.world.hash;
+    this.lastHit = m; // dev/verification hook: last server hit verdict
     if (e && !e.dead) {
       e.rig.flash();
       e.rig.hitReact(m.part);
-      if (m.p !== this.g.myId) this.g.effects.blood(x, y, z, null, m.dmg > 100, m.part === 1);
+      if (m.p !== this.g.myId) this.g.effects.blood(x, y, z, this._shotDir(m.p, x, y, z), m.dmg > 100, m.part === 1, { hash });
       if (!m.k) audio.play('zhurt', { pos: [e.x, e.y + 1.5, e.z], vol: 0.5, ref: 3, pitch: 0.9 + Math.random() * 0.3 });
     }
     if (m.k) {
@@ -260,8 +262,8 @@ export class Entities {
         e.dead = true;
         e.rig.die(m.blast ? 2 : m.part === 1 ? 1 : 0);
         audio.play('zdeath', { pos: [e.x, e.y + 1.2, e.z], vol: 0.8, ref: 3, pitch: 0.9 + Math.random() * 0.25 });
-        this.g.effects.bloodOnFloor(e.x, e.y + 0.02, e.z, 1.2 + Math.random() * 0.6);
-        if (m.part === 1) this.g.effects.blood(e.x, e.y + 1.6, e.z, V3(0, 1, 0), true, true);
+        this.g.effects.bloodOnFloor(e.x, e.y, e.z, 1.2 + Math.random() * 0.6, hash);
+        if (m.part === 1) { const h = this.headCenter(e, _head); this.g.effects.blood(h.x, h.y, h.z, V3(0, 1, 0), true, true, { hash }); }
       }
     }
     if (m.p === this.g.myId) {
@@ -269,6 +271,15 @@ export class Entities {
       if (m.k) audio.play(m.part === 1 ? 'headshot' : 'kill', { vol: 0.6 });
       else audio.play('hit', { vol: 0.45 });
     }
+  }
+
+  /** Direction a remote player's bullet travelled to reach the hit point (null when the shooter is unknown). */
+  _shotDir(pid, x, y, z) {
+    const p = this.players.get(pid);
+    if (!p) return null;
+    const d = V3(x - p.x, y - (p.y + 1.6), z - p.z);
+    const l = d.length();
+    return l < 0.05 ? null : d.scaleInPlace(1 / l);
   }
 
   onRemoteShot(m) {
@@ -306,27 +317,27 @@ export class Entities {
     }
   }
 
-  /** Client-side zombie raycast for predicted impact visuals. */
+  /** Client-side zombie raycast for predicted impact visuals (same shared hit volumes as the server). */
   raycastZombies(ox, oy, oz, dx, dy, dz, maxDist) {
-    let best = null, bestT = maxDist;
+    let best = null, bestT = maxDist, bestPart = 0;
     for (const e of this.zombies.values()) {
       if (e.dead) continue;
-      const s = e.type.scale;
       const cx = e.x, cy = e.y, cz = e.z;
-      const lx = cx - ox, ly = cy + 0.9 - oy, lz = cz - oz;
+      const lx = cx - ox, ly = cy + 0.95 - oy, lz = cz - oz;
       const tca = lx * dx + ly * dy + lz * dz;
-      if (tca < -1 || tca > bestT + 1.2) continue;
-      if (lx * lx + ly * ly + lz * lz - tca * tca > 1.4 * 1.4) continue;
-      let t = raySphere(ox, oy, oz, dx, dy, dz, cx, cy + ZOMBIE_HEAD_Y * s, cz, ZOMBIE_HEAD_R * s * 1.15), part = 1;
-      const tb = rayVCylinder(ox, oy, oz, dx, dy, dz, cx, cz, ZOMBIE_BODY_R * s, cy + ZOMBIE_BODY_Y0 * s, cy + ZOMBIE_BODY_Y1 * s);
-      if (tb >= 0 && (t < 0 || tb < t)) { t = tb; part = 0; }
-      const tl = rayVCylinder(ox, oy, oz, dx, dy, dz, cx, cz, ZOMBIE_LEGS_R * s, cy + ZOMBIE_LEGS_Y0 * s, cy + ZOMBIE_LEGS_Y1 * s);
-      if (tl >= 0 && (t < 0 || tl < t)) { t = tl; part = 2; }
-      if (t >= 0 && t < bestT) { bestT = t; best = e; }
-      if (best === e) best._part = part;
+      if (tca < -1.5 || tca > bestT + 1.5) continue;
+      if (lx * lx + ly * ly + lz * lz - tca * tca > 1.6 * 1.6) continue;
+      const t = rayZombie(this.hitVolumes(e, _vol), cx, cy, cz, e.yaw, ox, oy, oz, dx, dy, dz, bestT, _hit);
+      if (t >= 0 && t < bestT) { bestT = t; best = e; bestPart = _hit.part; }
     }
-    return best ? { e: best, t: bestT, part: best._part } : null;
+    return best ? { e: best, t: bestT, part: bestPart } : null;
   }
+
+  /** Pose-dependent hit volumes of a zombie entity as currently rendered (rig state / progress / smoothed speed). */
+  hitVolumes(e, out = {}) { const r = e.rig; return zombieHitVolumes(e.type.scale, r.state, r.aux, r.speed, r.limp, out); }
+
+  /** World-space centre {x,y,z,r} of a zombie's head sphere (dev tools / verification). */
+  headCenter(e, out = {}) { return zombieHeadWorld(this.hitVolumes(e, _vol), e.x, e.y, e.z, e.yaw, out); }
 
   nearestZombieDist(x, z) {
     let d = Infinity;
@@ -342,3 +353,4 @@ export class Entities {
 }
 
 const _smp = {};
+const _vol = {}, _hit = { part: 0 }, _head = {};
