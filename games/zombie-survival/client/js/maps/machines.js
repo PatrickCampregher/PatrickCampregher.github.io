@@ -563,10 +563,10 @@ class PapMachine {
       const ps = new (B().ParticleSystem)('pap_steam', 60, scene);
       ps.particleTexture = M.effects.tSmoke; const wp = toWorld(this.m, sx * 1.0, 2.25, -0.05); ps.emitter = V3(wp[0], wp[1], wp[2]);
       ps.minEmitBox = V3(-0.15, 0, -0.15); ps.maxEmitBox = V3(0.15, 0.1, 0.15);
-      ps.color1 = new (B().Color4)(0.8, 0.78, 0.86, 0.22); ps.color2 = new (B().Color4)(0.66, 0.62, 0.74, 0.16); ps.colorDead = new (B().Color4)(0.5, 0.5, 0.55, 0);
-      ps.minSize = 0.18; ps.maxSize = 0.36; ps.minLifeTime = 0.7; ps.maxLifeTime = 1.4; ps.emitRate = 0;
+      ps.color1 = new (B().Color4)(0.72, 0.7, 0.8, 0.14); ps.color2 = new (B().Color4)(0.6, 0.56, 0.68, 0.1); ps.colorDead = new (B().Color4)(0.5, 0.5, 0.55, 0);
+      ps.minSize = 0.14; ps.maxSize = 0.26; ps.minLifeTime = 0.7; ps.maxLifeTime = 1.3; ps.emitRate = 0;
       ps.direction1 = V3(-0.3, 1.2, -0.3); ps.direction2 = V3(0.3, 2.2, 0.3); ps.minEmitPower = 0.5; ps.maxEmitPower = 1.2; ps.gravity = V3(0, 0.6, 0);
-      ps.addSizeGradient(0, 0.5); ps.addSizeGradient(1, 1.7); ps.updateSpeed = 0.014; ps.preventAutoStart = true; ps.start();
+      ps.addSizeGradient(0, 0.5); ps.addSizeGradient(1, 1.5); ps.updateSpeed = 0.014; ps.preventAutoStart = true; ps.start();
       this.steam.push(ps);
     }
     // light
@@ -602,7 +602,7 @@ class PapMachine {
     if (!id || !WEAPONS[id] || !this.M.game.weaponCache) { this.aura.setEnabled(false); return; }
     const model = cloneWeaponModel(this.M.game.weaponCache.get(id), 'pap_w');
     model.root.parent = this.tray;
-    model.root.position.set(model.length * 0.42, 0.085, 0.0); model.root.rotation.set(0, -Math.PI / 2, 0);
+    model.root.position.set(model.length * 0.42, 0.1, 0.0); model.root.rotation.set(0, -Math.PI / 2, 0.35); // lying on the tray, tilted toward the viewer
     for (const m of model.meshes) { m.isPickable = false; m.receiveShadows = false; this.light.includedOnlyMeshes.push(m); }
     this.trayModel = model; this.trayModelId = id;
     this.aura.setEnabled(!!upgraded);
@@ -686,7 +686,7 @@ class PapMachine {
     this.light.intensity = this.lightBase * (0.8 + pulse * 0.4) + (processing ? 3.5 + Math.random() * 1.5 : 0) + this.flash * 12;
     const sk = 0.9 + 0.1 * Math.sin(t * 40) + this.flash * 0.6 + (processing ? 0.25 * pulse : 0);
     this.signMat.emissiveColor.set(sk, sk, sk);
-    this.auraMat.alpha = 0.12 + pulse * 0.16;
+    this.auraMat.alpha = 0.07 + pulse * 0.09;
     this.flash = Math.max(0, this.flash - dt * 1.8);
     // tray slide
     this.trayZ += (this.trayTarget - this.trayZ) * Math.min(1, dt * 3.2);
@@ -709,7 +709,7 @@ class PapMachine {
       if (this.sparkT <= 0) { this.sparkT = 0.18 + Math.random() * 0.2; const sp = this.sparkPos[Math.floor(Math.random() * this.sparkPos.length)]; M.effects._burst(M.effects.sparks, sp[0], sp[1], sp[2], 12, V3((Math.random() - 0.5), 0.8, 0.6), 0.9); }
       this.shakeT -= dt;
       if (this.shakeT <= 0) { this.shakeT = 0.35; M.shake(0.014, this.m.x, this.m.z, 14); }
-      for (const ps of this.steam) ps.emitRate = Math.round(26 * (M.quality >= 2 ? 1 : 0.5));
+      for (const ps of this.steam) ps.emitRate = Math.round(16 * (M.quality >= 2 ? 1 : 0.5));
       if (this.user === M.game.myId && M.game.hud) M.game.hud.setPap('processing', clamp01(this.st / this.dur), WEAPONS[this.trayModelId] ? WEAPONS[this.trayModelId].name : '');
     } else {
       for (const ps of this.steam) ps.emitRate = ready ? 5 : 0;

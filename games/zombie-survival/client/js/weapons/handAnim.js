@@ -155,7 +155,7 @@ function labelCanvas(id) {
   const p = PERKS[id];
   const c = document.createElement('canvas'); c.width = 256; c.height = 64;
   const ctx = c.getContext('2d');
-  ctx.translate(0, 64); ctx.scale(1, -1); // mesh texture: pre-flipped (see machines.js canvas())
+  ctx.translate(256, 64); ctx.scale(-1, -1); // mesh texture: pre-flipped (see machines.js canvas()) + mirrored for the cylinder wrap
   ctx.fillStyle = p.accent; ctx.fillRect(0, 0, 256, 64);
   ctx.fillStyle = p.color; ctx.fillRect(0, 6, 256, 52);
   ctx.drawImage(perkIconCanvas(id, 48), 104, 8);
