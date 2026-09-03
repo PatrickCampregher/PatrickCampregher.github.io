@@ -3,7 +3,7 @@
 /* global BABYLON */
 import { WEAPONS } from '/shared/weapons.js';
 import { buildVehicle, buildStreetlight, buildSmallProp, buildMysteryBoxMesh, buildBearMesh, buildBoardBase } from './props.js';
-import { chalkWeaponCanvas } from './textures.js';
+import { chalkWeaponCanvas, signCanvas, clockCanvas } from './textures.js';
 
 const B = () => BABYLON;
 const V3 = (x, y, z) => new (BABYLON.Vector3)(x, y, z);
@@ -56,7 +56,7 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
 
   // ---------------- static boxes ----------------
   for (const b of world.boxes) {
-    if (b.invisible || b.door) continue;
+    if (b.invisible || b.door || b.rail) continue; // rails are drawn as posts + bars below
     if (b.kind === 'car' || b.kind === 'van' || b.kind === 'bus' || b.kind === 'streetlight' || b.kind === 'pole' || b.kind === 'barrel' || b.kind === 'hydrant' || b.kind === 'mailbox' || b.kind === 'debris' || b.kind === 'post') continue; // props built separately
     if (b.kind === 'outer' || b.kind === 'machine') continue; // machines are built by machines.js
     const mat = b.mat || 'concrete';
@@ -64,7 +64,14 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
     const m = boxMeshFor(scene, b, set.scale);
     if (mat === 'glass') { m.material = mats.get('glass'); m.isPickable = false; staticMeshes.push(m); m.freezeWorldMatrix(); continue; }
     if (mat === 'fence' || b.fence) { addToGroup('fence', m, b.cx, b.cz, false); continue; }
-    addToGroup(mat, m, b.cx, b.cz, b.kind !== 'floor');
+    addToGroup(mat, m, b.cx, b.cz, b.kind !== 'floor' || !!b.upper);
+  }
+  // decorative boxes without collision (cornices, canopies, curtains, ledges ...)
+  for (const d of MAP.decor || []) {
+    const set = textures.get(d.mat);
+    const m = boxMesh(scene, d.w, d.h, d.d, set.scale);
+    m.position.set(d.x, d.y + d.h / 2, d.z); m.rotation.y = d.yaw || 0;
+    addToGroup(d.mat, m, d.x, d.z, true);
   }
 
   // ---------------- grounds ----------------
@@ -77,19 +84,107 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
     m.position.set((g.x0 + g.x1) / 2, g.base ? -0.02 : 0.0, (g.z0 + g.z1) / 2);
     addToGroup(g.mat, m, (g.x0 + g.x1) / 2, (g.z0 + g.z1) / 2, false);
   }
-  // road markings
+  // road markings (data-driven: MAP.markings = { lanes, edges, crosswalks, bays })
   {
     const yellow = mats.solid('paint_yellow', '#b89a3a', { rough: 0.85 });
     const white = mats.solid('paint_white', '#c9c9c0', { rough: 0.85 });
+    const MK = MAP.markings || { lanes: [], edges: [], crosswalks: [], bays: [] };
+    const strip = (list, cx, cz, w, d) => { const m = B().MeshBuilder.CreateBox('mk', { width: w, height: 0.012, depth: d }, scene); m.position.set(cx, 0.006, cz); list.push(m); };
     const marks = [];
-    for (let x = -22; x < 22; x += 4) { const m = B().MeshBuilder.CreateBox('mk', { width: 2.2, height: 0.012, depth: 0.14 }, scene); m.position.set(x + 1.1, 0.006, 0.12); marks.push(m); const m2 = m.clone('mk2'); m2.position.z = -0.12; marks.push(m2); }
-    const ym = B().Mesh.MergeMeshes(marks, true, true, undefined, false, false); ym.material = yellow; ym.isPickable = false; ym.receiveShadows = true; staticMeshes.push(ym); ym.freezeWorldMatrix();
+    for (const l of MK.lanes || []) { // double dashed centre line
+      for (let s = l.from; s < l.to - 1.5; s += 4) {
+        if (l.axis === 'x') { strip(marks, s + 1.1, l.at + 0.12, 2.2, 0.14); strip(marks, s + 1.1, l.at - 0.12, 2.2, 0.14); }
+        else { strip(marks, l.at + 0.12, s + 1.1, 0.14, 2.2); strip(marks, l.at - 0.12, s + 1.1, 0.14, 2.2); }
+      }
+    }
+    if (marks.length) { const ym = B().Mesh.MergeMeshes(marks, true, true, undefined, false, false); ym.material = yellow; ym.isPickable = false; ym.receiveShadows = true; staticMeshes.push(ym); ym.freezeWorldMatrix(); }
     const wm = [];
-    for (const z of [4.3, -4.3]) { const m = B().MeshBuilder.CreateBox('mw', { width: 47, height: 0.012, depth: 0.14 }, scene); m.position.set(0, 0.006, z); wm.push(m); }
-    for (let i = 0; i < 7; i++) { const m = B().MeshBuilder.CreateBox('cw', { width: 0.6, height: 0.012, depth: 8 }, scene); m.position.set(-2.4 + i * 0.8 - 20, 0.006, 0); wm.push(m); }
-    for (let i = 0; i < 6; i++) { const m = B().MeshBuilder.CreateBox('pl', { width: 0.12, height: 0.012, depth: 5 }, scene); m.position.set(27 + i * 2.6, 0.006, 15); wm.push(m); const m2 = m.clone('pl2'); m2.position.z = -11; wm.push(m2); }
-    const wmm = B().Mesh.MergeMeshes(wm, true, true, undefined, false, false); wmm.material = white; wmm.isPickable = false; wmm.receiveShadows = true; staticMeshes.push(wmm); wmm.freezeWorldMatrix();
+    for (const e of MK.edges || []) { if (e.axis === 'x') strip(wm, (e.from + e.to) / 2, e.at, e.to - e.from, 0.14); else strip(wm, e.at, (e.from + e.to) / 2, 0.14, e.to - e.from); }
+    for (const c of MK.crosswalks || []) { // 7 stripes across the road, stripes run along the walking direction
+      for (let i = 0; i < 7; i++) { const off = (i - 3) * 0.8; if (c.dir === 'x') strip(wm, c.x + off, c.z, 0.5, 8); else strip(wm, c.x, c.z + off, 8, 0.5); }
+    }
+    for (const b of MK.bays || []) { const n = b.count; for (let i = 0; i <= n; i++) strip(wm, b.x0 + (b.x1 - b.x0) * i / n, b.z, 0.12, 5); }
+    if (wm.length) { const wmm = B().Mesh.MergeMeshes(wm, true, true, undefined, false, false); wmm.material = white; wmm.isPickable = false; wmm.receiveShadows = true; staticMeshes.push(wmm); wmm.freezeWorldMatrix(); }
   }
+
+  // ---------------- railings (posts + two bars; the thin collision box stays invisible) ----------------
+  {
+    const railMat = 'metal_dark';
+    const add = (w, h, d, x, y, z) => { const m = boxMesh(scene, w, h, d, 1); m.position.set(x, y, z); addToGroup(railMat, m, x, z, false); };
+    for (const b of world.visuals.rails) {
+      const alongX = b.w > b.d;
+      const len = alongX ? b.w : b.d, h = b.h;
+      const n = Math.max(2, Math.ceil(len / 1.3) + 1);
+      for (let i = 0; i < n; i++) {
+        const t = -len / 2 + 0.03 + (len - 0.06) * (i / (n - 1));
+        add(0.06, h, 0.06, alongX ? b.cx + t : b.cx, b.y0 + h / 2, alongX ? b.cz : b.cz + t);
+      }
+      for (const yy of [b.y0 + h - 0.03, b.y0 + h * 0.5]) add(alongX ? len : 0.05, 0.05, alongX ? 0.05 : len, b.cx, yy, b.cz);
+    }
+  }
+  // ---------------- stairs: stringers + handrails (visual only) ----------------
+  for (const st of world.visuals.stairs) {
+    const s = st.def;
+    if (s.rails === 'none' && !s.metal) continue;
+    const rise = s.y1 - s.y0, L = Math.hypot(s.len, rise);
+    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), rx = Math.cos(s.yaw), rz = -Math.sin(s.yaw); // forward, right (local +x)
+    const mat = s.metal ? 'metal_dark' : (s.mat === 'marble' ? 'metal_dark' : 'wood_dark');
+    const sloped = (w, h, x0, y0, z0, x1, y1, z1) => { // box of length |p1-p0| along local z, oriented with lookAt
+      const m = boxMesh(scene, w, h, Math.hypot(x1 - x0, y1 - y0, z1 - z0), 1);
+      m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); m.lookAt(V3(x1, y1, z1));
+      addToGroup(mat, m, m.position.x, m.position.z, true);
+    };
+    const sides = s.rails === 'both' ? [-1, 1] : s.rails === 'w' ? [-1] : s.rails === 'e' ? [1] : [];
+    for (const side of (s.metal ? [-1, 1] : sides)) { // stringers (metal stairs always get both)
+      const ox = rx * side * (s.w / 2 + 0.04), oz = rz * side * (s.w / 2 + 0.04);
+      sloped(0.08, 0.34, s.x + ox, s.y0 + 0.05, s.z + oz, s.x + ox + fx * s.len, s.y1 + 0.05, s.z + oz + fz * s.len);
+    }
+    for (const side of sides) { // handrail posts + sloped bar 1 m above the steps
+      const ox = rx * side * (s.w / 2 + 0.06), oz = rz * side * (s.w / 2 + 0.06);
+      const n = Math.max(2, Math.round(s.len / 1.2) + 1);
+      for (let i = 0; i < n; i++) {
+        const a = 0.25 + (s.len - 0.5) * i / (n - 1), y = s.y0 + rise * a / s.len;
+        const m = boxMesh(scene, 0.06, 1.0, 0.06, 1); m.position.set(s.x + ox + fx * a, y + 0.5, s.z + oz + fz * a); addToGroup(mat, m, m.position.x, m.position.z, false);
+      }
+      sloped(0.06, 0.06, s.x + ox + fx * 0.25, s.y0 + rise * 0.25 / s.len + 1.0, s.z + oz + fz * 0.25, s.x + ox + fx * (s.len - 0.25), s.y1 - rise * 0.25 / s.len + 1.0, s.z + oz + fz * (s.len - 0.25));
+    }
+    void L;
+  }
+  // ---------------- door frames (jambs + head, inside the opening, 3 cm proud of the wall faces) ----------------
+  for (const df of world.visuals.doorFrames) {
+    const alongX = Math.abs(df.yaw) < 0.01;
+    const mat = df.mat === 'metal_panel' ? 'metal_dark' : 'wood_dark';
+    const t = df.t + 0.06;
+    const mk = (w, h, d, x, y, z) => { const m = boxMesh(scene, w, h, d, 1.5); m.position.set(x, y, z); addToGroup(mat, m, x, z, true); };
+    if (alongX) { mk(0.1, df.h, t, df.x - df.w / 2 + 0.05, df.y + df.h / 2, df.z); mk(0.1, df.h, t, df.x + df.w / 2 - 0.05, df.y + df.h / 2, df.z); mk(df.w, 0.1, t, df.x, df.y + df.h - 0.05, df.z); }
+    else { mk(t, df.h, 0.1, df.x, df.y + df.h / 2, df.z - df.w / 2 + 0.05); mk(t, df.h, 0.1, df.x, df.y + df.h / 2, df.z + df.w / 2 - 0.05); mk(t, 0.1, df.w, df.x, df.y + df.h - 0.05, df.z); }
+  }
+  // ---------------- window frames (inside the opening: no face shares a plane with the wall) ----------------
+  for (const wf of world.visuals.windowFrames) {
+    const alongX = Math.abs(wf.yaw) < 0.01;
+    const mat = wf.glass ? 'metal_dark' : 'wood_dark';
+    const t = wf.t + 0.06, jw = wf.glass ? 0.06 : 0.08;
+    const mk = (w, h, d, x, y, z) => { const m = boxMesh(scene, w, h, d, 1.5); m.position.set(x, y, z); addToGroup(mat, m, x, z, true); };
+    const jambs = (x, z, off) => { if (alongX) mk(jw, wf.h, t, x + off, wf.y + wf.h / 2, z); else mk(t, wf.h, jw, x, wf.y + wf.h / 2, z + off); };
+    jambs(wf.x, wf.z, -wf.w / 2 + jw / 2); jambs(wf.x, wf.z, wf.w / 2 - jw / 2);
+    if (alongX) { mk(wf.w + 0.16, 0.06, t + 0.1, wf.x, wf.y + 0.03, wf.z); mk(wf.w, 0.06, t, wf.x, wf.y + wf.h - 0.03, wf.z); }
+    else { mk(t + 0.1, 0.06, wf.w + 0.16, wf.x, wf.y + 0.03, wf.z); mk(t, 0.06, wf.w, wf.x, wf.y + wf.h - 0.03, wf.z); }
+    if (wf.glass) { if (alongX) mk(0.05, wf.h, t - 0.02, wf.x, wf.y + wf.h / 2, wf.z); else mk(t - 0.02, wf.h, 0.05, wf.x, wf.y + wf.h / 2, wf.z); }
+  }
+  // ---------------- signs (canvas text planes + backing + coloured light) ----------------
+  const signLights = [];
+  (MAP.signs || []).forEach((sg, i) => {
+    const nx = Math.sin(sg.yaw), nz = Math.cos(sg.yaw);
+    const tex = textures.fromCanvas('sign_' + i, signCanvas(sg.text, sg.color, sg), { clamp: true });
+    const mat = mats.decal('sign_' + i, tex, { emissive: sg.painted ? '#6a6a66' : '#ffffff', unlit: !sg.painted });
+    mat.backFaceCulling = true; mat.zOffset = 0;
+    const plane = B().MeshBuilder.CreatePlane('sign_' + i, { width: sg.w, height: sg.h }, scene);
+    plane.material = mat; plane.isPickable = false;
+    plane.position.set(sg.x + nx * 0.16, sg.y, sg.z + nz * 0.16); plane.rotation.y = sg.yaw; plane.freezeWorldMatrix(); staticMeshes.push(plane);
+    const back = boxMesh(scene, sg.w + 0.24, sg.h + 0.24, 0.12, 1);
+    back.position.set(sg.x + nx * 0.08, sg.y, sg.z + nz * 0.08); back.rotation.y = sg.yaw; addToGroup(sg.painted ? 'wood_dark' : 'metal_dark', back, back.position.x, back.position.z, true);
+    if (!sg.painted) signLights.push(lighting.addPointLight('sign_' + i, [sg.x + nx * 0.9, sg.y - 0.3, sg.z + nz * 0.9], sg.color, sg.bulbs ? 2.2 : 1.7, sg.bulbs ? 12 : 9, !!sg.neon && !sg.bulbs));
+  });
 
   // ---------------- merge groups ----------------
   for (const [key, g] of groups) {
@@ -173,15 +268,6 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
   const boardBase = buildBoardBase(scene, mats);
   shadowCasters.push(boardBase);
   const boards = new Map();
-  for (const wf of world.visuals.windowFrames) {
-    if (wf.glass) continue;
-    const frameMat = mats.get('wood_dark');
-    const alongX = Math.abs(wf.yaw) < 0.01;
-    const mk = (w, h, d, x, y, z) => { const m = boxMesh(scene, w, h, d, 1.5); m.position.set(x, y, z); m.material = frameMat; m.isPickable = false; m.receiveShadows = true; m.freezeWorldMatrix(); staticMeshes.push(m); shadowCasters.push(m); return m; };
-    const t = wf.t + 0.06;
-    if (alongX) { mk(wf.w + 0.16, 0.08, t, wf.x, wf.y - 0.04, wf.z); mk(wf.w + 0.16, 0.08, t, wf.x, wf.y + wf.h + 0.04, wf.z); mk(0.08, wf.h, t, wf.x - wf.w / 2 - 0.04, wf.y + wf.h / 2, wf.z); mk(0.08, wf.h, t, wf.x + wf.w / 2 + 0.04, wf.y + wf.h / 2, wf.z); }
-    else { mk(t, 0.08, wf.w + 0.16, wf.x, wf.y - 0.04, wf.z); mk(t, 0.08, wf.w + 0.16, wf.x, wf.y + wf.h + 0.04, wf.z); mk(t, wf.h, 0.08, wf.x, wf.y + wf.h / 2, wf.z - wf.w / 2 - 0.04); mk(t, wf.h, 0.08, wf.x, wf.y + wf.h / 2, wf.z + wf.w / 2 + 0.04); }
-  }
   for (const id in world.entries) {
     const e = world.entries[id];
     if (e.type === 'window' && e.gap) {
@@ -203,6 +289,18 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
       }
       boards.set(id, { planks, entry: e });
       interactables.push({ kind: 'board', id, x: e.inside[0], y: e.inside[1] + 1, z: e.inside[2], entry: e, range: 2.6 });
+    } else if (e.type === 'manhole' && e.def.drop) {
+      // collapsed ceiling: ragged dark hole under the slab, hanging planks and a rubble heap on the floor
+      const hole = B().MeshBuilder.CreateCylinder('chole', { diameter: 1.4, height: 0.04, tessellation: 9 }, scene);
+      hole.position.set(e.inside[0], e.outside[1] + 0.02, e.inside[2]); hole.material = mats.solid('owin_dark', '#0a0c10', { rough: 0.2, metal: 0.4 }); hole.isPickable = false; hole.freezeWorldMatrix(); staticMeshes.push(hole);
+      const bits = [];
+      let seed = e.inside[0] * 11 + e.inside[2] * 3;
+      const r = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+      for (let i = 0; i < 3; i++) { const m = B().MeshBuilder.CreateBox('plank', { width: 0.16, height: 1.0 + r() * 0.6, depth: 0.04 }, scene); m.position.set(e.inside[0] + (r() - 0.5) * 0.9, e.outside[1] - 0.45, e.inside[2] + (r() - 0.5) * 0.9); m.rotation.set((r() - 0.5) * 0.6, r() * 3, (r() - 0.5) * 0.5); bits.push(m); }
+      const planks = B().Mesh.MergeMeshes(bits, true, true, undefined, false, false); planks.material = mats.get('boards'); planks.isPickable = false; planks.freezeWorldMatrix(); staticMeshes.push(planks); shadowCasters.push(planks);
+      const heap = [];
+      for (let i = 0; i < 5; i++) { const m = B().MeshBuilder.CreateBox('rb', { width: 0.3 + r() * 0.5, height: 0.12 + r() * 0.2, depth: 0.3 + r() * 0.5 }, scene); m.position.set(e.inside[0] + (r() - 0.5) * 1.2, e.inside[1] + 0.08 + r() * 0.1, e.inside[2] + (r() - 0.5) * 1.2); m.rotation.set(r() * 0.4, r() * 3, r() * 0.4); heap.push(m); }
+      const hm = B().Mesh.MergeMeshes(heap, true, true, undefined, false, false); hm.material = mats.get('rubble'); hm.isPickable = false; hm.receiveShadows = true; hm.freezeWorldMatrix(); staticMeshes.push(hm);
     } else if (e.type === 'manhole') {
       const cover = B().MeshBuilder.CreateCylinder('manhole', { diameter: 0.95, height: 0.04, tessellation: 20 }, scene);
       cover.position.set(e.inside[0], e.inside[1] + 0.02, e.inside[2]); cover.material = mats.get('metal_dark'); cover.isPickable = false; cover.receiveShadows = true; cover.freezeWorldMatrix(); staticMeshes.push(cover);
@@ -283,6 +381,22 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
         }
       }
       if (o.burning) effects.fire(o.x + (Math.random() - 0.5) * o.w * 0.5, o.h * 0.75, o.z + (Math.random() - 0.5) * o.d * 0.5, 2.4);
+      if (o.tower) { // church / clock tower: spire + clock face toward the map centre
+        const spire = B().MeshBuilder.CreateCylinder('spire', { diameterTop: 0, diameterBottom: o.w * 0.95, height: o.w * 1.5, tessellation: 4 }, scene);
+        spire.position.set(o.x, o.h + o.w * 0.75, o.z); spire.rotation.y = Math.PI / 4; spire.material = mats.get('roof_tar'); spire.isPickable = false; spire.freezeWorldMatrix(); staticMeshes.push(spire);
+        const ctex = textures.fromCanvas('clock', clockCanvas(256), { clamp: true });
+        const cm = mats.decal('clock', ctex, { emissive: '#b0a890' }); cm.backFaceCulling = true; cm.zOffset = 0;
+        const face = B().MeshBuilder.CreatePlane('clock', { size: o.w * 0.55 }, scene);
+        const sz = o.z > 0 ? -1 : 1;
+        face.position.set(o.x, o.h - o.w * 0.45, o.z + sz * (o.d / 2 + 0.03)); face.rotation.y = sz > 0 ? Math.PI : 0; face.material = cm; face.isPickable = false; face.freezeWorldMatrix(); staticMeshes.push(face);
+        lighting.addPointLight('clock', [o.x, o.h - o.w * 0.45, o.z + sz * (o.d / 2 + 1.2)], '#c8b890', 1.2, 10, false);
+      }
+      if (o.tank) { // water tower: tank on legs
+        const tank = B().MeshBuilder.CreateCylinder('tank', { diameter: o.w * 1.6, height: o.w * 1.1, tessellation: 14 }, scene);
+        tank.position.set(o.x, o.h + o.w * 0.55, o.z); tank.material = mats.get('metal_rust'); tank.isPickable = false; tank.freezeWorldMatrix(); staticMeshes.push(tank);
+        const cap = B().MeshBuilder.CreateCylinder('tankcap', { diameterTop: 0.3, diameterBottom: o.w * 1.7, height: o.w * 0.5, tessellation: 14 }, scene);
+        cap.position.set(o.x, o.h + o.w * 1.35, o.z); cap.material = mats.get('metal_dark'); cap.isPickable = false; cap.freezeWorldMatrix(); staticMeshes.push(cap);
+      }
     }
     // wires between poles (thin dark lines)
     const poles = MAP.props.filter(p => p.type === 'pole');
@@ -301,5 +415,5 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
   if (lighting.shadow) for (const m of shadowCasters) lighting.shadow.addShadowCaster(m, false);
   for (const m of staticMeshes) lighting.assignLights(m, 5);
 
-  return { staticMeshes, shadowCasters, doorMeshes, boards, boardBase, box, setBoxLocation, bear, wallBuyMeshes, interactables, streetLights, propNodes };
+  return { staticMeshes, shadowCasters, doorMeshes, boards, boardBase, box, setBoxLocation, bear, wallBuyMeshes, interactables, streetLights, signLights, propNodes };
 }
