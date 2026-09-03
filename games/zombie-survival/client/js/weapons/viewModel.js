@@ -222,7 +222,7 @@ export class ViewModel {
       // hinge opens, empties eject, new shells slide in, hinge slams shut
       tilt(settle * 0.8); out[3] += 0.3 * settle;
       const open = k < 0.15 ? 0 : k < 0.3 ? easeOut(ph(k, 0.15, 0.3)) : k < 0.78 ? 1 : 1 - easeIn(ph(k, 0.78, 0.9));
-      if (P.hinge) P.hinge.rotation.x = H.hinge.rot.x - 0.6 * open;
+      if (P.hinge) P.hinge.rotation.x = H.hinge.rot.x + 0.6 * open;      // +x rotation drops the muzzle end (barrels hinge down)
       if (k > 0.3 && !this._ejected) { this._ejected = true; if (this.onEject) this.onEject(this.reloadCount || 2, 'shell', 0.6); }
       if (P.round) { const back = k < 0.3 ? 0 : k < 0.45 ? easeOut(ph(k, 0.3, 0.45)) : k < 0.55 ? 1 : 1 - easeOut(ph(k, 0.55, 0.72)); P.round.position.z = H.round.pos.z - 0.1 * back; P.round.isVisible = !(k > 0.45 && k < 0.55); }
       else if (k > 0.42 && k < 0.74) {
@@ -250,7 +250,7 @@ export class ViewModel {
       // feed cover opens, box drops, new box rises, cover slams, charging handle
       tilt(settle * 0.7);
       const open = k < 0.08 ? 0 : k < 0.22 ? easeOut(ph(k, 0.08, 0.22)) : k < 0.8 ? 1 : 1 - easeIn(ph(k, 0.8, 0.86));
-      if (P.cover) P.cover.rotation.x = H.cover.rot.x + 1.1 * open;
+      if (P.cover) P.cover.rotation.x = H.cover.rot.x - 1.1 * open;      // -x rotation lifts the front of the cover (rear hinge)
       if (P.mag) {
         const drop = k < 0.22 ? 0 : k < 0.45 ? easeIn(ph(k, 0.22, 0.45)) : 0;
         const rise = k < 0.5 ? 0 : k < 0.72 ? 1 - easeOut(ph(k, 0.5, 0.72)) : 0;
