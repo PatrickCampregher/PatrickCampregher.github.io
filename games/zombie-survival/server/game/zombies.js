@@ -237,7 +237,7 @@ export class ZombieManager {
     }
     // Steering
     let wantX, wantZ;
-    if (dist < 2.2) { wantX = dx / dist; wantZ = dz / dist; }
+    if (dist < 2.2 && Math.abs(tp.y - z.y) < 1.5) { wantX = dx / dist; wantZ = dz / dist; } // direct steering only on the same level
     else {
       if (z.aiT <= 0) {
         z.aiT = dist < 15 ? 0.1 : 0.3;
@@ -280,7 +280,7 @@ export class ZombieManager {
     if (g.time - z.lastCheckT > 2) {
       const moved = Math.hypot(z.x - z.lastCheckX, z.z - z.lastCheckZ);
       z.lastCheckX = z.x; z.lastCheckZ = z.z; z.lastCheckT = g.time;
-      if (moved < 0.35 && dist > 2.5) {
+      if (moved < 0.35 && (dist > 2.5 || Math.abs(tp.y - z.y) >= 1.5)) {
         z.stuck += 2;
         if (z.stuck >= 4 && z.stuck < 8) {
           // nudge to nearest walkable cell center
@@ -419,14 +419,19 @@ function resolveZombie(hash, z, dt) {
   }
   // floor: highest floor/stair surface under the centre that is at most a step above the feet
   let floor = 0;
-  const boxes = hash.query(z.x - 0.2, z.z - 0.2, z.x + 0.2, z.z + 0.2);
+  const PR = 0.22; // floor probe radius: the centre plus four points around it (robust on slab seams / stair edges)
+  const boxes = hash.query(z.x - PR, z.z - PR, z.x + PR, z.z + PR);
   for (let i = 0; i < boxes.length; i++) {
     const b = boxes[i];
     if (!isFloorBox(b)) continue;
     if (b.y1 > z.y + 0.55 || b.y1 <= floor) continue;
-    if (b.yaw === 0) { if (Math.abs(z.x - b.cx) > b.hw || Math.abs(z.z - b.cz) > b.hd) continue; }
-    else { const dx = z.x - b.cx, dz = z.z - b.cz; const lx = dx * b.c - dz * b.s, lz = dx * b.s + dz * b.c; if (Math.abs(lx) > b.hw || Math.abs(lz) > b.hd) continue; }
-    floor = b.y1;
+    let inside = false;
+    for (let k = 0; k < 5 && !inside; k++) {
+      const px = z.x + (k === 1 ? PR : k === 2 ? -PR : 0), pz = z.z + (k === 3 ? PR : k === 4 ? -PR : 0);
+      if (b.yaw === 0) inside = Math.abs(px - b.cx) <= b.hw && Math.abs(pz - b.cz) <= b.hd;
+      else { const dx = px - b.cx, dz = pz - b.cz; const lx = dx * b.c - dz * b.s, lz = dx * b.s + dz * b.c; inside = Math.abs(lx) <= b.hw && Math.abs(lz) <= b.hd; }
+    }
+    if (inside) floor = b.y1;
   }
   if (z.y <= floor + 0.02) { z.y = floor; z.vy = 0; z.onGround = true; }
   else {

@@ -187,6 +187,9 @@ export function buildWorld(MAP) {
       case 'barrel':
         addBox(p.x, p.y ?? 0, p.z, 0.62, 0.9, 0.62, 0, { mat: 'metal_rust', kind: 'barrel', prop: p });
         break;
+      case 'fire':
+        if (p.barrel) addBox(p.x, p.y ?? 0, p.z, 0.62, 0.9, 0.62, 0, { mat: 'metal_rust', kind: 'firebarrel', prop: p });
+        break;
       case 'hydrant':
         addBox(p.x, p.y ?? 0.15, p.z, 0.32, 0.8, 0.32, 0, { mat: 'paint_red', kind: 'hydrant', prop: p });
         break;
