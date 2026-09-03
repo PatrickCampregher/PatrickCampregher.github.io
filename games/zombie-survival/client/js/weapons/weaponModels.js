@@ -248,7 +248,7 @@ const BUILD = {
       c.box('accent', 0.02, 0.045, 0.018, 0, 0.0, 0.115, 0.25);
     }
     if (pap) c.etch(0.078, -0.01, 0.15, 0.0155, 3);
-    return { muzzle: [0, 0.065, muzzleZ], eject: [0.02, 0.075, 0.055], sight: [0, sightY, -0.006], adsDist: 0.27, hip: [0.16, -0.17, 0.3], boltKind: 'slide' };
+    return { muzzle: [0, 0.065, muzzleZ], eject: [0.02, 0.075, 0.055], sight: [0, sightY, -0.006], adsDist: 0.28, hip: [0.16, -0.17, 0.3], boltKind: 'slide' };
   },
 
   revolver(c, look, pap) {
@@ -276,7 +276,7 @@ const BUILD = {
     c.screws([[0.016, -0.02, -0.02], [-0.016, -0.02, -0.02]], 0.004);
     if (judge) { c.box('glow', 0.004, 0.004, 0.006, 0, sightY - 0.003, bZ + bLen / 2 - 0.01); c.box('dark', 0.032, 0.02, 0.02, 0, 0.03, -0.005); }
     if (pap) c.etch(0.084, 0.0, bZ + bLen / 2 - 0.02, 0.008, 3);
-    return { muzzle: [0, 0.068, bZ + bLen / 2 + 0.005], eject: [0.02, 0.06, 0.02], sight: [0, sightY, -0.012], adsDist: 0.27, hip: [0.16, -0.17, 0.3], boltKind: 'fixed' };
+    return { muzzle: [0, 0.068, bZ + bLen / 2 + 0.005], eject: [0.02, 0.06, 0.02], sight: [0, sightY, -0.012], adsDist: 0.28, hip: [0.16, -0.17, 0.3], boltKind: 'fixed' };
   },
 
   smg(c, look, pap) {
@@ -372,7 +372,7 @@ const BUILD = {
       muzzle = [0, 0.076, 0.37];
       if (pap) c.etch(0.091, -0.02, 0.2, 0.023, 4);
     }
-    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.27, hip: [0.15, -0.17, 0.26], boltKind };
+    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.29, hip: [0.15, -0.17, 0.26], boltKind };
   },
 
   rifle(c, look, pap) {
@@ -510,7 +510,7 @@ const BUILD = {
       if (pap) c.etch(0.098, -0.08, 0.12, 0.0245, 4);
       boltKind = 'fixed';
     }
-    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.26, hip: [0.14, -0.18, 0.2], boltKind };
+    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.3, hip: [0.14, -0.18, 0.2], boltKind };
   },
 
   shotgun(c, look, pap) {
@@ -607,7 +607,7 @@ const BUILD = {
       muzzle = [0, 0.078, 0.595];
       if (pap) c.etch(0.091, -0.08, 0.08, 0.0215, 3);
     }
-    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.27, hip: [0.14, -0.18, 0.2], boltKind };
+    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.3, hip: [0.14, -0.18, 0.2], boltKind };
   },
 
   sniper(c, look, pap) {
@@ -757,7 +757,7 @@ const BUILD = {
       muzzle = [0, 0.08, 0.77];
       if (pap) c.etch(0.101, -0.1, 0.12, 0.0255, 5);
     }
-    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.27, hip: [0.14, -0.19, 0.16], boltKind };
+    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.3, hip: [0.14, -0.19, 0.16], boltKind };
   },
 
   launcher(c, look, pap) {
@@ -776,7 +776,7 @@ const BUILD = {
     c.stockFixed('accent', 0, 0.05, -0.2, 0.04, 0.06, 0.2, -0.04, 'dark');
     c.screws([[0.026, 0.05, -0.06], [-0.026, 0.05, -0.06]]);
     if (pap) c.etch(0.096, -0.09, 0.0, 0.0255, 3);
-    return { muzzle: [0, 0.07, 0.4], eject: [0.03, 0.06, 0.0], sight: [0, sightY, sightZ], adsDist: 0.27, hip: [0.14, -0.18, 0.18], boltKind: 'fixed' };
+    return { muzzle: [0, 0.07, 0.4], eject: [0.03, 0.06, 0.0], sight: [0, sightY, sightZ], adsDist: 0.3, hip: [0.14, -0.18, 0.18], boltKind: 'fixed' };
   },
 
   energy(c, look, pap) {
@@ -800,7 +800,7 @@ const BUILD = {
       c.screws([[0.02, 0.06, -0.01], [-0.02, 0.06, -0.01]]);
       muzzle = [0, 0.065, 0.205];
       if (pap) c.etch(0.088, -0.03, 0.13, 0.012, 3);
-      return { muzzle, eject: [0.02, 0.07, 0.0], sight: [0, sightY, sightZ], adsDist: 0.27, hip: [0.16, -0.17, 0.3], boltKind: 'fixed' };
+      return { muzzle, eject: [0.02, 0.07, 0.0], sight: [0, sightY, sightZ], adsDist: 0.28, hip: [0.16, -0.17, 0.3], boltKind: 'fixed' };
     }
     const ray = st === 'ray';
     c.box('body', 0.06, 0.08, 0.26, 0, 0.06, 0.02);
@@ -822,7 +822,7 @@ const BUILD = {
     c.screws([[0.031, 0.05, -0.06], [-0.031, 0.05, -0.06], [0.031, 0.05, 0.1], [-0.031, 0.05, 0.1]]);
     muzzle = [0, 0.065, 0.45];
     if (pap) c.etch(0.101, -0.1, 0.14, 0.031, 4);
-    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.27, hip: [0.14, -0.18, 0.2], boltKind: 'fixed' };
+    return { muzzle, eject, sight: [0, sightY, sightZ], adsDist: 0.3, hip: [0.14, -0.18, 0.2], boltKind: 'fixed' };
   },
 };
 

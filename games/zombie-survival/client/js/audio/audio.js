@@ -82,6 +82,60 @@ function gunshot(p) {
   } };
 }
 
+/** gunshot + a mechanical action layer (bolt carrier clack, pump, slide) for per-weapon identity. mech: [[t, lowpassHz, vol, dur], ...] */
+function gunshotMech(p, mech) {
+  const base = gunshot(p);
+  const end = mech.reduce((a, m) => Math.max(a, m[0] + m[3]), 0);
+  return { dur: Math.max(base.dur, end + 0.1), build: (ctx, out) => {
+    base.build(ctx, out);
+    for (const [t, lp, vol, dur] of mech) {
+      const n = noise(ctx, dur + 0.02);
+      chain(n, filt(ctx, 'lowpass', lp, 1), gainEnv(ctx, [[t, vol], [t + dur, 0.001]]), out);
+      n.start(t);
+    }
+  } };
+}
+
+/** synthesized energy weapon discharge. p: { f0, f1, dur, type, sub, subFreq, hiss, ping, vol, sat } */
+function energyShot(p) {
+  return { dur: p.dur + 0.35, build: (ctx, out) => {
+    const master = ctx.createGain(); master.gain.value = p.vol ?? 0.8;
+    const sat = dist(ctx, p.sat ?? 18); sat.connect(master); master.connect(out);
+    const env = gainEnv(ctx, [[0, 0.0001], [0.008, 1], [p.dur * 0.55, 0.5], [p.dur, 0.001]]); env.connect(sat);
+    const o = osc(ctx, p.type || 'sawtooth', p.f0); sweep(o.frequency, p.f0, p.f1, 0, p.dur);
+    const o2 = osc(ctx, 'square', p.f0 * 0.5); sweep(o2.frequency, p.f0 * 0.5, p.f1 * 0.5, 0, p.dur);
+    const g2 = ctx.createGain(); g2.gain.value = 0.35;
+    const bp = filt(ctx, 'bandpass', p.f0 * 1.2, 1.2); sweep(bp.frequency, p.f0 * 1.5, Math.max(120, p.f1 * 1.2), 0, p.dur);
+    o.connect(bp); o2.connect(g2); g2.connect(bp); bp.connect(env);
+    o.start(0); o2.start(0); o.stop(p.dur + 0.02); o2.stop(p.dur + 0.02);
+    if (p.sub) { const s = osc(ctx, 'sine', p.subFreq || 70); sweep(s.frequency, (p.subFreq || 70) * 1.4, (p.subFreq || 70) * 0.7, 0, p.sub); chain(s, gainEnv(ctx, [[0, p.subGain || 1.0], [0.01, p.subGain || 1.0], [p.sub, 0.001]]), master); s.start(0); s.stop(p.sub + 0.02); }
+    if (p.hiss) { const n = noise(ctx, p.hiss + 0.05); const hp = filt(ctx, 'highpass', 2500, 0.8); sweep(hp.frequency, 6000, 1500, 0, p.hiss); chain(n, hp, gainEnv(ctx, [[0, 0.6], [p.hiss, 0.001]]), master); n.start(0); }
+    if (p.ping) { const pg = osc(ctx, 'sine', p.ping); chain(pg, gainEnv(ctx, [[0, 0.0001], [0.01, 0.35], [0.25, 0.001]]), master); pg.start(0); pg.stop(0.3); }
+  } };
+}
+
+/** brass casings tumbling on the ground: a few short metallic pings at random times */
+function casings(n = 4, dur = 0.55, vol = 0.35) {
+  return { dur: dur + 0.2, build: (ctx, out) => {
+    for (let i = 0; i < n; i++) {
+      const t = 0.03 + Math.random() * dur * 0.7, f = 3800 + Math.random() * 3200;
+      const o = osc(ctx, 'sine', f); const o2 = osc(ctx, 'sine', f * 1.51); const g2 = ctx.createGain(); g2.gain.value = 0.4;
+      const env = gainEnv(ctx, [[t, 0.0001], [t + 0.004, vol], [t + 0.09 + Math.random() * 0.06, 0.001]]);
+      o.connect(env); o2.connect(g2); g2.connect(env); env.connect(out);
+      o.start(t); o2.start(t); o.stop(t + 0.2); o2.stop(t + 0.2);
+    }
+  } };
+}
+
+/** energy cell in/out: a short tone sweep plus a latch click */
+function cellTone(f0, f1, dur, vol = 0.5, clickAt = 0) {
+  return { dur: dur + 0.15, build: (ctx, out) => {
+    const o = osc(ctx, 'triangle', f0); sweep(o.frequency, f0, f1, 0, dur);
+    chain(o, filt(ctx, 'lowpass', 3000, 1), gainEnv(ctx, [[0, 0.0001], [0.02, vol], [dur, 0.001]]), out); o.start(0); o.stop(dur + 0.02);
+    const n = noise(ctx, 0.05); chain(n, filt(ctx, 'lowpass', 2500, 1), gainEnv(ctx, [[clickAt, 0.5], [clickAt + 0.04, 0.001]]), out); n.start(clickAt);
+  } };
+}
+
 function click(freq, dur, vol = 0.5, lp = 4000) {
   return { dur: dur + 0.05, build: (ctx, out) => {
     const n = noise(ctx, dur + 0.02);
@@ -173,12 +227,49 @@ const DEFS = {
     o.start(0); o2.start(0); o.stop(0.32); o2.stop(0.32);
     const n = noise(ctx, 0.15); chain(n, filt(ctx, 'highpass', 3000, 1), gainEnv(ctx, [[0, 0.5], [0.1, 0.001]]), env); n.start(0);
   } },
+  // per-weapon shots (new roster)
+  marshal: gunshot({ crack: 0.08, body: 0.18, bodyFreq: 800, thump: 0.12, thumpFreq: 95, tail: 0.45, tailGain: 0.24, dist: 30, vol: 0.98 }),
+  hornet: gunshot({ crack: 0.05, body: 0.1, bodyFreq: 1000, thump: 0.06, thumpFreq: 125, tail: 0.25, tailGain: 0.12, vol: 0.75 }),
+  cicada: gunshot({ crack: 0.06, body: 0.12, bodyFreq: 950, thump: 0.07, thumpFreq: 115, tail: 0.3, tailGain: 0.16, vol: 0.85 }),
+  magistrate: gunshot({ crack: 0.1, body: 0.28, bodyFreq: 520, thump: 0.18, thumpFreq: 62, tail: 0.6, tailGain: 0.32, dist: 38, vol: 1.05 }),
+  nightjar: gunshot({ crack: 0.055, body: 0.1, bodyFreq: 1200, thump: 0.07, thumpFreq: 120, tail: 0.28, tailGain: 0.14, crackFreq: 2200, vol: 0.8 }),
+  wasp: gunshot({ crack: 0.04, body: 0.07, bodyFreq: 1400, thump: 0.05, thumpFreq: 150, tail: 0.15, tailGain: 0.1, crackFreq: 2600, vol: 0.65 }),
+  hive: gunshot({ crack: 0.05, body: 0.11, bodyFreq: 900, thump: 0.07, thumpFreq: 110, tail: 0.3, tailGain: 0.15, vol: 0.8 }),
+  tundra: gunshotMech({ crack: 0.08, body: 0.18, bodyFreq: 650, thump: 0.12, thumpFreq: 85, tail: 0.5, tailGain: 0.26, dist: 32, vol: 0.98 }, [[0.035, 3000, 0.25, 0.03]]),
+  ibex: gunshot({ crack: 0.07, body: 0.14, bodyFreq: 850, thump: 0.09, thumpFreq: 105, tail: 0.4, tailGain: 0.2, vol: 0.88 }),
+  sable: gunshot({ crack: 0.07, body: 0.15, bodyFreq: 780, thump: 0.1, thumpFreq: 98, tail: 0.45, tailGain: 0.22, crackFreq: 2000, vol: 0.9 }),
+  trident: gunshot({ crack: 0.07, body: 0.15, bodyFreq: 820, thump: 0.1, thumpFreq: 100, tail: 0.5, tailGain: 0.22, crackFreq: 1900, vol: 0.9 }),
+  raptor: gunshotMech({ crack: 0.09, body: 0.28, bodyFreq: 560, thump: 0.17, thumpFreq: 66, tail: 0.55, tailGain: 0.3, dist: 36, vol: 1.05 }, [[0.06, 2500, 0.3, 0.04]]),
+  twinbore: gunshot({ crack: 0.12, body: 0.4, bodyFreq: 460, thump: 0.24, thumpFreq: 55, tail: 0.8, tailGain: 0.38, dist: 45, vol: 1.2 }),
+  siege: gunshot({ crack: 0.1, body: 0.32, bodyFreq: 520, thump: 0.2, thumpFreq: 62, tail: 0.65, tailGain: 0.34, dist: 40, vol: 1.1 }),
+  harbinger: gunshot({ crack: 0.15, body: 0.36, bodyFreq: 520, thump: 0.28, thumpFreq: 60, tail: 1.3, tailGain: 0.45, tailFreq: 600, dist: 50, vol: 1.25 }),
+  goliath: gunshot({ crack: 0.16, body: 0.4, bodyFreq: 480, thump: 0.3, thumpFreq: 55, tail: 1.4, tailGain: 0.5, tailFreq: 550, dist: 55, vol: 1.3 }),
+  anvil: gunshot({ crack: 0.08, body: 0.2, bodyFreq: 680, thump: 0.13, thumpFreq: 88, tail: 0.5, tailGain: 0.26, dist: 32, vol: 0.98 }),
+  colossus: gunshot({ crack: 0.085, body: 0.22, bodyFreq: 620, thump: 0.14, thumpFreq: 80, tail: 0.55, tailGain: 0.3, dist: 34, vol: 1.0 }),
+  nova: energyShot({ f0: 1400, f1: 160, dur: 0.32, type: 'sawtooth', sub: 0.2, subFreq: 75, subGain: 0.9, hiss: 0.12, ping: 2400, vol: 0.85, sat: 22 }),
   click_empty: click(0, 0.03, 0.4, 3000),
   // ---- reloads ----
   mag_out: multi([[0, click(0, 0.04, 0.6, 2500)], [0.06, click(0, 0.08, 0.35, 1200)]], 0.25),
   mag_in: multi([[0, click(0, 0.06, 0.7, 900)], [0.05, click(0, 0.03, 0.5, 3500)]], 0.2),
   bolt: multi([[0, click(0, 0.03, 0.6, 5000)], [0.09, click(0, 0.04, 0.6, 4000)]], 0.2),
   shell_in: multi([[0, click(0, 0.03, 0.5, 4000)], [0.04, click(0, 0.05, 0.3, 1500)]], 0.15),
+  slide_rack: multi([[0, click(0, 0.03, 0.6, 4500)], [0.08, click(0, 0.04, 0.7, 3000)]], 0.2),
+  bolt_cycle: multi([[0, click(0, 0.03, 0.55, 5000)], [0.12, click(0, 0.05, 0.4, 2000)], [0.3, click(0, 0.05, 0.45, 2200)], [0.42, click(0, 0.03, 0.6, 4500)]], 0.55),
+  pump: multi([[0, click(0, 0.05, 0.6, 1800)], [0.13, click(0, 0.05, 0.7, 2200)]], 0.3),
+  cyl_open: multi([[0, click(0, 0.03, 0.5, 4000)], [0.06, click(0, 0.08, 0.35, 1500)]], 0.2),
+  cyl_close: multi([[0, click(0, 0.04, 0.6, 2500)], [0.03, click(0, 0.03, 0.5, 5000)]], 0.15),
+  round_in: click(0, 0.03, 0.45, 3500),
+  casings: casings(5, 0.5, 0.3),
+  break_open: multi([[0, click(0, 0.04, 0.6, 3000)], [0.08, click(0, 0.08, 0.4, 1200)]], 0.25),
+  break_close: multi([[0, click(0, 0.06, 0.8, 1500)], [0.04, click(0, 0.03, 0.5, 4500)]], 0.2),
+  cover_open: multi([[0, click(0, 0.05, 0.5, 2200)], [0.1, click(0, 0.1, 0.35, 900)]], 0.3),
+  cover_close: multi([[0, click(0, 0.08, 0.9, 1200)], [0.05, click(0, 0.03, 0.5, 4000)]], 0.2),
+  cell_out: cellTone(900, 260, 0.3, 0.4, 0.0),
+  cell_in: cellTone(300, 1300, 0.35, 0.45, 0.3),
+  cell_charge: { dur: 0.75, build: (ctx, out) => {
+    const o = osc(ctx, 'sine', 400); sweep(o.frequency, 400, 1700, 0, 0.55); chain(o, gainEnv(ctx, [[0, 0.0001], [0.05, 0.35], [0.5, 0.3], [0.65, 0.001]]), out); o.start(0); o.stop(0.7);
+    const n = noise(ctx, 0.6); const bp = filt(ctx, 'bandpass', 800, 2); sweep(bp.frequency, 600, 5000, 0, 0.55); chain(n, bp, gainEnv(ctx, [[0, 0.0001], [0.1, 0.3], [0.6, 0.001]]), out); n.start(0);
+  } },
   // ---- impacts ----
   impact_concrete: { dur: 0.15, build: (ctx, out) => { const n = noise(ctx, 0.12); chain(n, filt(ctx, 'bandpass', 2600, 0.8), gainEnv(ctx, [[0, 0.8], [0.09, 0.001]]), out); n.start(0); } },
   impact_metal: { dur: 0.35, build: (ctx, out) => {

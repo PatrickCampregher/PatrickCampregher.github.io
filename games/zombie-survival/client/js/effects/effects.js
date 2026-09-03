@@ -96,10 +96,22 @@ export class Effects {
   }
 
   _makeTracers() {
-    const mat = this.mats.glow('tracer', '#ffd9a0', 0.9);
-    this.tracerPool = new Pool(24, () => { const m = B().MeshBuilder.CreateBox('tracer', { width: 0.03, height: 0.03, depth: 1 }, this.scene); m.material = mat; m.isVisible = false; m.isPickable = false; m.applyFog = false; return m; });
-    const rayMat = this.mats.glow('raybeam', '#ff7a2a', 0.95);
-    this.rayPool = new Pool(6, () => { const m = B().MeshBuilder.CreateBox('ray', { width: 0.06, height: 0.06, depth: 1 }, this.scene); m.material = rayMat; m.isVisible = false; m.isPickable = false; return m; });
+    // thin fast tracers, one material per tint (weapon glow / Pack-a-Punch)
+    const mk = (key, color, a) => this.mats.glow('tracer_' + key, color, a);
+    this.tracerMats = { warm: mk('warm', '#ffd9a0', 0.9), green: mk('green', '#6cff7a', 0.95), blue: mk('blue', '#7fd4ff', 0.95), orange: mk('orange', '#ff7a2a', 0.95), purple: mk('purple', '#c77dff', 0.95) };
+    this.tracerPool = new Pool(32, () => { const m = B().MeshBuilder.CreateBox('tracer', { width: 0.014, height: 0.014, depth: 1 }, this.scene); m.material = this.tracerMats.warm; m.isVisible = false; m.isPickable = false; m.applyFog = false; return m; });
+    this.rayPool = new Pool(8, () => { const m = B().MeshBuilder.CreateBox('ray', { width: 0.05, height: 0.05, depth: 1 }, this.scene); m.material = this.tracerMats.orange; m.isVisible = false; m.isPickable = false; return m; });
+  }
+
+  /** Tint key for a weapon's flash/tracer: Pack-a-Punch purple, energy weapons by glow hue, otherwise warm brass. */
+  _tintFor(def) {
+    const look = (def && def.look) || {};
+    if (def && (def.pap || look.pap)) return 'purple';
+    if (!look.glow) return 'warm';
+    const c = B().Color3.FromHexString(look.glow);
+    if (c.g > c.r && c.g > c.b) return 'green';
+    if (c.b > c.r) return 'blue';
+    return 'orange';
   }
 
   _makeDecals() {
@@ -128,25 +140,34 @@ export class Effects {
   }
 
   _makeMuzzle() {
-    const mat = new (B().StandardMaterial)('muzzlemat', this.scene);
-    mat.diffuseTexture = this.tFlash; mat.emissiveTexture = this.tFlash; mat.opacityTexture = this.tFlash;
-    mat.disableLighting = true; mat.alphaMode = B().Engine.ALPHA_ADD; mat.backFaceCulling = false;
-    this.flashPool = new Pool(6, () => {
-      const m = B().MeshBuilder.CreatePlane('flash', { size: 0.5 }, this.scene);
-      m.material = mat; m.billboardMode = B().Mesh.BILLBOARDMODE_ALL; m.isVisible = false; m.isPickable = false; m.applyFog = false;
-      return m;
-    });
+    // tinted additive flash planes: the star texture is the base color, the tint is the emissive color (no lighting)
+    const mk = (key, tint) => {
+      const mat = new (B().StandardMaterial)('muzzlemat_' + key, this.scene);
+      mat.diffuseTexture = this.tFlash; mat.opacityTexture = this.tFlash; mat.emissiveColor = B().Color3.FromHexString(tint);
+      mat.disableLighting = true; mat.alphaMode = B().Engine.ALPHA_ADD; mat.backFaceCulling = false;
+      return mat;
+    };
+    this.flashMats = { warm: mk('warm', '#ffe4b8'), green: mk('green', '#8dffa0'), blue: mk('blue', '#9ae0ff'), orange: mk('orange', '#ffa060'), purple: mk('purple', '#d9a0ff') };
+    const plane = () => { const m = B().MeshBuilder.CreatePlane('flash', { size: 0.5 }, this.scene); m.material = this.flashMats.warm; m.billboardMode = B().Mesh.BILLBOARDMODE_ALL; m.isVisible = false; m.isPickable = false; m.applyFog = false; return m; };
+    this.flashPool = new Pool(8, plane);     // core star at the muzzle
+    this.tonguePool = new Pool(8, plane);    // dimmer second flash further along the bore (elongates the flash)
   }
 
   _makeShells() {
-    const mat = this.mats.solid('shell', '#d4a84b', { metal: 0.5, rough: 0.35, emissive: '#3a2a10' });
+    // brass casings + red shotgun hulls (pooled, simple physics with a floor bounce)
+    const brass = this.mats.solid('shell', '#d4a84b', { metal: 0.5, rough: 0.35, emissive: '#3a2a10' });
+    const red = this.mats.solid('shell_red', '#b8251f', { metal: 0.1, rough: 0.55, emissive: '#2a0806' });
     this.shells = [];
-    for (let i = 0; i < 24; i++) {
-      const m = B().MeshBuilder.CreateCylinder('shell', { diameter: 0.014, height: 0.045, tessellation: 6 }, this.scene);
-      m.material = mat; m.isVisible = false; m.isPickable = false;
-      this.shells.push({ m, v: V3(0, 0, 0), av: V3(0, 0, 0), t: -1 });
-    }
-    this.shellIdx = 0;
+    const add = (n, kind, dia, h, mat) => {
+      for (let i = 0; i < n; i++) {
+        const m = B().MeshBuilder.CreateCylinder('shell', { diameter: dia, height: h, tessellation: 6 }, this.scene);
+        m.material = mat; m.isVisible = false; m.isPickable = false;
+        this.shells.push({ m, v: V3(0, 0, 0), av: V3(0, 0, 0), t: -1, kind, floorY: 0.02 });
+      }
+    };
+    add(28, 'brass', 0.011, 0.04, brass);
+    add(12, 'shell', 0.019, 0.058, red);
+    this.shellIdx = { brass: 0, shell: 0 };
   }
 
   _makeArcs() {
@@ -156,37 +177,71 @@ export class Effects {
 
   // ---------------- public API ----------------
   muzzleFlash(pos, dir, def, withLight) {
+    const look = def.look || {};
+    const type = look.type || 'rifle';
+    const pap = !!(def.pap || look.pap);
+    const tint = this._tintFor(def);
+    const energy = type === 'energy';
+    // size per class, random roll and scale, Pack-a-Punch bigger
+    let s = def.pellets > 1 ? 0.75 : type === 'pistol' ? 0.32 : type === 'revolver' ? 0.42 : type === 'smg' ? 0.4 : type === 'lmg' ? 0.6 : type === 'sniper' ? 0.7 : type === 'launcher' ? 0.55 : energy ? 0.5 : 0.5;
+    if (pap) s *= 1.4;
     const m = this.flashPool.next();
+    m.material = this.flashMats[tint];
     m.isVisible = true;
     m.position.set(pos.x + dir.x * 0.05, pos.y + dir.y * 0.05, pos.z + dir.z * 0.05);
-    const s = def.pellets > 1 ? 0.7 : def.cls === 'Pistol' ? 0.32 : def.cls === 'SMG' ? 0.38 : 0.5;
     m.scaling.setAll(s * (0.8 + Math.random() * 0.4));
     m.rotation.z = Math.random() * Math.PI * 2;
-    this._timed(0.045, null, () => { m.isVisible = false; });
+    this._timed(energy ? 0.07 : 0.045, null, () => { m.isVisible = false; });
+    if (s >= 0.4 && !energy) {
+      const t = this.tonguePool.next();
+      t.material = this.flashMats[tint];
+      t.isVisible = true;
+      const d2 = 0.1 + s * 0.35;
+      t.position.set(pos.x + dir.x * d2, pos.y + dir.y * d2, pos.z + dir.z * d2);
+      t.scaling.setAll(s * 0.55 * (0.8 + Math.random() * 0.4));
+      t.rotation.z = Math.random() * Math.PI * 2;
+      this._timed(0.035, null, () => { t.isVisible = false; });
+    }
     if (withLight) {
       this.light.position.set(pos.x, pos.y, pos.z);
-      this.light.intensity = def.pellets > 1 ? 18 : 10;
-      this.lightT = 0.06;
-      const look = def.look || {};
-      this.light.diffuse = look.glow ? B().Color3.FromHexString(look.glow) : new (B().Color3)(1, 0.75, 0.45);
+      this.light.intensity = (def.pellets > 1 ? 18 : type === 'sniper' ? 16 : type === 'pistol' ? 8 : 11) * (pap ? 1.5 : 1);
+      this.lightT = energy ? 0.09 : 0.06;
+      const c = tint === 'warm' ? new (B().Color3)(1, 0.75, 0.45) : B().Color3.FromHexString(pap ? (look.glow || '#b45cff') : look.glow);
+      this.light.diffuse = c;
     }
-    if (this.quality >= 1) this._burst(this.muzzleSmoke, pos.x + dir.x * 0.25, pos.y + dir.y * 0.25, pos.z + dir.z * 0.25, 1, dir, 0.3);
+    if (this.quality >= 1 && !energy) this._burst(this.muzzleSmoke, pos.x + dir.x * 0.25, pos.y + dir.y * 0.25, pos.z + dir.z * 0.25, def.pellets > 1 ? 2 : 1, dir, 0.3);
   }
 
   tracer(from, to, def) {
     const len = B().Vector3.Distance(from, to);
-    if (len < 1.5) return;
-    const isRay = def && def.look && def.look.type === 'energy';
-    const m = (isRay ? this.rayPool : this.tracerPool).next();
+    if (len < 1.2) return;
+    const look = (def && def.look) || {};
+    const tint = this._tintFor(def);
+    const isRay = look.type === 'energy';
+    if (isRay) {
+      // energy beam: full length, brief
+      const m = this.rayPool.next();
+      m.material = this.tracerMats[tint];
+      m.isVisible = true;
+      m.position.copyFrom(from);
+      m.lookAt(to);
+      m.position.copyFrom(from).addInPlace(to).scaleInPlace(0.5);
+      m.scaling.set(1, 1, len);
+      this._timed(0.11, null, () => { m.isVisible = false; });
+      return;
+    }
+    // bullet tracer: a short bright segment flying from the muzzle to the impact point (~260 m/s)
+    const m = this.tracerPool.next();
+    m.material = this.tracerMats[tint];
     m.isVisible = true;
-    m.position.copyFrom(from).addInPlace(to).scaleInPlace(0.5);
+    m.position.copyFrom(from);
     m.lookAt(to);
-    m.scaling.set(1, 1, len);
-    const start = 0.35 + Math.random() * 0.2;
-    m.position.copyFrom(from).addInPlace(to.subtract(from).scale(start));
-    m.scaling.z = Math.min(len, isRay ? len : 6);
-    if (isRay) { m.position.copyFrom(from).addInPlace(to).scaleInPlace(0.5); m.scaling.z = len; }
-    this._timed(isRay ? 0.12 : 0.05, null, () => { m.isVisible = false; });
+    const seg = Math.min(len * 0.5, 3.0);
+    m.scaling.set(1, 1, seg);
+    const fx = from.x, fy = from.y, fz = from.z, dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
+    const dur = Math.max(0.03, Math.min(0.14, len / 260));
+    const half = seg / len * 0.5;
+    this._timed(dur, (k) => { const kk = Math.min(1 - half, half + k * (1 - 2 * half)); m.position.set(fx + dx * kk, fy + dy * kk, fz + dz * kk); }, () => { m.isVisible = false; });
   }
 
   impact(x, y, z, nx, ny, nz, kind = 'concrete') {
@@ -249,12 +304,21 @@ export class Effects {
 
   arcHit(x, y, z) { this._burst(this.arcSparks, x, y, z, 14, null, 1); }
 
-  shell(pos, right, up) {
+  /** Eject a casing. kind: 'brass' | 'shell'; speedMul scales the throw (reload dumps use a gentle tumble). */
+  shell(pos, right, up, kind = 'brass', speedMul = 1) {
     if (this.quality < 1) return;
-    const s = this.shells[this.shellIdx]; this.shellIdx = (this.shellIdx + 1) % this.shells.length;
+    if (kind !== 'shell') kind = 'brass';
+    // round-robin inside the pool of this kind
+    let idx = this.shellIdx[kind], s = null;
+    for (let n = 0; n < this.shells.length; n++) { idx = (idx + 1) % this.shells.length; if (this.shells[idx].kind === kind) { s = this.shells[idx]; break; } }
+    if (!s) return;
+    this.shellIdx[kind] = idx;
     s.m.isVisible = true; s.m.position.copyFrom(pos);
-    s.v.copyFrom(right).scaleInPlace(1.6 + Math.random()).addInPlace(up.scale(1.5 + Math.random() * 0.8));
-    s.av.set(Math.random() * 20, Math.random() * 20, Math.random() * 20);
+    const side = (1.4 + Math.random() * 0.9) * speedMul, lift = (1.3 + Math.random() * 0.9) * speedMul;
+    s.v.set(right.x * side + up.x * lift + (Math.random() - 0.5) * 0.4, right.y * side + up.y * lift, right.z * side + up.z * lift + (Math.random() - 0.5) * 0.4);
+    s.av.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
+    s.m.rotation.set(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
+    s.floorY = Math.max(0.02, pos.y - 1.55);
     s.t = 0;
   }
 
@@ -324,10 +388,16 @@ export class Effects {
       if (s.t < 0) continue;
       s.t += dt;
       s.v.y -= 12 * dt;
-      s.m.position.addInPlace(s.v.scale(dt));
+      const p = s.m.position;
+      p.x += s.v.x * dt; p.y += s.v.y * dt; p.z += s.v.z * dt;
       s.m.rotation.x += s.av.x * dt; s.m.rotation.z += s.av.z * dt;
-      if (s.m.position.y < 0.02) { s.m.position.y = 0.02; s.v.scaleInPlace(0.3); s.v.y = Math.abs(s.v.y) * 0.4; s.av.scaleInPlace(0.5); }
-      if (s.t > 2.5) { s.t = -1; s.m.isVisible = false; }
+      if (p.y < s.floorY) {
+        p.y = s.floorY;
+        s.v.x *= 0.5; s.v.z *= 0.5; s.v.y = Math.abs(s.v.y) * 0.38;
+        s.av.scaleInPlace(0.45);
+        if (s.v.y < 0.4) { s.v.y = 0; s.v.x *= 0.6; s.v.z *= 0.6; s.av.scaleInPlace(0.3); }
+      }
+      if (s.t > 3) { s.t = -1; s.m.isVisible = false; }
     }
   }
 

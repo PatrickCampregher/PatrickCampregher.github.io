@@ -140,8 +140,8 @@ export class ViewModel {
     spring(this.rec.z, dt, 420, 26); spring(this.rec.rx, dt, 380, 24); spring(this.rec.ry, dt, 380, 26); spring(this.rec.rz, dt, 380, 26);
     const recZ = Math.min(0.1, Math.max(-0.02, this.rec.z.x)), recRx = Math.min(0.3, Math.max(-0.05, this.rec.rx.x));
     this.landK *= Math.pow(0.02, dt);
-    // idle breathing
-    const idleScale = 1 - 0.6 * e;
+    // idle breathing (fades out completely in ADS so the sight stays exactly on the eye line)
+    const idleScale = 1 - e;
     const idleX = Math.sin(t * 1.1) * 0.0025 * idleScale, idleY = Math.sin(t * 1.7) * 0.0025 * idleScale;
     const sprint = this.sprintK * (1 - e);
     let px = this.hipPos.x + (this.adsPos.x - this.hipPos.x) * e + this.swayX * 0.06 * swayScale + bobX + idleX - sprint * 0.07;

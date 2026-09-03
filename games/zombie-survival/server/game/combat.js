@@ -1,5 +1,5 @@
 // Shooting: validation, deterministic spread, lag-compensated hit detection, projectiles, explosions.
-import { WEAPONS, computeShotDirections, damageAtDistance, shotInterval } from '../../shared/weapons.js';
+import { WEAPONS, computeShotDirections, damageAtDistance, shotInterval, burstInterval } from '../../shared/weapons.js';
 import { raycastWorld, raySphere, rayVCylinder, bulletFilter } from '../../shared/collision.js';
 import { ZSTATE, ZOMBIE_HEAD_Y, ZOMBIE_HEAD_R, ZOMBIE_BODY_Y0, ZOMBIE_BODY_Y1, ZOMBIE_BODY_R, ZOMBIE_LEGS_Y0, ZOMBIE_LEGS_Y1, ZOMBIE_LEGS_R } from '../../shared/zombies.js';
 import { PSTATE, TICK_MS, BODY_PART } from '../../shared/constants.js';
@@ -47,8 +47,20 @@ export function processShot(game, player, msg) {
   }
   if (held.mag <= 0) return;
   const interval = shotInterval(w);
-  const minGap = w.burst ? 0.9 * interval : 0.85 * interval;
-  if (now - player.lastShot < minGap) return;
+  const sinceLast = now - player.lastShot;
+  if (w.hyperburst) {
+    // AN-94 style: a fresh trigger pull (>= 2 intervals of rest) grants `hyperburst` rounds at burstRpm, then sustained rpm
+    const bi = burstInterval(w);
+    if (sinceLast >= 0.85 * interval * 2) player.hbLeft = w.hyperburst - 1;
+    else if (player.hbLeft > 0 && sinceLast >= 0.85 * bi) player.hbLeft--;
+    else if (sinceLast >= 0.85 * interval) player.hbLeft = 0;
+    else return;
+  } else if (w.burst) {
+    // rounds inside a burst are spaced by burstInterval; a new burst needs the burstDelay pause
+    if (sinceLast < 0.9 * burstInterval(w)) return;
+    if (sinceLast >= 0.85 * (w.burstDelay || 0)) player.burstN = 1;
+    else { if ((player.burstN || 0) >= w.burst) return; player.burstN = (player.burstN || 0) + 1; }
+  } else if (sinceLast < 0.85 * interval) return;
   player.lastShot = now;
   held.mag--;
   player.stats.shots += w.pellets || 1;
@@ -83,9 +95,11 @@ export function processShot(game, player, msg) {
     let remaining = w.penetrate || 1;
     let dmgMul = 1;
     const excluded = new Set();
+    let hitAny = false;
     while (remaining > 0) {
       const zh = traceZombies(game, ox, oy, oz, dir[0], dir[1], dir[2], wallDist, tick, excluded);
       if (!zh) break;
+      hitAny = true;
       const dmgBase = damageAtDistance(w, zh.t) * dmgMul;
       const mul = zh.part === BODY_PART.HEAD ? w.headMul : zh.part === BODY_PART.LEGS ? w.legMul : 1;
       const hx = ox + dir[0] * zh.t, hy = oy + dir[1] * zh.t, hz = oz + dir[2] * zh.t;
@@ -93,14 +107,31 @@ export function processShot(game, player, msg) {
       game.awardPoints(player, game.POINTS.hit, 'hit');
       const killed = game.zombies.damage(zh.z, dmgBase * mul, zh.part, player, hx, hy, hz);
       if (w.chain) arcChain(game, player, zh.z, hx, hy, hz, w, tick);
-      if (w.splash) splashDamage(game, player, hx, hy, hz, w.splash.radius, w.splash.damage, w.splash.damage * 0.4, zh.z);
+      if (w.splash) { splashDamage(game, player, hx, hy, hz, w.splash.radius, w.splash.damage, w.splash.damage * 0.4, zh.z); selfSplash(game, player, w, hx, hy, hz); }
       excluded.add(zh.z);
       remaining--;
       dmgMul *= 0.7;
       if (killed && remaining > 0) continue;
       if (!killed) break; // stopped by a living zombie unless penetrating
     }
+    // splash weapons also detonate on walls (and can hurt the shooter at close range)
+    if (w.splash && !hitAny && hit) {
+      const hx = ox + dir[0] * hit.dist, hy = oy + dir[1] * hit.dist, hz = oz + dir[2] * hit.dist;
+      splashDamage(game, player, hx, hy, hz, w.splash.radius, w.splash.damage, w.splash.damage * 0.4, null);
+      selfSplash(game, player, w, hx, hy, hz);
+    }
   }
+}
+
+/** Energy-splash self damage (Ray-Gun style): the blast hurts the shooter when it lands within selfRadius. */
+function selfSplash(game, player, w, hx, hy, hz) {
+  const sp = w.splash;
+  if (!sp || !sp.selfDamage) return;
+  const d = Math.hypot(player.x - hx, player.y + 0.9 - hy, player.z - hz);
+  const r = sp.selfRadius || sp.radius;
+  if (d >= r) return;
+  const dmg = sp.selfDamage * (1 - 0.5 * d / r);
+  game.damagePlayer(player, Math.min(dmg, Math.max(0, player.hp - 1)), null);
 }
 
 function arcChain(game, player, first, hx, hy, hz, w, tick) {

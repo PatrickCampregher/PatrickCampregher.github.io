@@ -2,7 +2,7 @@
 /* global BABYLON */
 import { PLAYER, PSTATE, INPUT_RATE, MYSTERY_BOX } from '/shared/constants.js';
 import { IN, encodeInput } from '/shared/protocol.js';
-import { WEAPONS, WEAPON_LIST, computeShotDirections, shotInterval } from '/shared/weapons.js';
+import { WEAPONS, WEAPON_LIST, computeShotDirections, shotInterval, burstInterval } from '/shared/weapons.js';
 import { resolveCharacter, raycastWorld, bulletFilter } from '/shared/collision.js';
 import { audio } from '../audio/audio.js';
 
@@ -32,6 +32,11 @@ export class LocalPlayer {
     this.lastCorrect = 0;
     this.lowAmmoWarned = false;
     this.spectateT = 0;
+    // weapon handling state
+    this.adsK = 0;                                   // 0..1 ADS blend (linear in time; eased where applied)
+    this.reloadMul = 1; this.rpmMul = 1; this.dmgMul = 1;   // perk modifiers (set from the server's `self` mods)
+    this.pendingEjects = [];                         // delayed casing ejections (bolt actions / pumps)
+    if (game.viewModel) game.viewModel.onEject = (n, kind, speedMul) => this._eject(kind, n, speedMul);
   }
 
   get held() { return this.weapons[this.slot]; }
@@ -59,7 +64,8 @@ export class LocalPlayer {
   _look(dt) {
     const inp = this.input, c = this.settings.controls;
     if (!inp.locked) return;
-    const sens = 0.0022 * c.sensitivity * (this.ads ? c.adsSensitivity / Math.max(1, (this.def ? this.def.zoom : 1) * 0.8) : 1);
+    // ADS sensitivity scales with the current zoom (fovK) so the on-screen speed stays consistent while zooming in
+    const sens = 0.0022 * c.sensitivity * (this.adsK > 0 ? (1 + (c.adsSensitivity - 1) * this.adsK) * this.fovK : 1);
     this.yaw += inp.mouseDX * sens;
     this.pitch += inp.mouseDY * sens * (c.invertY ? -1 : 1);
     const lim = 89 * DEG;
@@ -119,7 +125,7 @@ export class LocalPlayer {
     // bob (subtle)
     const spd = Math.min(1, this.speed2d / 5);
     this.bobT += dt * (5 + this.speed2d * 1.3);
-    const bobTarget = this.onGround ? Math.abs(Math.sin(this.bobT)) * 0.02 * spd * (this.ads ? 0.3 : 1) : 0;
+    const bobTarget = this.onGround ? Math.abs(Math.sin(this.bobT)) * 0.02 * spd * (1 - 0.8 * this.adsK) : 0;
     this.bobY += (bobTarget - this.bobY) * Math.min(1, dt * 10);
     const strafe = (this.input.locked && this.input.down('right') ? 1 : 0) - (this.input.locked && this.input.down('left') ? 1 : 0);
     this.roll += ((-strafe * 0.012 * (this.state === PSTATE.ALIVE ? 1 : 0)) - this.roll) * Math.min(1, dt * 8);
@@ -131,9 +137,12 @@ export class LocalPlayer {
     else if (this.state === PSTATE.DEAD) { this.spectateT += dt; eye = 2.6; }
     cam.position.set(this.x, this.y + eye + this.bobY, this.z);
     cam.rotation.set(this.pitch - this.recoilPitch + sy, this.yaw + this.recoilYaw + sx, this.roll);
-    // fov / ads zoom
-    const zoom = this.ads && this.def ? this.def.zoom : 1;
-    this.fovK += ((1 / zoom) - this.fovK) * Math.min(1, dt * (this.def ? 1 / Math.max(0.08, this.def.adsTime) : 6));
+    // ADS blend: linear in time per weapon (adsTime), leaving ADS a little faster; eased when applied (fov + view model)
+    const adsSpeed = this.def ? 1 / Math.max(0.08, this.def.adsTime) : 6;
+    this.adsK = Math.max(0, Math.min(1, this.adsK + (this.ads ? 1 : -1.3) * dt * adsSpeed));
+    const e = 1 - Math.pow(1 - this.adsK, 3);
+    const zoom = this.def ? this.def.zoom : 1;
+    this.fovK = 1 / (1 + (zoom - 1) * e);
     const sprintFov = this.sprinting ? 1.05 : 1;
     cam.fov = this.fovBase * this.fovK * sprintFov;
   }
@@ -142,6 +151,7 @@ export class LocalPlayer {
     const g = this.g, inp = this.input, now = g.now;
     const held = this.held, def = this.def;
     this.heat = Math.max(0, this.heat - dt * 2.2);
+    this._flushEjects(now);
     if (!held || !def) return;
     this.ads = inp.locked && inp.down('ads') && !this.sprinting && !this.switching;
     // slot switching
@@ -166,13 +176,20 @@ export class LocalPlayer {
     // fire
     const trigger = inp.locked && inp.down('fire');
     const pressed = inp.locked && inp.pressed('fire');
-    const interval = shotInterval(def);
+    const interval = shotInterval(def) / this.rpmMul;          // sustained interval (perk rpm modifier applied here)
+    const bInterval = burstInterval(def) / this.rpmMul;        // interval inside a burst / hyperburst
     const canFire = !this.reloading && !this.switching && now - this.lastShot >= interval;
     if (this.sprinting && (trigger || pressed) && !this.reloading) { this.sprinting = false; }
     if (held.mag > 0) {
       if (def.burst) {
         if (pressed && canFire && this.burst === 0) { this.burst = def.burst; this.burstNext = now; }
-        if (this.burst > 0 && now >= this.burstNext && held.mag > 0 && !this.reloading) { this._shoot(); this.burst--; this.burstNext = now + interval; if (this.burst === 0) this.lastShot = now + def.burstDelay - interval; }
+        if (this.burst > 0 && now >= this.burstNext && held.mag > 0 && !this.reloading) { this._shoot(); this.burst--; this.burstNext = now + bInterval; if (this.burst === 0) this.lastShot = now + (def.burstDelay || 0) - interval; }
+      } else if (def.hyperburst) {
+        // a fresh trigger pull fires `hyperburst` rounds at burstRpm, then the trigger held continues at the sustained rpm
+        if (pressed && canFire && now - this.lastShot >= interval * 2) { this.burst = def.hyperburst - 1; this._shoot(true); this.burstNext = now + bInterval; }
+        else if (this.burst > 0 && now >= this.burstNext && !this.reloading && held.mag > 0) { this._shoot(true); this.burst--; this.burstNext = now + bInterval; }
+        else if (this.burst === 0 && trigger && canFire) this._shoot();
+        if (!trigger) this.burst = 0;
       } else if (def.auto ? trigger && canFire : pressed && canFire) this._shoot();
     } else if (pressed) {
       audio.play('click_empty', { vol: 0.6 });
@@ -184,27 +201,67 @@ export class LocalPlayer {
   tryReload() {
     const held = this.held, def = this.def, now = this.g.now;
     if (!held || !def || held.mag >= def.mag || held.reserve <= 0 || this.reloading || this.switching) return;
-    let dur = def.reloadTime;
-    if (def.reloadPerShell) dur = def.reloadTime * Math.min(def.mag - held.mag, held.reserve) + 0.4;
+    let dur = def.reloadTime, count = 0;
+    if (def.reloadPerShell) { count = Math.min(def.mag - held.mag, held.reserve); dur = def.reloadTime * count + 0.4; }
+    dur *= this.reloadMul;                                     // perk reload modifier applied once, here
     this.reloadUntil = now + dur;
     this.burst = 0;
     this.g.conn.send({ t: 'reload' });
-    this.g.viewModel.startReload(dur, !!def.reloadPerShell);
+    const kind = def.reloadAnim || (def.reloadPerShell ? 'shells' : 'mag');
+    const animCount = def.reloadPerShell ? count : (kind === 'break' || kind === 'cylinder') ? def.mag : 0;
+    this.g.viewModel.startReload(dur, kind, animCount, def.reloadTime * this.reloadMul);
     this._clearReloadTimers();
-    if (def.reloadPerShell) {
-      const n = Math.min(def.mag - held.mag, held.reserve);
-      for (let i = 0; i < n; i++) this.reloadTimers.push(setTimeout(() => audio.play('shell_in', { vol: 0.7 }), 400 + i * def.reloadTime * 1000));
+    this._reloadFoley(def, kind, dur, count);
+  }
+  /** Schedules the reload foley for the animation kind (times as fractions of the total duration). */
+  _reloadFoley(def, kind, dur, count) {
+    const at = (t, name, opts) => this.reloadTimers.push(setTimeout(() => audio.play(name, opts || { vol: 0.7 }), Math.max(0, t * 1000)));
+    const vm = this.g.viewModel, bk = vm.model ? vm.model.boltKind : 'fixed';
+    const action = () => {
+      if (bk === 'slide') at(dur * 0.8, 'slide_rack', { vol: 0.7 });
+      else if (bk === 'bolt') at(dur * 0.76, 'bolt_cycle', { vol: 0.6 });
+      else if (bk === 'pump') at(dur * 0.84, 'pump', { vol: 0.7 });
+      else if (bk === 'recip' || bk === 'fixed') at(dur * 0.85, 'bolt', { vol: 0.6 });
+    };
+    if (kind === 'shells') {
+      const per = def.reloadTime * this.reloadMul;
+      for (let i = 0; i < count; i++) at(0.25 + i * per, 'shell_in', { vol: 0.7, pitch: 0.95 + Math.random() * 0.1 });
+      if (def.pump) at(0.3 + count * per, 'pump', { vol: 0.7 }); else if (bk === 'recip') at(0.3 + count * per, 'bolt', { vol: 0.6 });
+    } else if (kind === 'break') {
+      at(dur * 0.18, 'break_open', { vol: 0.7 }); at(dur * 0.3, 'casings', { vol: 0.5 });
+      at(dur * 0.5, 'shell_in', { vol: 0.7 }); if (def.mag > 1) at(dur * 0.62, 'shell_in', { vol: 0.7, pitch: 1.05 });
+      at(dur * 0.86, 'break_close', { vol: 0.8 });
+    } else if (kind === 'cylinder') {
+      at(dur * 0.15, 'cyl_open', { vol: 0.7 }); at(dur * 0.37, 'casings', { vol: 0.6 });
+      for (let i = 0; i < def.mag; i++) at(dur * (0.58 + 0.2 * i / def.mag), 'round_in', { vol: 0.5, pitch: 1 + i * 0.03 });
+      at(dur * 0.85, 'cyl_close', { vol: 0.8 });
+    } else if (kind === 'belt') {
+      at(dur * 0.1, 'cover_open', { vol: 0.7 }); at(dur * 0.25, 'mag_out', { vol: 0.7, pitch: 0.8 }); at(dur * 0.62, 'mag_in', { vol: 0.8, pitch: 0.85 });
+      at(dur * 0.84, 'cover_close', { vol: 0.9 }); at(dur * 0.92, 'bolt', { vol: 0.6 });
+    } else if (kind === 'cell') {
+      at(dur * 0.14, 'cell_out', { vol: 0.7 }); at(dur * 0.5, 'cell_in', { vol: 0.8 }); at(dur * 0.7, 'cell_charge', { vol: 0.7 });
+    } else if (kind === 'tube') {
+      at(dur * 0.12, 'mag_out', { vol: 0.7, pitch: 0.75 }); at(dur * 0.6, 'mag_in', { vol: 0.8, pitch: 0.8 }); at(dur * 0.88, 'bolt', { vol: 0.6 });
     } else {
-      const look = def.look ? def.look.type : 'rifle';
-      this.reloadTimers.push(setTimeout(() => audio.play('mag_out', { vol: 0.7 }), 120));
-      this.reloadTimers.push(setTimeout(() => audio.play('mag_in', { vol: 0.8 }), Math.max(300, def.reloadTime * 1000 * 0.6)));
-      if (look === 'rifle' || look === 'sniper' || look === 'lmg' || look === 'smg') this.reloadTimers.push(setTimeout(() => audio.play('bolt', { vol: 0.6 }), Math.max(450, def.reloadTime * 1000 * 0.85)));
+      at(Math.max(0.12, dur * 0.14), 'mag_out', { vol: 0.7 }); at(Math.max(0.3, dur * 0.62), 'mag_in', { vol: 0.8 }); action();
     }
   }
   _clearReloadTimers() { for (const t of this.reloadTimers) clearTimeout(t); this.reloadTimers.length = 0; }
   _cancelReload() { if (this.reloading) { this.reloadUntil = 0; this.g.viewModel.stopReload(); this._clearReloadTimers(); } }
 
-  _shoot() {
+  /** Spawn casings from the view model's eject node. kind: 'brass' | 'shell' */
+  _eject(kind, count = 1, speedMul = 1) {
+    const g = this.g;
+    if (!g.viewModel.model || g.viewModel.model.def !== this.def && count === 1) { /* still fine: eject from whatever is held */ }
+    const right = _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    for (let i = 0; i < count; i++) g.effects.shell(g.viewModel.ejectWorld, right, _up, kind, speedMul);
+  }
+  _flushEjects(now) {
+    const q = this.pendingEjects;
+    for (let i = q.length - 1; i >= 0; i--) if (q[i].t <= now) { this._eject(q[i].kind, 1, 1); q.splice(i, 1); }
+  }
+
+  _shoot(inHyperburst = false) {
     const g = this.g, held = this.held, def = this.def, now = g.now;
     if (this.reloading && def.reloadPerShell && held.mag > 0) this._cancelReload();
     held.mag--;
@@ -217,17 +274,19 @@ export class LocalPlayer {
     const d = this.forward(_v2);
     const seed = (Math.random() * 0xffffffff) >>> 0;
     g.conn.send({ t: 'shoot', w: def.index, o: [r3(o.x), r3(o.y), r3(o.z)], d: [r4(d.x), r4(d.y), r4(d.z)], s: r3(spreadC), seed, rt: g.renderTimeMs() });
-    // camera recoil
-    const kick = def.recoil.pitch * DEG * 0.5;
+    // camera recoil (per weapon; a little softer while aiming; the 2nd hyperburst round lands before the recoil)
+    const recMul = (1 - 0.25 * this.adsK) * (inHyperburst && this.burst > 0 ? 0.35 : 1);
+    const kick = def.recoil.pitch * DEG * 0.5 * recMul;
     this.recoilPitch += kick * 0.65; this.pitch = Math.max(-89 * DEG, this.pitch - kick * 0.35);
-    this.recoilYaw += (Math.random() - 0.5) * def.recoil.yaw * DEG * 0.6;
+    this.recoilYaw += (Math.random() - 0.5) * def.recoil.yaw * DEG * 0.6 * recMul;
     g.viewModel.fire();
     const muzzle = g.viewModel.muzzleWorld.clone();
     g.effects.muzzleFlash(muzzle, d, def, true);
     audio.play(def.sound, { vol: 1.0, pitch: 0.96 + Math.random() * 0.08, important: true });
-    if (def.look.type !== 'energy' && def.look.type !== 'revolver' && def.look.type !== 'launcher') {
-      const right = V3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
-      g.effects.shell(g.viewModel.ejectWorld, right, V3(0, 1, 0));
+    // casing ejection (delayed for bolt actions / pumps until the action is cycled)
+    if (def.eject && def.eject !== 'none') {
+      if (def.ejectDelay > 0) this.pendingEjects.push({ t: now + def.ejectDelay, kind: def.eject });
+      else this._eject(def.eject, 1, 1);
     }
     if (def.projectile) { this.g.entities.localProjectileFired(); return; }
     // predicted visuals per pellet
@@ -363,14 +422,14 @@ export class LocalPlayer {
     } else hud.setAmmo(null, null, '', false, false);
     hud.setSlots(this.weapons.map(w => w ? WEAPONS[w.id] : null), this.slot);
     hud.setHealth(this.hp, this.state);
-    // crosshair
+    // crosshair: dynamic spread gap; hidden once the sights are (almost) on the eye line; scope overlay for scoped weapons
     if (def && this.state === PSTATE.ALIVE) {
       const moveK = Math.min(1, this.speed2d / PLAYER.walkSpeed);
       const spread = (this.ads ? def.spreadAds : def.spreadHip) + moveK * def.spreadMove + this.heat * def.spreadPerShot * 3;
-      const px = 6 + spread * 7;
-      const scoped = !!(this.ads && def.scope && g.viewModel.ads > 0.85);
-      hud.crosshair(px, this.ads && def.scope);
-      hud.scope(scoped);
+      const px = 6 + spread * 7 * (1 - 0.5 * this.adsK);
+      const scoped = !!(def.scope && this.adsK >= 0.9);
+      hud.crosshair(px, this.adsK >= 0.9 || (!!def.scope && this.adsK > 0.5));
+      hud.scope(scoped, def.zoom);
       g.viewModel.setVisible(!scoped);
     } else { hud.crosshair(10, true); hud.scope(false); }
     if (this.state === PSTATE.DOWNED) hud.downed(true, PLAYER.bleedoutTime - (g.now - this.downedAt), this.beingRevivedPct > 0);
@@ -380,6 +439,7 @@ export class LocalPlayer {
 }
 
 const _v1 = new BABYLON.Vector3(), _v2 = new BABYLON.Vector3();
+const _right = new BABYLON.Vector3(), _up = new BABYLON.Vector3(0, 1, 0);
 function r3(v) { return Math.round(v * 1000) / 1000; }
 function r4(v) { return Math.round(v * 10000) / 10000; }
 function keyName(code) {
