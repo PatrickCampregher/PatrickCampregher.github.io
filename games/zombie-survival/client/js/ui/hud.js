@@ -1,6 +1,8 @@
 // In-game HUD (DOM overlay). Kept minimal and readable; updates are cheap and diffed.
 import { PSTATE } from '/shared/constants.js';
 import { POWERUP_INFO, POWERUP_TYPES } from '/shared/constants.js';
+import { PERKS } from '/shared/perks.js';
+import { perkIconCanvas } from '../maps/machines.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -15,7 +17,9 @@ export class HUD {
       notice: $('hud-notice'), banner: $('hud-banner'), bannerMain: $('hud-banner-main'), bannerSub: $('hud-banner-sub'),
       revive: $('hud-revive'), reviveBar: $('hud-revive-bar'), reviveText: $('hud-revive-text'), downed: $('hud-downed'), downedText: $('hud-downed-text'),
       fps: $('hud-fps'), zleft: $('hud-zleft'), feed: $('hud-feed'), reload: $('hud-reload'), lowammo: $('hud-lowammo'),
+      perks: $('hud-perks'), mline: $('hud-mline'), pap: $('hud-pap'), papBar: $('hud-pap-bar'), papText: $('hud-pap-text'),
     };
+    this._maxHp = 100; this._selfReviveT = 0; this._mlineT = 0; this._perkKey = ''; this._papKey = ''; this._mlineTimer = null;
     this._last = {};
     this._noticeT = 0; this._bannerT = 0; this._hitT = 0; this._popT = 0; this._popAmount = 0;
     this._promptText = null;
@@ -54,8 +58,43 @@ export class HUD {
     const html = weapons.map((w, i) => `<div class="slot ${i === slot ? 'active' : ''} ${w ? '' : 'empty'}"><span class="k">${i + 1}</span><span class="n">${w ? w.name : '---'}</span></div>`).join('');
     if (this._last.slots !== html) { this._last.slots = html; this.el.weaponSlots.innerHTML = html; }
   }
+  /** Perk icon bar (bottom-left, above the health bar): canvas-drawn badges, pop-in on gain. */
+  setPerks(ids) {
+    const key = (ids || []).join(',');
+    if (key === this._perkKey) return;
+    this._perkKey = key;
+    this.el.perks.innerHTML = '';
+    for (const id of ids || []) {
+      if (!PERKS[id]) continue;
+      const c = perkIconCanvas(id, 96);
+      c.className = 'perk-icon perk-' + id; c.title = PERKS[id].name;
+      this.el.perks.appendChild(c);
+    }
+  }
+  setMaxHealth(v) { this._maxHp = v || 100; this._last.hp = -1; this.el.health.classList.toggle('jugg', this._maxHp > 100); }
+  setSelfRevive(seconds) { this._selfReviveT = seconds || 0; }
+  /** A machine's personality line: shown as a styled quote shortly after the purchase (after the announcer). */
+  machineLine(text, id = 'pap', delayMs = 900) {
+    if (this._mlineTimer) clearTimeout(this._mlineTimer);
+    this._mlineTimer = setTimeout(() => {
+      this._mlineTimer = null;
+      const el = this.el.mline;
+      el.textContent = text; el.className = 'ml-' + id;
+      void el.offsetWidth;
+      this._mlineT = 3.4;
+    }, delayMs);
+  }
+  /** Pack-a-Punch progress for the player whose weapon is inside: state 'processing' (k = progress) | 'ready' | null. */
+  setPap(state, k = 0, name = '') {
+    const el = this.el.pap;
+    if (!state) { if (this._papKey) { el.classList.add('hidden'); this._papKey = ''; } return; }
+    const key = state + '|' + name;
+    if (key !== this._papKey) { this._papKey = key; el.classList.remove('hidden'); el.classList.toggle('ready', state === 'ready'); this.el.papText.textContent = state === 'ready' ? `${name.toUpperCase()} READY - TAKE IT` : `UPGRADING ${name.toUpperCase()}`; }
+    const w = state === 'ready' ? 100 : Math.round(k * 100);
+    if (this._last.papW !== w) { this._last.papW = w; this.el.papBar.style.width = w + '%'; }
+  }
   setHealth(hp, state) {
-    const pct = Math.max(0, Math.min(100, hp));
+    const pct = Math.max(0, Math.min(100, hp / this._maxHp * 100));
     if (this._last.hp !== pct) { this._last.hp = pct; this.el.healthBar.style.width = pct + '%'; this.el.healthBar.classList.toggle('crit', pct < 35); }
     const v = state === PSTATE.ALIVE ? Math.max(0, (65 - pct) / 65) : 1;
     this.el.vignette.style.opacity = (v * 0.85).toFixed(2);
@@ -121,7 +160,7 @@ export class HUD {
   }
   downed(on, seconds, beingRevived) {
     this.el.downed.classList.toggle('hidden', !on);
-    if (on) this.el.downedText.textContent = beingRevived ? 'BEING REVIVED...' : `YOU ARE DOWN - ${Math.ceil(seconds)}s`;
+    if (on) this.el.downedText.textContent = beingRevived ? 'BEING REVIVED...' : this._selfReviveT > 0 ? `QUICK REVIVE IN ${Math.ceil(this._selfReviveT)}s` : `YOU ARE DOWN - ${Math.ceil(seconds)}s`;
   }
   feed(text, cls = '') {
     const d = document.createElement('div'); d.className = 'feed-item ' + cls; d.textContent = text;
@@ -136,6 +175,8 @@ export class HUD {
     if (this._bannerT > 0) { this._bannerT -= dt; if (this._bannerT <= 0) this.el.banner.classList.add('hidden'); }
     if (this._hitT > 0) { this._hitT -= dt; if (this._hitT <= 0) this.el.hit.classList.remove('show'); }
     if (this._popT > 0) { this._popT -= dt; }
+    if (this._mlineT > 0) { this._mlineT -= dt; if (this._mlineT <= 0) this.el.mline.classList.add('hidden'); }
+    if (this._selfReviveT > 0) this._selfReviveT -= dt;
   }
 }
 

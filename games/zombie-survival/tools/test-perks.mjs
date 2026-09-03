@@ -40,6 +40,9 @@ function tp(p, x, z, y = 0) { p.x = x; p.z = z; p.y = y; p.acceptAny = true; }
 function tpMachine(g, p, id) { const m = g.world.machines.find(x => x.id === id); tp(p, m.x + Math.sin(m.yaw) * 1.1, m.z + Math.cos(m.yaw) * 1.1, m.y); return m; }
 function interact(g, p, target) { g.handleMessage(p.lp, { t: 'interact', target }); }
 function cheat(g, p, o) { g.handleMessage(p.lp, { t: 'cheat', ...o }); }
+/** Damage ignoring god mode and the spawn / revive invulnerability window. */
+function hurt(g, p, dmg) { const god = p.god; p.god = false; p.invulnUntil = 0; g.damagePlayer(p, dmg, null); p.god = god; }
+const TICK = TICK_MS / 1000;
 
 // =====================================================================================================
 console.log('== solo: perks ==');
@@ -72,7 +75,7 @@ console.log('== solo: perks ==');
   eq(p.points, 17500, 'no double charge');
   ok(c.last('notice') && /OWNED/.test(c.last('notice').text), 'already-owned notice');
   // damage + regen against the raised maximum
-  p.god = false; g.damagePlayer(p, 120, null); p.god = true;
+  hurt(g, p, 120);
   eq(p.state, PSTATE.ALIVE, 'survives 120 damage with juggernog');
   eq(Math.round(p.hp), 130, 'hp after 120 damage');
   step(g, PLAYER.regenDelay + 4);
@@ -129,9 +132,10 @@ console.log('== solo: perks ==');
   }
   // Quick Revive (solo price 500)
   tpMachine(g, p, 'revive');
+  const ptsBefore = p.points;
   interact(g, p, 'perk:revive');
   eq(p.perks.length, 4, 'four perks owned');
-  eq(p.points, 12500 - perkCost('revive', true), 'quick revive costs 500 in solo');
+  eq(p.points, ptsBefore - perkCost('revive', true), 'quick revive costs 500 in solo');
   eq(perkCost('revive', false), 1500, 'quick revive costs 1500 in co-op');
   eq(p.soloRevives, 1, 'solo quick revive purchase counted');
   eq(c.self.mods.revive, PERK_RULES.reviveHoldMul, 'self mods.revive');
@@ -139,7 +143,7 @@ console.log('== solo: perks ==');
   interact(g, p, 'perk:nope'); eq(p.perks.length, 4, 'unknown perk ignored');
   // going down: all perks lost, solo quick revive brings the player back after 8 s, no game over
   c.clear();
-  p.god = false; g.damagePlayer(p, 9999, null);
+  hurt(g, p, 9999); step(g, TICK);
   eq(p.state, PSTATE.DOWNED, 'player downed');
   eq(p.perks.length, 0, 'all perks lost when downed');
   eq(p.maxHp, PLAYER.maxHealth, 'max hp back to 100');
@@ -160,7 +164,8 @@ console.log('== solo: perks ==');
   for (let n = 2; n <= 3; n++) {
     tpMachine(g, p, 'revive'); interact(g, p, 'perk:revive');
     eq(p.soloRevives, n, `quick revive purchase #${n}`);
-    p.god = false; g.damagePlayer(p, 9999, null); p.god = true;
+    hurt(g, p, 9999);
+    eq(p.state, PSTATE.DOWNED, `down #${n}`);
     step(g, PERK_RULES.soloReviveDelay + 0.2);
     eq(p.state, PSTATE.ALIVE, `self-revive #${n}`);
   }
@@ -170,7 +175,7 @@ console.log('== solo: perks ==');
   ok(c.last('notice') && /SOLD OUT/.test(c.last('notice').text), 'sold-out notice');
   eq(p.perks.length, 0, 'no perk granted');
   // going down without quick revive in solo = game over
-  p.god = false; g.damagePlayer(p, 9999, null);
+  hurt(g, p, 9999);
   eq(g.gameOver, true, 'game over when downed without quick revive (solo)');
 }
 
@@ -193,6 +198,7 @@ console.log('== solo: pack-a-punch ==');
   eq(p.slot, 0, 'switched to the other weapon');
   const pm = c.last('pap');
   ok(pm && pm.state === 'processing' && pm.user === 1 && pm.weapon === 'kestrel_ar' && pm.result === 'kestrel_ar_pap' && pm.dur === PAP.processTime, 'processing broadcast');
+  step(g, TICK);
   ok(c.self && c.self.weapons[1] === null && c.self.slot === 0, 'self message reflects the empty slot');
   interact(g, p, 'pap');
   eq(g.pap.state, 'processing', 'interacting while processing does nothing');
@@ -274,7 +280,9 @@ console.log('== solo: pack-a-punch ==');
   eq(p.weapons[1], null, 'no second base weapon');
   // late joiner init while processing
   cheat(g, p, { points: 20000 });
+  tpMachine(g, p, 'pap');
   interact(g, p, 'pap');
+  eq(g.pap.state, 'processing', 'processing for the late-joiner check');
   const late = { id: 2, name: 'Late', conn: new FakeConn(), inGame: false };
   g.lobby.lobby.players.set(2, late);
   g.addPlayer(late);
@@ -294,7 +302,7 @@ console.log('== co-op: quick revive, speed cola repairs, losing perks ==');
   eq(p1.soloRevives, 0, 'co-op purchase does not use the solo allowance');
   ok(c2.count('perk', m => m.ev === 'buy' && m.p === 1 && m.id === 'revive') === 1, 'teammate sees the purchase');
   // p2 goes down: no self revive in co-op, game continues (p1 alive)
-  tp(p2, 5, 0); g.damagePlayer(p2, 9999, null);
+  tp(p2, 5, 0); hurt(g, p2, 9999);
   eq(p2.state, PSTATE.DOWNED, 'p2 downed');
   eq(p2.selfReviveAt, 0, 'no self-revive in co-op');
   eq(g.gameOver, false, 'game continues');
@@ -309,7 +317,7 @@ console.log('== co-op: quick revive, speed cola repairs, losing perks ==');
   eq(p1.stats.revives, 1, 'revive counted');
   // without the perk it takes the full 4 s
   p1.perks = []; g._applyPerks(p1);
-  g.damagePlayer(p2, 9999, null);
+  hurt(g, p2, 9999);
   g.handleMessage(p1.lp, { t: 'hold', target: 'revive:2' });
   step(g, 3.6); eq(p2.state, PSTATE.DOWNED, 'not revived after 3.6 s without the perk');
   step(g, 0.6); eq(p2.state, PSTATE.ALIVE, 'revived after 4 s without the perk');
@@ -330,7 +338,7 @@ console.log('== co-op: quick revive, speed cola repairs, losing perks ==');
   // losing perks on down in co-op + respawn keeps them cleared
   tpMachine(g, p1, 'jugg'); interact(g, p1, 'perk:jugg');
   eq(p1.maxHp, 250, 'p1 has juggernog');
-  p1.god = false; g.damagePlayer(p1, 9999, null); p1.god = true;
+  hurt(g, p1, 9999); step(g, TICK);
   eq(p1.perks.length, 0, 'perks lost on down (co-op)');
   eq(p1.maxHp, 100, 'max hp reset');
   ok(c1.self && c1.self.mods.maxHp === 100 && c1.self.perks.length === 0, 'self message updated');

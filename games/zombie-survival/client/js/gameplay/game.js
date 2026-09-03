@@ -4,6 +4,7 @@ import { MAP } from '/shared/mapdata.js';
 import { buildWorld } from '/shared/mapbuild.js';
 import { WEAPONS, WEAPON_LIST } from '/shared/weapons.js';
 import { PSTATE, RSTATE, POWERUP_TYPES, POWERUP_INFO, POWERUP, MYSTERY_BOX } from '/shared/constants.js';
+import { PERKS } from '/shared/perks.js';
 import { TextureLibrary } from '../maps/textures.js';
 import { MaterialLibrary } from '../maps/materials.js';
 import { LightingRig, buildSky, buildEnvironment } from '../maps/lighting.js';
@@ -14,6 +15,8 @@ import { ViewModel, WeaponModelCache } from '../weapons/viewModel.js';
 import { LocalPlayer } from './player.js';
 import { Entities } from './entities.js';
 import { audio } from '../audio/audio.js';
+import { buildMachines } from '../maps/machines.js';
+import { HandAnim } from '../weapons/handAnim.js';
 
 const B = () => BABYLON;
 const V3 = (x, y, z) => new (BABYLON.Vector3)(x, y, z);
@@ -80,11 +83,13 @@ export class Game {
     await nextFrame();
     progress(0.62, 'Building Ashford Street');
     this.mapVis = buildMap(scene, this.world, this.mats, this.lighting, this.textures, this.effects, this.settings);
+    this.machines = buildMachines(scene, this.world, this.mats, this.lighting, this.textures, this.effects, this.settings, this);
     await nextFrame();
     progress(0.8, 'Loading weapons');
     this.weaponCache = new WeaponModelCache(scene, this.mats, (id) => buildWeaponModel(scene, this.mats, WEAPONS[id]));
     for (const w of WEAPON_LIST) this.weaponCache.get(w.id);
     this.viewModel = new ViewModel(scene, this.camera, this.weaponCache);
+    this.handAnim = new HandAnim(this);
     await nextFrame();
     progress(0.86, 'Raising the dead');
     this.entities = new Entities(this);
@@ -154,6 +159,7 @@ export class Game {
       this._updateBoxVisual(dt);
       this._updateEffectsHud(dt);
       this.hud.update(dt);
+      this.machines.update(dt); this.handAnim.update(dt);
       const cam = this.camera;
       const fwd = cam.getDirection(B().Axis.Z);
       audio.setListener(cam.position.x, cam.position.y, cam.position.z, fwd.x, fwd.y, fwd.z);
@@ -229,7 +235,7 @@ export class Game {
     });
     on('down', (m) => { this.states[m.id] = PSTATE.DOWNED; if (m.id !== this.myId) { this.hud.feed(`${this.playerName(m.id)} is down!`, 'bad'); audio.play('down', { vol: 0.4 }); } this._team(); });
     on('dead', (m) => { this.states[m.id] = PSTATE.DEAD; if (m.id !== this.myId) this.hud.feed(`${this.playerName(m.id)} bled out`, 'bad'); this._team(); });
-    on('revive', (m) => { this.states[m.id] = PSTATE.ALIVE; this.hud.feed(`${this.playerName(m.by)} revived ${this.playerName(m.id)}`); if (m.by === this.myId) audio.play('revive', { vol: 0.7 }); this._team(); });
+    on('revive', (m) => { this.states[m.id] = PSTATE.ALIVE; this.hud.feed(m.self ? `${this.playerName(m.id)} got back up (Quick Revive)` : `${this.playerName(m.by)} revived ${this.playerName(m.id)}`); if (m.by === this.myId) audio.play('revive', { vol: 0.7 }); this._team(); });
     on('door', (m) => {
       const d = this.world.doors[m.id]; if (!d) return;
       d.closed = false;
@@ -259,6 +265,9 @@ export class Game {
     on('weapon', (m) => { audio.play('weapon_pickup', { vol: 0.8 }); this.hud.feed(`Picked up ${WEAPONS[m.id].name}`); });
     on('ammo', () => { audio.play('buy', { vol: 0.8 }); this.hud.notice('AMMO RESTOCKED', 1200); });
     on('notice', (m) => { this.hud.notice(m.text); audio.play('nopoints', { vol: 0.6 }); });
+    on('perk', (m) => { this.machines.onPerk(m); if (m.ev === 'buy' && m.p !== this.myId) this.hud.feed(`${this.playerName(m.p)} bought ${PERKS[m.id] ? PERKS[m.id].name : m.id}`); });
+    on('pap', (m) => this.machines.onPap(m));
+    on('mline', (m) => this.hud.machineLine(m.text, m.m));
     on('scores', (m) => { for (const id in m.s) this.scores[id] = m.s[id]; this._team(); });
     on('pjoin', (m) => { this.names[m.id] = m.name; this.scores[m.id] = m.points; this.states[m.id] = PSTATE.ALIVE; this.hud.feed(`${m.name} joined`); this._team(); });
     on('pleave', (m) => { this.hud.feed(`${this.playerName(m.id)} left`); delete this.scores[m.id]; delete this.states[m.id]; this.entities.onPlayerLeave(m.id); this._team(); });

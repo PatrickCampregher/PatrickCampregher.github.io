@@ -11,6 +11,9 @@ import { ZombieManager } from './zombies.js';
 import { MysteryBox } from './box.js';
 import { PowerupManager } from './powerups.js';
 import { processShot, updateProjectiles } from './combat.js';
+import { PERK, PAP } from '../../shared/constants.js';
+import { PERKS, PERK_RULES, perkCost, computeMods, pickLine } from '../../shared/perks.js';
+import { papTargetId, papCostFor } from '../../shared/pap.js';
 
 export class GameServer {
   constructor(lobby) {
@@ -32,6 +35,7 @@ export class GameServer {
     this.unlocked = new Set([MAP.startArea]);
     this.fieldsDirty = 1;
     this.oneShotUntil = -1; this.doubleUntil = -1;
+    this.pap = { state: 'idle', user: 0, weapon: null, result: null, slot: 0, t: 0 }; // pack-a-punch machine
     this.running = false; this.gameOver = false; this.gameOverT = 0;
     this._snapBuf = new ArrayBuffer(16384);
     this._selfDirty = new Set();
@@ -80,6 +84,7 @@ export class GameServer {
       downedAt: 0, reviveProgress: 0, hold: null, holdT: 0, boardPoints: 0, invulnUntil: 0,
       stats: { kills: 0, headshots: 0, revives: 0, shots: 0, hits: 0, downs: 0, points: 0 },
       lastInputSeq: 0, lastInputTime: this.time, acceptAny: true, renderOffset: 0, ready: false, joinedAt: this.time,
+      perks: [], mods: computeMods([]), maxHp: PLAYER.maxHealth, soloRevives: 0, selfReviveAt: 0,
     };
     this.players.set(p.id, p);
     lp.inGame = true;
@@ -125,6 +130,7 @@ export class GameServer {
       effects: { oneshot: Math.max(0, this.oneShotUntil - this.time), double: Math.max(0, this.doubleUntil - this.time) },
       powerups: this.powerups.list.map(pu => ({ id: pu.id, type: pu.type, x: pu.x, y: pu.y, z: pu.z })),
       zombiesLeft: this.roundTotal - this.killedThisRound,
+      pap: this._papSerialize(),
     };
   }
 
@@ -147,6 +153,7 @@ export class GameServer {
       weapons: p.weapons.map(w => w ? { id: w.id, mag: w.mag, reserve: w.reserve } : null),
       reload: p.reloadEnd > this.time ? r2(p.reloadEnd - this.time) : 0,
       stats: p.stats,
+      perks: p.perks, mods: p.mods, selfRevive: p.selfReviveAt > this.time ? r2(p.selfReviveAt - this.time) : 0,
     };
   }
 
@@ -171,6 +178,8 @@ export class GameServer {
         if (Array.isArray(msg.tp) && msg.tp.length >= 2) { p.x = +msg.tp[0]; p.z = +msg.tp[1]; p.y = +(msg.tp[2] || 0); p.acceptAny = true; this._correct(p); }
         if (msg.powerup != null) { this.powerups.lastDrop = -999; this.powerups.countThisRound = 0; const save = this.rng; this.rng = () => 0; this.powerups.maybeDrop(p.x + Math.sin(p.yaw) * 2.5, p.y, p.z + Math.cos(p.yaw) * 2.5); this.rng = save; const pu = this.powerups.list[this.powerups.list.length - 1]; if (pu && typeof msg.powerup === 'number') { pu.type = msg.powerup; this.broadcast({ t: 'powerup', ev: 'expire', id: pu.id }); this.broadcast({ t: 'powerup', ev: 'spawn', id: pu.id, type: pu.type, x: pu.x, y: pu.y, z: pu.z }); } }
         if (msg.bear) { this.box.uses = 99; this.box.forceBear = true; }
+        if (msg.perk && PERKS[msg.perk]) this._grantPerk(p, msg.perk);
+        if (msg.clearPerks) this._clearPerks(p, true);
         break;
       default: break;
     }
@@ -227,7 +236,7 @@ export class GameServer {
     const def = WEAPONS[held.id];
     if (held.mag >= def.mag || held.reserve <= 0) return;
     if (p.reloadEnd > this.time || p.switchEnd > this.time) return;
-    p.reloadEnd = this.time + def.reloadTime + (def.reloadPerShell ? 0.4 : 0);
+    p.reloadEnd = this.time + (def.reloadTime + (def.reloadPerShell ? 0.4 : 0)) * p.mods.reload;
     p.reloadShells = def.reloadPerShell ? 1 : 0;
     this.markSelf(p);
   }
@@ -267,6 +276,8 @@ export class GameServer {
     if (kind === 'door') this._buyDoor(p, id);
     else if (kind === 'box') this.box.interact(p);
     else if (kind === 'wallbuy') this._wallBuy(p, id | 0);
+    else if (kind === 'perk') this._buyPerk(p, id);
+    else if (kind === 'pap') this._papInteract(p);
   }
 
   _buyDoor(p, id) {
@@ -287,10 +298,10 @@ export class GameServer {
     const wb = this.world.wallBuys[idx];
     if (!wb) return;
     if (Math.hypot(p.x - wb.x, p.z - wb.z) > 3.2) return;
-    const def = WEAPONS[wb.weapon];
-    const has = p.weapons.find(w => w && w.id === wb.weapon);
+    const has = p.weapons.find(w => w && (w.id === wb.weapon || w.id === wb.weapon + '_pap'));
     if (has) {
-      const cost = Math.round(wb.cost / 2);
+      const def = WEAPONS[has.id]; // an upgraded weapon gets (expensive) ammo, never a second base gun
+      const cost = def.pap ? PAP.wallAmmoCost : Math.round(wb.cost / 2);
       if (has.reserve >= def.reserve && has.mag >= def.mag) return;
       if (p.points < cost) { this.sendTo(p, { t: 'notice', text: 'NOT ENOUGH POINTS' }); return; }
       this.awardPoints(p, -cost, 'ammo');
@@ -326,7 +337,7 @@ export class GameServer {
       if (p.hold.kind === 'revive') {
         const t = this.players.get(p.hold.id);
         if (!t || t.state !== PSTATE.DOWNED || Math.hypot(p.x - t.x, p.z - t.z) > 2.4) { p.hold = null; if (t) t.reviveProgress = 0; continue; }
-        t.reviveProgress = Math.min(1, t.reviveProgress + dt / PLAYER.reviveTime);
+        t.reviveProgress = Math.min(1, t.reviveProgress + dt / (PLAYER.reviveTime * p.mods.revive));
         t.reviver = p.id;
         if (t.reviveProgress >= 1) { this._revive(t, p); p.hold = null; }
       } else if (p.hold.kind === 'board') {
@@ -336,7 +347,7 @@ export class GameServer {
         const blocker = e.tearingBy ? this.zombies.active.find(z => z.id === e.tearingBy && z.state === ZSTATE.ENTERING) : null;
         if (blocker) continue;
         p.holdT += dt;
-        if (p.holdT >= 0.75) {
+        if (p.holdT >= 0.75 / p.mods.repair) {
           p.holdT = 0;
           e.boards++;
           this.broadcast({ t: 'board', id: e.id, boards: e.boards, by: p.id });
@@ -371,13 +382,16 @@ export class GameServer {
   _down(p) {
     p.hp = 0; p.state = PSTATE.DOWNED; p.downedAt = this.time; p.reviveProgress = 0; p.hold = null;
     p.reloadEnd = 0; p.stats.downs++;
+    // Quick Revive in solo: get back up on your own after a delay (all perks, including it, are lost)
+    p.selfReviveAt = (this.players.size === 1 && p.perks.includes('revive')) ? this.time + PERK_RULES.soloReviveDelay : 0;
+    this._clearPerks(p, true);
     this.markSelf(p);
-    this.broadcast({ t: 'down', id: p.id });
+    this.broadcast({ t: 'down', id: p.id, self: p.selfReviveAt > 0 ? PERK_RULES.soloReviveDelay : 0 });
     this._checkGameOver();
   }
 
   _revive(t, by) {
-    t.state = PSTATE.ALIVE; t.hp = PLAYER.maxHealth; t.lastDamage = this.time; t.reviveProgress = 0; t.invulnUntil = this.time + 1.5;
+    t.state = PSTATE.ALIVE; t.hp = t.maxHp || PLAYER.maxHealth; t.selfReviveAt = 0; t.lastDamage = this.time; t.reviveProgress = 0; t.invulnUntil = this.time + 1.5;
     t.acceptAny = true;
     by.stats.revives++;
     this.awardPoints(by, POINTS.revive, 'revive');
@@ -388,7 +402,7 @@ export class GameServer {
   _checkGameOver() {
     if (this.gameOver) return;
     let anyUp = false;
-    for (const p of this.players.values()) if (p.state === PSTATE.ALIVE) { anyUp = true; break; }
+    for (const p of this.players.values()) if (p.state === PSTATE.ALIVE || (p.state === PSTATE.DOWNED && p.selfReviveAt > 0)) { anyUp = true; break; }
     if (anyUp || this.players.size === 0) return;
     this.gameOver = true; this.gameOverT = 0;
     this.roundState = RSTATE.GAMEOVER;
@@ -423,7 +437,8 @@ export class GameServer {
       if (p.state === PSTATE.DEAD) {
         const sp = this._pickSpawn();
         p.x = sp.x; p.y = sp.y; p.z = sp.z; p.yaw = sp.yaw;
-        p.state = PSTATE.ALIVE; p.hp = PLAYER.maxHealth; p.acceptAny = true; p.invulnUntil = this.time + 3;
+        this._clearPerks(p, false); p.selfReviveAt = 0;
+        p.state = PSTATE.ALIVE; p.hp = p.maxHp; p.acceptAny = true; p.invulnUntil = this.time + 3;
         if (!p.weapons[0] && !p.weapons[1]) p.weapons[0] = { id: 'warden_p9', mag: WEAPONS.warden_p9.mag, reserve: WEAPONS.warden_p9.reserve };
         p.slot = p.weapons[p.slot] ? p.slot : (p.weapons[0] ? 0 : 1);
         this.markSelf(p);
@@ -535,6 +550,7 @@ export class GameServer {
     updateProjectiles(this, dt);
     this.powerups.update(dt);
     this.box.update(dt);
+    this._updatePap(dt);
     this._updateHolds(dt);
     for (const p of this.players.values()) this._updatePlayer(p, dt);
     // scores
@@ -552,10 +568,11 @@ export class GameServer {
 
   _updatePlayer(p, dt) {
     if (p.state === PSTATE.ALIVE) {
-      if (p.hp < PLAYER.maxHealth && this.time - p.lastDamage > PLAYER.regenDelay) {
+      const maxHp = p.maxHp || PLAYER.maxHealth;
+      if (p.hp < maxHp && this.time - p.lastDamage > PLAYER.regenDelay) {
         const before = Math.round(p.hp);
-        p.hp = Math.min(PLAYER.maxHealth, p.hp + PLAYER.regenRate * dt);
-        if (Math.round(p.hp) !== before && (this.tick % 5 === 0 || p.hp >= PLAYER.maxHealth)) this.markSelf(p);
+        p.hp = Math.min(maxHp, p.hp + PLAYER.regenRate * dt);
+        if (Math.round(p.hp) !== before && (this.tick % 5 === 0 || p.hp >= maxHp)) this.markSelf(p);
       }
       if (p.reloadEnd > 0 && this.time >= p.reloadEnd) {
         const held = p.weapons[p.slot];
@@ -563,7 +580,7 @@ export class GameServer {
           const def = WEAPONS[held.id];
           if (def.reloadPerShell) {
             if (held.mag < def.mag && held.reserve > 0) { held.mag++; held.reserve--; }
-            if (held.mag < def.mag && held.reserve > 0) p.reloadEnd = this.time + def.reloadTime;
+            if (held.mag < def.mag && held.reserve > 0) p.reloadEnd = this.time + def.reloadTime * p.mods.reload;
             else { p.reloadEnd = 0; p.reloadShells = 0; }
           } else {
             const take = Math.min(def.mag - held.mag, held.reserve);
@@ -573,12 +590,129 @@ export class GameServer {
         this.markSelf(p);
       }
     } else if (p.state === PSTATE.DOWNED) {
+      if (p.selfReviveAt > 0 && this.time >= p.selfReviveAt) { this._selfRevive(p); return; }
       if (this.time - p.downedAt > PLAYER.bleedoutTime) {
         p.state = PSTATE.DEAD; p.hold = null;
         this.markSelf(p);
         this.broadcast({ t: 'dead', id: p.id });
         this._checkGameOver();
       }
+    }
+  }
+
+  // ---------------- perks ----------------
+  _perkMachine(id) { return this.world.machines.find(m => m.type === 'perk' && m.perk === id) || null; }
+
+  _buyPerk(p, id) {
+    const m = this._perkMachine(id);
+    if (!PERKS[id] || !m) return;
+    if (Math.hypot(p.x - m.x, p.z - m.z) > PERK.range) return;
+    if (p.perks.includes(id)) { this.sendTo(p, { t: 'notice', text: 'ALREADY OWNED' }); return; }
+    if (p.perks.length >= PERK.maxPerks) { this.sendTo(p, { t: 'notice', text: 'NO MORE PERK SLOTS' }); return; }
+    const solo = this.players.size === 1;
+    if (id === 'revive' && solo && p.soloRevives >= PERK_RULES.soloReviveMax) { this.sendTo(p, { t: 'notice', text: 'QUICK REVIVE SOLD OUT' }); return; }
+    const cost = perkCost(id, solo);
+    if (p.points < cost) { this.sendTo(p, { t: 'notice', text: 'NOT ENOUGH POINTS' }); return; }
+    this.awardPoints(p, -cost, 'perk');
+    this._grantPerk(p, id);
+  }
+
+  /** Give a perk (purchase or dev cheat): mods + health, immediate self update, machine animation for everyone, a line. */
+  _grantPerk(p, id) {
+    if (!PERKS[id] || p.perks.includes(id) || p.perks.length >= PERK.maxPerks) return;
+    p.perks.push(id);
+    if (id === 'revive' && this.players.size === 1) p.soloRevives++;
+    this._applyPerks(p);
+    this.sendTo(p, this._selfMessage(p));
+    this.broadcast({ t: 'perk', ev: 'buy', id, p: p.id });
+    this.sendTo(p, { t: 'mline', m: id, text: pickLine(id, this.rng) });
+  }
+
+  _applyPerks(p) {
+    const prevMax = p.maxHp || PLAYER.maxHealth;
+    p.mods = computeMods(p.perks);
+    p.maxHp = p.mods.maxHp;
+    if (p.maxHp > prevMax && p.state === PSTATE.ALIVE) p.hp = Math.min(p.maxHp, p.hp + (p.maxHp - prevMax));
+    if (p.hp > p.maxHp) p.hp = p.maxHp;
+    this.markSelf(p);
+  }
+
+  _clearPerks(p, announce) {
+    if (!p.perks.length) return;
+    p.perks = [];
+    this._applyPerks(p);
+    if (announce) this.broadcast({ t: 'perk', ev: 'lost', p: p.id });
+  }
+
+  _selfRevive(p) {
+    p.selfReviveAt = 0;
+    p.state = PSTATE.ALIVE; p.hp = p.maxHp || PLAYER.maxHealth; p.lastDamage = this.time; p.reviveProgress = 0;
+    p.invulnUntil = this.time + 2.5; p.acceptAny = true;
+    this.markSelf(p);
+    this.broadcast({ t: 'revive', id: p.id, by: p.id, self: true });
+  }
+
+  // ---------------- pack-a-punch ----------------
+  _papMachine() { return this.world.machines.find(m => m.type === 'pap') || null; }
+
+  /** {t:'pap', state:'idle'|'processing'|'ready', user, weapon (base id while processing, upgraded id when ready), result, dur, timer} */
+  _papSerialize(extra) {
+    const s = this.pap;
+    const msg = { t: 'pap', state: s.state, user: s.user, weapon: s.state === 'ready' ? s.result : s.weapon, result: s.result, dur: PAP.processTime };
+    if (s.state === 'processing') msg.timer = r2(Math.max(0, PAP.processTime - s.t));
+    else if (s.state === 'ready') msg.timer = r2(Math.max(0, PAP.pickupWindow - s.t));
+    return extra ? Object.assign(msg, extra) : msg;
+  }
+
+  _papInteract(p) {
+    const m = this._papMachine();
+    if (!m || Math.hypot(p.x - m.x, p.z - m.z) > PAP.range) return;
+    const s = this.pap;
+    if (s.state === 'ready') { if (s.user === p.id) this._papTake(p); return; }
+    if (s.state !== 'idle') return;
+    const held = p.weapons[p.slot];
+    if (!held) { this.sendTo(p, { t: 'notice', text: 'NO WEAPON TO UPGRADE' }); return; }
+    const def = WEAPONS[held.id];
+    const cost = papCostFor(def);
+    if (p.points < cost) { this.sendTo(p, { t: 'notice', text: 'NOT ENOUGH POINTS' }); return; }
+    this.awardPoints(p, -cost, 'pap');
+    s.state = 'processing'; s.t = 0; s.user = p.id; s.weapon = held.id; s.result = papTargetId(def); s.slot = p.slot;
+    // the weapon goes into the machine: the slot empties; switch to the other weapon if any (else empty hands)
+    p.weapons[p.slot] = null;
+    const other = 1 - p.slot;
+    if (p.weapons[other]) { p.slot = other; p.switchEnd = this.time + WEAPONS[p.weapons[other].id].switchTime; }
+    p.reloadEnd = 0; p.reloadShells = 0;
+    this.markSelf(p);
+    this.broadcast(this._papSerialize());
+  }
+
+  /** Hand the upgraded weapon over (player pressed E, or the pickup window ran out). */
+  _papTake(p) {
+    const s = this.pap;
+    if (s.state !== 'ready') return;
+    const id = s.result, def = WEAPONS[id];
+    let slot = !p.weapons[s.slot] ? s.slot : p.weapons.findIndex(w => !w); // original slot when still free
+    if (slot < 0) slot = p.slot;
+    p.weapons[slot] = { id, mag: def.mag, reserve: def.reserve };
+    p.slot = slot; p.reloadEnd = 0; p.reloadShells = 0; p.switchEnd = this.time + def.switchTime;
+    this.markSelf(p);
+    this.sendTo(p, { t: 'weapon', slot, id });
+    s.state = 'idle'; s.t = 0;
+    this.broadcast(this._papSerialize({ taken: true, weapon: id }));
+    s.user = 0; s.weapon = null; s.result = null;
+  }
+
+  _updatePap(dt) {
+    const s = this.pap;
+    if (s.state === 'idle') return;
+    s.t += dt;
+    if (s.state === 'processing' && s.t >= PAP.processTime) {
+      s.state = 'ready'; s.t = 0;
+      this.broadcast(this._papSerialize());
+    } else if (s.state === 'ready' && s.t >= PAP.pickupWindow) {
+      const u = this.players.get(s.user);
+      if (u) this._papTake(u);
+      else { s.state = 'idle'; s.t = 0; s.user = 0; s.weapon = null; s.result = null; this.broadcast(this._papSerialize()); }
     }
   }
 

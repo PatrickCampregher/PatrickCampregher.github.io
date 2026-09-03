@@ -220,3 +220,19 @@ button { font-family: inherit; }
   .brand { font-size: 44px; } .brand span { font-size: 58px; }
   #hud-round { font-size: 52px; } #hud-ammo { font-size: 40px; }
 }
+
+/* ---------------- perks + machines ---------------- */
+#hud-perks { position: absolute; left: 28px; bottom: 148px; display: flex; gap: 8px; }
+#hud-perks .perk-icon { width: 44px; height: 44px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.75), 0 0 12px rgba(0,0,0,0.5); animation: perkIn .5s cubic-bezier(.2,1.5,.4,1); }
+@keyframes perkIn { from { transform: scale(0.2) rotate(-25deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+#hud-health.jugg .bar { background: rgba(255, 90, 70, 0.2); box-shadow: 0 0 10px rgba(255, 60, 40, 0.35); }
+#hud-health.jugg #hud-health-bar { background: #ffb8a6; }
+#hud-mline { position: absolute; left: 50%; top: 44%; transform: translateX(-50%); max-width: 60vw; font-family: var(--font-ui); font-style: italic; font-size: 17px; letter-spacing: 1px; color: #fff; text-shadow: 0 1px 3px #000, 0 0 10px #000; padding: 7px 18px; border-left: 3px solid var(--accent2); background: rgba(0,0,0,0.42); animation: mlineIn .3s ease-out; }
+#hud-mline.ml-jugg { border-color: #ff4a38; } #hud-mline.ml-revive { border-color: #3ad4ff; } #hud-mline.ml-speed { border-color: #5aff6a; } #hud-mline.ml-dtap { border-color: #ff9a3a; } #hud-mline.ml-pap { border-color: #b45cff; }
+@keyframes mlineIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+#hud-pap { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); width: 280px; text-align: center; }
+#hud-pap .lbl { font-size: 13px; letter-spacing: 6px; color: #d9a6ff; font-family: var(--font-title); text-shadow: 0 0 10px #7a2bd6, 0 2px 0 #000; }
+#hud-pap .bar { height: 6px; background: rgba(255,255,255,0.15); margin: 6px 0; box-shadow: 0 0 8px rgba(180, 92, 255, 0.35); }
+#hud-pap-bar { height: 100%; width: 0; background: linear-gradient(90deg, #7a2bd6, #d9a6ff); transition: width .12s linear; }
+#hud-pap-text { font-family: var(--font-ui); font-size: 11px; letter-spacing: 3px; color: var(--ink); text-shadow: 0 1px 2px #000; }
+#hud-pap.ready #hud-pap-text { color: #d9a6ff; animation: pulse 0.7s ease-in-out infinite alternate; }

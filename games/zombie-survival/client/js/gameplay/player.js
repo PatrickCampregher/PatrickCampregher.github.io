@@ -5,6 +5,9 @@ import { IN, encodeInput } from '/shared/protocol.js';
 import { WEAPONS, WEAPON_LIST, computeShotDirections, shotInterval } from '/shared/weapons.js';
 import { resolveCharacter, raycastWorld, bulletFilter } from '/shared/collision.js';
 import { audio } from '../audio/audio.js';
+import { PERK, PAP } from '/shared/constants.js';
+import { perkCost } from '/shared/perks.js';
+import { papCostFor } from '/shared/pap.js';
 
 const B = () => BABYLON;
 const V3 = (x, y, z) => new (BABYLON.Vector3)(x, y, z);
@@ -32,6 +35,7 @@ export class LocalPlayer {
     this.lastCorrect = 0;
     this.lowAmmoWarned = false;
     this.spectateT = 0;
+    this.perks = []; this.reloadMul = 1; this.rpmMul = 1; this.dmgMul = 1; this.repairMul = 1; this.maxHp = PLAYER.maxHealth; this.selfReviveT = 0; this._perkKey = '';
   }
 
   get held() { return this.weapons[this.slot]; }
@@ -50,7 +54,7 @@ export class LocalPlayer {
     this._look(dt);
     if (alive) this._move(dt); else { this.vx = this.vz = 0; this.vy = 0; }
     this._camera(dt);
-    if (alive) { this._weapons(dt); this._interaction(dt); }
+    if (alive) { if (!(g.handAnim && g.handAnim.busy)) this._weapons(dt); else this.ads = false; this._interaction(dt); }
     else { this.holdTarget && this._setHold(null); g.hud.prompt(null); }
     this._sendInput(dt);
     this._hud();
@@ -277,12 +281,22 @@ export class LocalPlayer {
         else if (bs.state === 'ready') { if (bs.user === g.myId) consider(it, `${K} Take <em>${WEAPONS[bs.weapon].name}</em>`); else consider(it, `<em>${WEAPONS[bs.weapon].name}</em> waiting for ${g.playerName(bs.user)}`); }
         else if (bs.state === 'spinning') consider(it, `Rolling...`);
       } else if (it.kind === 'wallbuy') {
-        const has = this.weapons.find(w => w && w.id === it.wb.weapon);
-        if (has) consider(it, `${K} Buy ammo for <em>${it.def.name}</em> &nbsp;${Math.round(it.wb.cost / 2)}`);
+        const has = this.weapons.find(w => w && (w.id === it.wb.weapon || w.id === it.wb.weapon + '_pap'));
+        if (has) consider(it, `${K} Buy ammo for <em>${WEAPONS[has.id].name}</em> &nbsp;${WEAPONS[has.id].pap ? PAP.wallAmmoCost : Math.round(it.wb.cost / 2)}`);
         else consider(it, `${K} Buy <em>${it.def.name}</em> &nbsp;${it.wb.cost}`);
       } else if (it.kind === 'board') {
         if (it.entry.boards >= it.entry.maxBoards) continue;
         consider(it, `Hold ${K} Repair barricade`, this.holdTarget && this.holdTarget.kind === 'board' && this.holdTarget.id === it.id ? this.holdProgress : null);
+      } else if (it.kind === 'perk') {
+        const pd = it.perk, solo = Object.keys(g.scores).length <= 1;
+        if (this.perks.includes(pd.id)) consider(it, `<em>${pd.name}</em> &nbsp;owned`);
+        else if (this.perks.length >= PERK.maxPerks) consider(it, `<em>${pd.name}</em> &nbsp;no perk slot left`);
+        else consider(it, `${K} Buy <em>${pd.name}</em> &nbsp;${perkCost(pd.id, solo)}`);
+      } else if (it.kind === 'pap') {
+        const ps = g.machines.papState, d = this.def;
+        if (ps.state === 'idle') { if (!d) consider(it, `Pack-a-Punch &nbsp;<em>no weapon</em>`); else consider(it, `${K} ${d.pap ? 'Re-Pack' : 'Pack-a-Punch'} <em>${d.name}</em> &nbsp;${papCostFor(d)}`); }
+        else if (ps.state === 'processing') consider(it, `Upgrading <em>${WEAPONS[ps.weapon] ? WEAPONS[ps.weapon].name : '...'}</em>`);
+        else if (ps.state === 'ready') { const nm = WEAPONS[ps.weapon] ? WEAPONS[ps.weapon].name : 'weapon'; if (ps.user === g.myId) consider(it, `${K} Take <em>${nm}</em>`); else consider(it, `<em>${nm}</em> waiting for ${g.playerName(ps.user)}`); }
       }
     }
     for (const rp of g.entities.downedPlayers()) consider({ kind: 'revive', id: String(rp.id), x: rp.x, y: rp.y + 0.8, z: rp.z, range: 2.4 }, `Hold ${K} Revive <em>${rp.name}</em>`, rp.revivePct);
@@ -291,14 +305,14 @@ export class LocalPlayer {
     // key handling
     if (!inp.locked) { if (this.holdTarget) this._setHold(null); return; }
     const holdKinds = { board: 1, revive: 1 };
-    if (inp.pressed('interact') && best) {
+    if (inp.pressed('interact') && best && !(g.handAnim && g.handAnim.busy)) {
       if (holdKinds[best.kind]) this._setHold(best);
       else g.conn.send({ t: 'interact', target: `${best.kind}:${best.id}` });
     }
     if (this.holdTarget) {
       const same = best && best.kind === this.holdTarget.kind && best.id === this.holdTarget.id;
       if (!inp.down('interact') || !same) this._setHold(null);
-      else this.holdProgress = Math.min(1, (this.holdProgress || 0) + dt / 0.75);
+      else this.holdProgress = Math.min(1, (this.holdProgress || 0) + dt / (0.75 / (this.repairMul || 1)));
     }
   }
   _setHold(target) {
@@ -337,12 +351,23 @@ export class LocalPlayer {
       if (w.mag + w.reserve > 0) this.lowAmmoWarned = false;
     }
     if (m.slot !== this.slot && !this.switching) { this.slot = m.slot; if (this.held) g.viewModel.setWeapon(WEAPONS[this.held.id], true); }
+    if (!this.held && g.viewModel.def) g.viewModel.setWeapon(null); // empty hands (weapon inside the Pack-a-Punch)
+    if (this.held && !g.viewModel.def) g.viewModel.setWeapon(WEAPONS[this.held.id]);
+    // perks + modifiers (server authoritative)
+    if (m.mods) {
+      const md = m.mods;
+      this.reloadMul = md.reload || 1; this.rpmMul = md.rpm || 1; this.dmgMul = md.dmg || 1; this.repairMul = md.repair || 1;
+      if (md.maxHp && md.maxHp !== this.maxHp) { this.maxHp = md.maxHp; g.hud.setMaxHealth(md.maxHp); }
+    }
+    if (m.perks) { const key = m.perks.join(','); if (key !== this._perkKey) { this._perkKey = key; this.perks = m.perks.slice(); g.hud.setPerks(this.perks); } }
+    this.selfReviveT = m.selfRevive || 0;
+    if (m.selfRevive) g.hud.setSelfRevive(m.selfRevive);
     if (m.reload === 0 && this.reloading && this.def && !this.def.reloadPerShell && g.now > this.reloadUntil - 0.15) this._cancelReload();
     if (m.reload === 0 && this.reloading && this.def && this.def.reloadPerShell && this.held && this.held.mag >= this.def.mag) this._cancelReload();
     // state transitions
     if (m.state !== this.state) {
       const prev = this.state; this.state = m.state;
-      if (m.state === PSTATE.DOWNED) { this.downedAt = g.now; this._cancelReload(); this.ads = false; g.viewModel.setVisible(false); audio.play('down', { vol: 0.9, important: true }); g.hud.banner('YOU ARE DOWN', 'Wait for a teammate to revive you', 2500); }
+      if (m.state === PSTATE.DOWNED) { this.downedAt = g.now; this._cancelReload(); this.ads = false; g.viewModel.setVisible(false); audio.play('down', { vol: 0.9, important: true }); g.hud.banner('YOU ARE DOWN', m.selfRevive ? 'Quick Revive is kicking in...' : 'Wait for a teammate to revive you', 2500); }
       else if (m.state === PSTATE.ALIVE) { g.viewModel.setVisible(true); if (prev === PSTATE.DOWNED) audio.play('revive', { vol: 0.8 }); }
       else if (m.state === PSTATE.DEAD) { g.viewModel.setVisible(false); g.hud.banner('YOU DIED', 'You will respawn next round', 3000); }
     }
