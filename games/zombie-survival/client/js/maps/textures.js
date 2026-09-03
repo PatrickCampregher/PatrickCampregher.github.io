@@ -575,6 +575,18 @@ const SETS = {
   player_cloth: { gen: fabric, o: { color: '#c8c8c8', stain: 0.2 }, scale: 1 },
   gunmetal: { gen: metal, o: { color: '#c8c8c8', rust: 0.0, rough: 0.35, dents: 0 }, scale: 1 },
   boxwood: { gen: planks, o: { color: '#6b4a2e', count: 4, seed: 33, wear: 0.5 }, scale: 1 },
+  // ---- map overhaul sets (appended; reuse the generators above) ----
+  plaster_olive: { gen: plaster, o: { color: '#8f9a78', stain: 0.55, cracks: true }, scale: 3 },
+  felt_green: { gen: fabric, o: { color: '#2f6b3f', stain: 0.25 }, scale: 1 },
+  marble: { gen: tiles, o: { color: '#cfc8b8', color2: '#b5ad9c', count: 4, dirt: 0.3 }, scale: 4 },
+  carpet_red: { gen: fabric, o: { color: '#6a1e1e', stain: 0.5 }, scale: 2 },
+  stage_wood: { gen: planks, o: { color: '#3e2c1c', count: 10, seed: 41, wear: 0.4 }, scale: 3 },
+  roof_tar: { gen: asphalt, o: { color: '#2e2d2b', cracks: 0.6, wet: false }, scale: 4 },
+  metal_stair: { gen: metal, o: { color: '#4a4f54', rust: 0.45, panels: 3, rough: 0.6 }, scale: 1 },
+  plaza_stone: { gen: concrete, o: { color: '#9a9488', slabs: 4, cracks: 1.2 }, scale: 4 },
+  paint_green: { gen: metal, o: { color: '#2f7a4a', rust: 0.25, rough: 0.45 }, scale: 1 },
+  curtain: { gen: fabric, o: { color: '#7a1a22', stain: 0.35, seams: 12 }, scale: 2 },
+  stone: { gen: concrete, o: { color: '#8a857a', slabs: 3, cracks: 0.8 }, scale: 2 },
 };
 
 const SIZE_BY_QUALITY = { low: 256, medium: 512, high: 1024, ultra: 1024 };
@@ -736,4 +748,71 @@ export class TextureLibrary {
     for (const t of this.canvasCache.values()) t.dispose();
     this.cache.clear(); this.canvasCache.clear();
   }
+}
+
+// ---------------- signs & landmarks (canvas 2D, appended for the map overhaul) ----------------
+/** Neon / painted shop sign. Returns a canvas (transparent background). opts: neon, painted, bulbs, vertical, w/h aspect. */
+export function signCanvas(text, color, opts = {}) {
+  const vertical = !!opts.vertical;
+  const W = vertical ? 256 : 1024, H = vertical ? 1024 : 256;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  const font = opts.font || 'Impact, "Arial Narrow", "Arial Black", sans-serif';
+  const chars = text.length;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (opts.bulbs) { // marquee bulb border
+    for (let i = 0; i < 26; i++) for (const y of [16, H - 16]) { const x = 20 + i * ((W - 40) / 25); ctx.fillStyle = (i % 2) ? '#ffe8b0' : '#ffb347'; ctx.shadowColor = '#ffcc66'; ctx.shadowBlur = 14; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); }
+    ctx.shadowBlur = 0;
+  }
+  const draw = (size) => {
+    ctx.font = `bold ${size}px ${font}`;
+    if (opts.painted) {
+      ctx.fillStyle = color; ctx.globalAlpha = 0.9; ctx.fillText(text, 0, 0); ctx.globalAlpha = 1;
+      // weathering: scratch away a few strips
+      ctx.globalCompositeOperation = 'destination-out';
+      for (let i = 0; i < 18; i++) { ctx.fillStyle = `rgba(0,0,0,${0.25 + (i % 3) * 0.2})`; ctx.fillRect(-W / 2 + ((i * 131) % W), -size * 0.5 + ((i * 47) % size), 3 + (i % 5) * 4, 2 + (i % 4) * 3); }
+      ctx.globalCompositeOperation = 'source-over';
+    } else {
+      ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(4, size * 0.06);
+      ctx.shadowColor = color; ctx.shadowBlur = size * 0.35;
+      ctx.strokeStyle = color; ctx.strokeText(text, 0, 0); ctx.strokeText(text, 0, 0);
+      ctx.shadowBlur = size * 0.12; ctx.fillStyle = '#fff6f0'; ctx.globalAlpha = 0.9; ctx.fillText(text, 0, 0); ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      if (opts.dead != null) { // a dead letter (unlit neon)
+        ctx.font = `bold ${size}px ${font}`; const m = ctx.measureText(text).width; const pre = ctx.measureText(text.slice(0, opts.dead)).width, ch = ctx.measureText(text[opts.dead]).width;
+        ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(-m / 2 + pre - 2, -size * 0.6, ch + 4, size * 1.2); ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = 'rgba(70,40,40,0.9)'; ctx.fillText(text[opts.dead], -m / 2 + pre + ch / 2, 0);
+      }
+    }
+  };
+  ctx.save();
+  if (vertical) { ctx.translate(W / 2, H / 2); ctx.rotate(-Math.PI / 2); const size = Math.min(180, (H - 80) / Math.max(1, chars) * 1.55); draw(size); }
+  else { ctx.translate(W / 2, H / 2); const size = Math.min(190, (W - 60) / Math.max(1, chars) * 1.5); draw(size); }
+  ctx.restore();
+  return c;
+}
+/** Church clock face. */
+export function clockCanvas(n = 256) {
+  return canvasTex(n, (ctx, s) => {
+    ctx.clearRect(0, 0, s, s);
+    ctx.fillStyle = '#e8dcc0'; ctx.beginPath(); ctx.arc(s / 2, s / 2, s * 0.46, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#2a2320'; ctx.lineWidth = s * 0.03; ctx.stroke();
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(s / 2 + Math.sin(a) * s * 0.38, s / 2 - Math.cos(a) * s * 0.38); ctx.lineTo(s / 2 + Math.sin(a) * s * 0.43, s / 2 - Math.cos(a) * s * 0.43); ctx.lineWidth = s * 0.02; ctx.stroke(); }
+    ctx.lineCap = 'round'; ctx.lineWidth = s * 0.035; ctx.beginPath(); ctx.moveTo(s / 2, s / 2); ctx.lineTo(s / 2 + s * 0.2, s / 2 - s * 0.16); ctx.stroke();
+    ctx.lineWidth = s * 0.025; ctx.beginPath(); ctx.moveTo(s / 2, s / 2); ctx.lineTo(s / 2 - s * 0.1, s / 2 - s * 0.32); ctx.stroke();
+    // cracked glass
+    ctx.strokeStyle = 'rgba(40,30,25,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s * 0.3, s * 0.2); ctx.lineTo(s * 0.55, s * 0.5); ctx.lineTo(s * 0.5, s * 0.8); ctx.stroke();
+  });
+}
+/** Torn movie poster / notice (for decor planes). */
+export function posterCanvas(title, hue = 20) {
+  return canvasTex(256, (ctx, s) => {
+    ctx.fillStyle = `hsl(${hue}, 45%, 28%)`; ctx.fillRect(0, 0, s, s);
+    ctx.fillStyle = `hsl(${hue + 30}, 60%, 55%)`; ctx.fillRect(s * 0.08, s * 0.08, s * 0.84, s * 0.55);
+    ctx.fillStyle = '#f0e6d0'; ctx.font = `bold ${s * 0.12}px Impact, sans-serif`; ctx.textAlign = 'center';
+    ctx.fillText(title, s / 2, s * 0.8);
+    ctx.font = `${s * 0.06}px Arial, sans-serif`; ctx.fillText('TONIGHT', s / 2, s * 0.92);
+    ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.moveTo(s, s * 0.6); ctx.lineTo(s * 0.7, s); ctx.lineTo(s, s); ctx.fill();
+  });
 }

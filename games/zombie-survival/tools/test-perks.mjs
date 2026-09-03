@@ -324,14 +324,15 @@ console.log('== co-op: quick revive, speed cola repairs, losing perks ==');
   // Speed Cola: barricade repair twice as fast (0.375 s per board instead of 0.75 s)
   tpMachine(g, p1, 'speed'); interact(g, p1, 'perk:speed');
   eq(p1.perks.join(), 'speed', 'speed cola owned');
-  const e = g.world.entries.house_s1; e.boards = 0;
+  const eid = Object.keys(g.world.entries).find(id => g.world.entries[id].type === 'window' && g.world.entries[id].maxBoards > 1);
+  const e = g.world.entries[eid]; e.boards = 0;
   tp(p1, e.inside[0], e.inside[2], e.inside[1]);
-  g.handleMessage(p1.lp, { t: 'hold', target: 'board:house_s1' });
+  g.handleMessage(p1.lp, { t: 'hold', target: 'board:' + eid });
   step(g, 0.45);
   eq(e.boards, 1, 'one board after 0.45 s with speed cola');
   step(g, 0.4);
   eq(e.boards, 2, 'two boards after 0.85 s with speed cola');
-  p1.perks = []; g._applyPerks(p1); e.boards = 0; g.handleMessage(p1.lp, { t: 'hold', target: 'board:house_s1' });
+  p1.perks = []; g._applyPerks(p1); e.boards = 0; g.handleMessage(p1.lp, { t: 'hold', target: 'board:' + eid });
   step(g, 0.45); eq(e.boards, 0, 'no board after 0.45 s without speed cola');
   step(g, 0.4); eq(e.boards, 1, 'one board after 0.85 s without speed cola');
   g.handleMessage(p1.lp, { t: 'hold', target: null });

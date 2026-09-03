@@ -44,7 +44,8 @@ No Internet, accounts or external services are needed. Lobbies are discovered wi
 ## Gameplay
 
 * Infinite rounds with mathematical scaling: more zombies, faster mixes (shamblers → walkers → joggers → runners), bounded health growth, shorter spawn gaps.
-* Points for hits, kills, headshots, barricade repairs and revives. Spend them on doors (open the Bar, Corner Store, alleys, parking lot, garage), wall weapons, ammo and the **Mystery Box** (950).
+* Points for hits, kills, headshots, barricade repairs and revives. Spend them on doors (750 for the first buildings, 1000 for alleys, avenue and lots, 1250/1500 for the theatre), wall weapons, ammo, perk machines and the **Mystery Box** (950).
+* **The map – Ashford Street.** A ruined small town at night: Main Street (the start) crosses Foundry Avenue at a burning bus wreck. North of the start: **THE RUSTY NAIL** bar (two storeys, a street balcony with a drop-down gap, a plank bridge over the north alley onto the **PHARMACY** roof nest), the alley and the fountain **plaza**. South: the **DINER** ruin and a collapsed apartment block whose rubble ramp leads up to a surviving floor fragment overlooking the street, plus the back alley. East of the avenue: **THE PALACE** theatre (lobby with two grand staircases to a mezzanine, auditorium and stage), the **AUTO GARAGE** (roof reachable only by the external fire escape from the parking lot) and the parking lot. Eleven areas (the garage roof is its own zone), 15 doors, 8 wall weapons, 8 Mystery Box spots (two upstairs), 4 perk machines (Quick Revive at the start, Juggernog in the plaza, Speed Cola in the diner, Double Tap on the garage roof) and the Pack-a-Punch on the theatre stage. Every place you can stand is reachable by zombies on foot – stairs, ramps and fire escapes – while balcony gaps and roof edges let you drop down to escape.
 * The Mystery Box rolls a weighted random weapon from 13 originals (pistol → LMG, launcher, Arc Cannon, Ray Rifle). Sometimes the **stuffed bear** appears: refund, the box vanishes and reappears elsewhere — follow the light beam.
 * Powerups dropped by zombies: **FULL RESUPPLY**, **ONE-SHOT**, **DOUBLE POINTS**, **BLAST WAVE**.
 * Downed players can be revived by teammates (hold E). When everyone is down: game over with stats, then back to the lobby for another run.
@@ -74,4 +75,8 @@ Presets LOW / MEDIUM / HIGH / ULTRA plus render resolution scale, shadows (PCF /
 ## Developer notes
 
 * `npm start` runs the server; `node server/index.js --port 8090 --no-browser` starts a second instance for local testing; `--dev` enables cheat messages used by the test helpers (`window.dev` in the browser console).
-* `node tools/test-sim.js 60 2` runs the headless simulation (map sanity checks + 60 s of two bots).
+* `node tools/test-sim.js 60 2` runs the headless simulation (map sanity checks + 60 s of two bots); `node tools/test-sim.js 60 2 high` adds the high-ground scenario (zombies must climb to a bot on the highest floor).
+* `node tools/probe-route.mjs lot_e1 33.25,-26.75,5.2` force-spawns one zombie at an entry with a bot at a position and logs its route (deterministic check that a stair / fire escape is walkable for the server physics).
+* `node tools/validate-map.mjs` checks the map data for geometry hygiene (prop overlaps, floating props, coplanar faces, upper-slab clearance) and gameplay placement (entries, wall buys, machines, box spots, spawns). It must report zero problems.
+* `node tools/snap.mjs --serve --port 8102 --god --pos X,Z[,Y] --look YAW,PITCH --out tools/shots/name.png` takes headless WebGL screenshots of the running game (see the file header for `--js`/`--eval`).
+* Map data lives in `shared/map/` (areas/floors/stairs, one module per building block, streets, gameplay) and is assembled by `shared/mapdata.js`; `shared/mapbuild.js` documents the schema.
