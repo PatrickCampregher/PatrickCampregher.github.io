@@ -138,6 +138,64 @@ function chime(notes, noteDur = 0.25, type = 'sine', vol = 0.35, spacing = 0.12)
   } };
 }
 
+// ---- machine sound generators (perk jingles, hums, pack-a-punch) ----
+const NOTE = (m) => 440 * Math.pow(2, (m - 69) / 12);
+/** Retro chiptune jingle: square lead (+detuned double, vibrato), triangle bass, tiny kick/hat/snare kit.
+ *  lead/bass: [[midi, beats], ...] (midi 0 = rest); drums: string of eighth notes 'k' kick, 'h' hat, 's' snare, '.' rest. */
+function jingle({ bpm = 168, lead = [], bass = [], drums = '', vol = 0.3 }) {
+  const beat = 60 / bpm;
+  const total = lead.reduce((a, n) => a + n[1], 0) * beat;
+  return { dur: total + 0.9, build: (ctx, out) => {
+    const master = ctx.createGain(); master.gain.value = vol; master.connect(out);
+    reverbTail(ctx, master, out, 0.7, 0.28);
+    let t = 0;
+    for (const [m, b] of lead) {
+      const d = b * beat;
+      if (m > 0) {
+        const f = NOTE(m);
+        const o = osc(ctx, 'square', f), o2 = osc(ctx, 'square', f * 1.004);
+        const vib = osc(ctx, 'sine', 6); const vg = ctx.createGain(); vg.gain.value = f * 0.007; vib.connect(vg); vg.connect(o.frequency);
+        const env = gainEnv(ctx, [[t, 0.0001], [t + 0.008, 0.5], [t + d * 0.7, 0.32], [t + d * 0.95, 0.001]]);
+        const g2 = ctx.createGain(); g2.gain.value = 0.35;
+        o.connect(env); o2.connect(g2); g2.connect(env); env.connect(master);
+        o.start(t); o2.start(t); vib.start(t); o.stop(t + d); o2.stop(t + d); vib.stop(t + d);
+      }
+      t += d;
+    }
+    t = 0;
+    for (const [m, b] of bass) {
+      const d = b * beat;
+      if (m > 0) { const o = osc(ctx, 'triangle', NOTE(m)); chain(o, gainEnv(ctx, [[t, 0.0001], [t + 0.01, 0.6], [t + d * 0.9, 0.001]]), master); o.start(t); o.stop(t + d); }
+      t += d;
+    }
+    const step = beat / 2;
+    for (let i = 0; i < drums.length; i++) {
+      const ch = drums[i], ts = i * step;
+      if (ch === 'k') { const o = osc(ctx, 'sine', 150); sweep(o.frequency, 160, 45, ts, 0.1); chain(o, gainEnv(ctx, [[ts, 0.9], [ts + 0.12, 0.001]]), master); o.start(ts); o.stop(ts + 0.13); }
+      else if (ch === 'h') { const n = noise(ctx, 0.04); chain(n, filt(ctx, 'highpass', 6000, 1), gainEnv(ctx, [[ts, 0.22], [ts + 0.03, 0.001]]), master); n.start(ts); }
+      else if (ch === 's') { const n = noise(ctx, 0.1); chain(n, filt(ctx, 'bandpass', 1800, 0.8), gainEnv(ctx, [[ts, 0.5], [ts + 0.09, 0.001]]), master); n.start(ts); }
+    }
+  } };
+}
+/** Seamless electrical hum loop (dur must be a multiple of 1/baseHz). */
+function hum(baseHz = 60, dur = 2.0, vol = 0.5) {
+  return { dur, build: (ctx, out) => {
+    const master = ctx.createGain(); master.gain.value = vol; master.connect(out);
+    [[1, 0.6], [2, 0.3], [3, 0.12], [4, 0.06]].forEach(([h, g]) => { const o = osc(ctx, 'sine', baseHz * h); const gg = ctx.createGain(); gg.gain.value = g; o.connect(gg); gg.connect(master); o.start(0); o.stop(dur); });
+    const s = osc(ctx, 'sawtooth', baseHz); const sg = ctx.createGain(); sg.gain.value = 0.08; chain(s, filt(ctx, 'lowpass', 220, 1), sg, master); s.start(0); s.stop(dur);
+    const n = noise(ctx, dur, 'pink'); const ng = ctx.createGain(); ng.gain.value = 0.05; chain(n, filt(ctx, 'bandpass', 900, 0.7), ng, master); n.start(0);
+  } };
+}
+/** Electrical crackle: gated noise bursts + low buzz + snap. */
+function zap(dur = 0.35) {
+  return { dur: dur + 0.1, build: (ctx, out) => {
+    const master = ctx.createGain(); master.gain.value = 0.8; master.connect(out);
+    for (let i = 0; i < 7; i++) { const t = Math.random() * dur * 0.8; const n = noise(ctx, 0.03); chain(n, filt(ctx, 'bandpass', 2500 + Math.random() * 3000, 1.2), gainEnv(ctx, [[t, 0.9], [t + 0.02, 0.001]]), master); n.start(t); }
+    const o = osc(ctx, 'square', 110); chain(o, filt(ctx, 'lowpass', 700, 2), gainEnv(ctx, [[0, 0.3], [dur * 0.7, 0.2], [dur, 0.001]]), master); o.start(0); o.stop(dur);
+    const c = noise(ctx, 0.02); chain(c, filt(ctx, 'highpass', 4000, 1), gainEnv(ctx, [[0, 1], [0.015, 0.001]]), master); c.start(0);
+  } };
+}
+
 const DEFS = {
   // ---- weapons ----
   pistol: gunshot({ crack: 0.07, body: 0.14, bodyFreq: 900, thump: 0.09, thumpFreq: 110, tail: 0.35, tailGain: 0.18, vol: 0.9 }),
@@ -280,6 +338,60 @@ const DEFS = {
   // ---- ambience loops ----
   wind: { dur: 6.0, build: (ctx, out) => { const n = noise(ctx, 6, 'pink'); const f = filt(ctx, 'lowpass', 350, 0.5); const lfo = osc(ctx, 'sine', 0.17); const lg = ctx.createGain(); lg.gain.value = 180; lfo.connect(lg); lg.connect(f.frequency); lfo.start(0); const g = ctx.createGain(); g.gain.value = 0.7; chain(n, f, g, out); n.start(0); } },
   fire: { dur: 3.0, build: (ctx, out) => { const n = noise(ctx, 3, 'pink'); chain(n, filt(ctx, 'bandpass', 700, 0.6), (() => { const g = ctx.createGain(); g.gain.value = 0.5; return g; })(), out); n.start(0); for (let i = 0; i < 26; i++) { const t = Math.random() * 2.9; const c = noise(ctx, 0.03); chain(c, filt(ctx, 'highpass', 1500 + Math.random() * 3000, 1), gainEnv(ctx, [[t, 0.3 + Math.random() * 0.5], [t + 0.02, 0.001]]), out); c.start(t); } } },
+  // ---- machines ----
+  // four original chiptune jingles (~2.5-3 s): bold minor march, bright ascending major, bubbly staccato, western gallop
+  jingle_jugg: jingle({ bpm: 160, lead: [[55, 0.5], [55, 0.5], [58, 0.5], [60, 0.5], [62, 1], [60, 0.5], [58, 0.5], [55, 1], [53, 0.5], [55, 0.5], [58, 0.5], [55, 0.5], [0, 0.5]], bass: [[43, 1], [43, 1], [46, 1], [43, 1], [41, 1], [43, 1], [43, 1.5]], drums: 'k.h.k.h.k.h.k.h', vol: 0.32 }),
+  jingle_revive: jingle({ bpm: 168, lead: [[64, 0.5], [67, 0.5], [71, 0.5], [72, 1], [71, 0.5], [67, 0.5], [69, 1], [71, 0.5], [72, 0.5], [76, 1], [0, 0.5], [72, 1]], bass: [[52, 1], [52, 1], [55, 1], [55, 1], [57, 1], [57, 1], [60, 2]], drums: 'k.h.k.h.k.h.k.hh', vol: 0.3 }),
+  jingle_speed: jingle({ bpm: 184, lead: [[72, 0.5], [74, 0.5], [76, 0.5], [79, 0.5], [76, 0.5], [74, 0.5], [72, 1], [71, 0.5], [72, 0.5], [74, 0.5], [76, 0.5], [74, 1], [72, 0.5], [69, 0.5], [72, 1]], bass: [[48, 1], [48, 1], [53, 1], [53, 1], [55, 1], [55, 1], [48, 1], [48, 2]], drums: 'khhhkhhhkhhhkhhhkh', vol: 0.28 }),
+  jingle_dtap: jingle({ bpm: 160, lead: [[62, 0.5], [62, 0.25], [62, 0.25], [65, 0.5], [62, 0.5], [69, 1], [67, 0.5], [65, 0.5], [62, 1], [60, 0.5], [62, 0.5], [65, 0.5], [62, 1.5]], bass: [[50, 1], [50, 1], [53, 1], [50, 1], [48, 1], [50, 1], [53, 1], [50, 1]], drums: 'k.khk.khk.khk.kh', vol: 0.3 }),
+  machine_hum: hum(60, 2.0, 0.45),
+  perk_buy: { dur: 1.5, build: (ctx, out) => {
+    const master = ctx.createGain(); master.gain.value = 0.9; master.connect(out);
+    // coin: bright metallic ring
+    [2650, 4120, 5900].forEach((f, i) => { const o = osc(ctx, 'sine', f); chain(o, gainEnv(ctx, [[0, 0.25 / (i + 1)], [0.25 + i * 0.05, 0.001]]), master); o.start(0); o.stop(0.35); });
+    const cn = noise(ctx, 0.03); chain(cn, filt(ctx, 'highpass', 5000, 1), gainEnv(ctx, [[0, 0.5], [0.02, 0.001]]), master); cn.start(0);
+    // clunk (mechanism)
+    const th = osc(ctx, 'sine', 80); sweep(th.frequency, 120, 50, 0.28, 0.12); chain(th, gainEnv(ctx, [[0.28, 0.0001], [0.29, 0.9], [0.42, 0.001]]), master); th.start(0.28); th.stop(0.45);
+    const cl = noise(ctx, 0.08); chain(cl, filt(ctx, 'lowpass', 500, 1), gainEnv(ctx, [[0.28, 0.7], [0.36, 0.001]]), master); cl.start(0.28);
+    // bottle pop + fizz
+    const pop = osc(ctx, 'sine', 520); sweep(pop.frequency, 520, 160, 0.62, 0.06); chain(pop, gainEnv(ctx, [[0.62, 0.0001], [0.625, 0.8], [0.69, 0.001]]), master); pop.start(0.62); pop.stop(0.7);
+    const pn = noise(ctx, 0.03); chain(pn, filt(ctx, 'bandpass', 1500, 1), gainEnv(ctx, [[0.62, 0.6], [0.645, 0.001]]), master); pn.start(0.62);
+    const fz = noise(ctx, 0.8); chain(fz, filt(ctx, 'highpass', 3500, 0.7), gainEnv(ctx, [[0.66, 0.0001], [0.7, 0.35], [1.4, 0.001]]), master); fz.start(0.66);
+  } },
+  drink: { dur: 1.3, build: (ctx, out) => {
+    const master = ctx.createGain(); master.gain.value = 0.7; master.connect(out);
+    [0, 0.3, 0.6, 0.9].forEach((t, i) => {
+      const o = osc(ctx, 'sine', 170 - i * 12); sweep(o.frequency, 190 - i * 12, 85, t, 0.13); chain(o, filt(ctx, 'lowpass', 600, 1), gainEnv(ctx, [[t, 0.0001], [t + 0.02, 0.8], [t + 0.14, 0.001]]), master); o.start(t); o.stop(t + 0.16);
+      const n = noise(ctx, 0.1); chain(n, filt(ctx, 'lowpass', 900, 1), gainEnv(ctx, [[t + 0.02, 0.35], [t + 0.1, 0.001]]), master); n.start(t + 0.02);
+    });
+  } },
+  pap_start: { dur: 1.4, build: (ctx, out) => {
+    const master = ctx.createGain(); master.gain.value = 0.9; master.connect(out);
+    const th = osc(ctx, 'sine', 60); sweep(th.frequency, 90, 38, 0, 0.35); chain(th, gainEnv(ctx, [[0, 1], [0.4, 0.001]]), master); th.start(0); th.stop(0.45);
+    const cl = noise(ctx, 0.15); chain(cl, filt(ctx, 'lowpass', 300, 1), gainEnv(ctx, [[0, 0.9], [0.14, 0.001]]), master); cl.start(0);
+    const hiss = noise(ctx, 0.9); chain(hiss, filt(ctx, 'bandpass', 1400, 0.8), gainEnv(ctx, [[0.1, 0.0001], [0.15, 0.4], [0.9, 0.001]]), master); hiss.start(0.1);
+    const mo = osc(ctx, 'sawtooth', 40); sweep(mo.frequency, 40, 120, 0.2, 1.0); chain(mo, filt(ctx, 'lowpass', 260, 2), gainEnv(ctx, [[0.2, 0.0001], [0.4, 0.35], [1.2, 0.3], [1.35, 0.001]]), master); mo.start(0.2); mo.stop(1.4);
+  } },
+  pap_spin: { dur: 4.0, build: (ctx, out) => { // loop: rotating low rumble, periodic thuds, rising whine, rattles
+    const master = ctx.createGain(); master.gain.value = 0.8; master.connect(out);
+    const r = osc(ctx, 'sawtooth', 48), r2 = osc(ctx, 'sine', 55);
+    const am = ctx.createGain(); am.gain.value = 0.6; const lfo = osc(ctx, 'sine', 2.25); const lg = ctx.createGain(); lg.gain.value = 0.35; lfo.connect(lg); lg.connect(am.gain);
+    r.connect(am); r2.connect(am); chain(am, filt(ctx, 'lowpass', 180, 1), master); r.start(0); r2.start(0); lfo.start(0); r.stop(4); r2.stop(4); lfo.stop(4);
+    for (let t = 0.1; t < 3.9; t += 0.444) { const o = osc(ctx, 'sine', 70); sweep(o.frequency, 90, 45, t, 0.1); chain(o, gainEnv(ctx, [[t, 0.0001], [t + 0.01, 0.8], [t + 0.16, 0.001]]), master); o.start(t); o.stop(t + 0.2); }
+    const w = osc(ctx, 'sine', 380); sweep(w.frequency, 380, 1250, 0, 3.9); chain(w, gainEnv(ctx, [[0, 0.0001], [0.3, 0.07], [3.6, 0.09], [4.0, 0.0001]]), master); w.start(0); w.stop(4);
+    for (let i = 0; i < 26; i++) { const t = Math.random() * 3.9; const n = noise(ctx, 0.03); chain(n, filt(ctx, 'bandpass', 2200 + Math.random() * 2500, 2), gainEnv(ctx, [[t, 0.2 + Math.random() * 0.2], [t + 0.025, 0.001]]), master); n.start(t); }
+  } },
+  pap_done: { dur: 2.2, build: (ctx, out) => { // heavy clunk + metal ring + bell ding
+    const master = ctx.createGain(); master.gain.value = 0.9; master.connect(out);
+    reverbTail(ctx, master, out, 1.2, 0.4);
+    const th = osc(ctx, 'sine', 55); sweep(th.frequency, 80, 35, 0, 0.3); chain(th, gainEnv(ctx, [[0, 1], [0.35, 0.001]]), master); th.start(0); th.stop(0.4);
+    const cl = noise(ctx, 0.12); chain(cl, filt(ctx, 'lowpass', 350, 1), gainEnv(ctx, [[0, 1], [0.12, 0.001]]), master); cl.start(0);
+    [1850, 2700, 3950].forEach((f, i) => { const o = osc(ctx, 'sine', f); chain(o, gainEnv(ctx, [[0.01, 0.2 / (i + 1)], [0.5, 0.001]]), master); o.start(0.01); o.stop(0.55); });
+    [1568, 3136, 4700].forEach((f, i) => { const o = osc(ctx, 'sine', f); chain(o, gainEnv(ctx, [[0.4, 0.0001], [0.41, 0.45 / (i + 1)], [1.9, 0.001]]), master); o.start(0.4); o.stop(2.0); });
+  } },
+  pap_zap: zap(0.35),
+  // demonic announcer stinger: deep growl (zombie voice generator) over a sub thump
+  announcer: multi([[0, zombieVoice({ f0: 78, f1: 52, dur: 1.0, formants: [280, 620], noise: 0.3, vibrato: 4.5, attack: 0.05, sat: 32, vol: 0.9 })], [0.02, { dur: 0.6, build: (ctx, out) => { const o = osc(ctx, 'sine', 48); sweep(o.frequency, 60, 34, 0, 0.5); chain(o, gainEnv(ctx, [[0, 0.9], [0.55, 0.001]]), out); o.start(0); o.stop(0.6); } }]], 1.6),
 };
 
 // ---------------- engine ----------------

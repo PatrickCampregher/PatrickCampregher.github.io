@@ -1,3 +1,4 @@
+import { addPackAPunchVariants } from './pap.js';
 // Original weapon roster. All weapons are fictional designs inspired by firearm categories.
 // Rarity drives Mystery Box weighting. Stats are tuned for arcade round-based survival.
 
@@ -109,6 +110,7 @@ export const WEAPONS = {
   },
 };
 
+addPackAPunchVariants(WEAPONS);
 export const WEAPON_LIST = Object.values(WEAPONS);
 export const WEAPON_INDEX = {};
 WEAPON_LIST.forEach((w, i) => { w.index = i; WEAPON_INDEX[w.id] = i; });

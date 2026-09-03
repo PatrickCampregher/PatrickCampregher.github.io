@@ -87,3 +87,18 @@ export const PSTATE = { ALIVE: 0, DOWNED: 1, DEAD: 2, SPECTATOR: 3 };
 export const RSTATE = { WAITING: 0, INTRO: 1, ACTIVE: 2, ENDING: 3, GAMEOVER: 4 };
 
 export const BODY_PART = { BODY: 0, HEAD: 1, LEGS: 2 };
+
+// ---- perks / pack-a-punch ----
+export const PERK = {
+  range: 2.8,          // purchase distance from the machine center
+  maxPerks: 4,
+  drinkTime: 1.6,      // first-person drink animation (no firing)
+};
+export const PAP = {
+  cost: 5000,
+  refillCost: 2000,    // re-Pack an upgraded weapon: full ammo
+  wallAmmoCost: 4500,  // wall ammo for an upgraded weapon
+  processTime: 5.0,    // seconds the machine works on the weapon
+  pickupWindow: 15.0,  // seconds before the upgraded weapon is handed over automatically
+  range: 2.8,
+};

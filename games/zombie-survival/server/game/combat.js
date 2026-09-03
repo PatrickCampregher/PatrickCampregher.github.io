@@ -3,6 +3,7 @@ import { WEAPONS, computeShotDirections, damageAtDistance, shotInterval } from '
 import { raycastWorld, raySphere, rayVCylinder, bulletFilter } from '../../shared/collision.js';
 import { ZSTATE, ZOMBIE_HEAD_Y, ZOMBIE_HEAD_R, ZOMBIE_BODY_Y0, ZOMBIE_BODY_Y1, ZOMBIE_BODY_R, ZOMBIE_LEGS_Y0, ZOMBIE_LEGS_Y1, ZOMBIE_LEGS_R } from '../../shared/zombies.js';
 import { PSTATE, TICK_MS, BODY_PART } from '../../shared/constants.js';
+import { damageMod } from '../../shared/perks.js';
 
 const _hp = { x: 0, y: 0, z: 0, yaw: 0 };
 
@@ -46,7 +47,7 @@ export function processShot(game, player, msg) {
     else return;
   }
   if (held.mag <= 0) return;
-  const interval = shotInterval(w);
+  const interval = shotInterval(w) / ((player.mods && player.mods.rpm) || 1); // Double Tap
   const minGap = w.burst ? 0.9 * interval : 0.85 * interval;
   if (now - player.lastShot < minGap) return;
   player.lastShot = now;
@@ -86,7 +87,7 @@ export function processShot(game, player, msg) {
     while (remaining > 0) {
       const zh = traceZombies(game, ox, oy, oz, dir[0], dir[1], dir[2], wallDist, tick, excluded);
       if (!zh) break;
-      const dmgBase = damageAtDistance(w, zh.t) * dmgMul;
+      const dmgBase = damageAtDistance(w, zh.t) * dmgMul * damageMod(player.mods, w); // Double Tap
       const mul = zh.part === BODY_PART.HEAD ? w.headMul : zh.part === BODY_PART.LEGS ? w.legMul : 1;
       const hx = ox + dir[0] * zh.t, hy = oy + dir[1] * zh.t, hz = oz + dir[2] * zh.t;
       player.stats.hits++;

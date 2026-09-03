@@ -60,7 +60,13 @@ export const MAP = {
     { x: -14, z: 10, yaw: 0, w: 1.4, len: 5.0, y0: 0.15, y1: 3.5, level: 1, area: 'bar', mat: 'concrete' }, // bar staircase (demo)
   ],
   // Perk vending machines + Pack-a-Punch (see mapbuild.js schema). Filled by the perk system.
-  machines: [],
+  machines: [
+    { type: 'perk', perk: 'revive', x: 8.0, y: 0.15, z: 8.35, yaw: Math.PI, area: 'street' },       // north sidewalk against the shop wall (start area)
+    { type: 'perk', perk: 'jugg', x: -6.63, y: 0.15, z: 12.0, yaw: -Math.PI / 2, area: 'bar' },     // bar, east wall
+    { type: 'perk', perk: 'speed', x: -1.37, y: 0.15, z: 12.5, yaw: Math.PI / 2, area: 'shop' },    // corner store, west wall
+    { type: 'perk', perk: 'dtap', x: 14.0, y: 0.15, z: -8.63, yaw: Math.PI, area: 'garage' },      // auto garage, north wall
+    { type: 'pap', x: 25.6, y: 0, z: 20.0, yaw: Math.PI / 2, area: 'parking' },                     // parking lot, against the collapsed facade
+  ],
 
   walls: [
     // ---------------- BAR (x -22..-6, z 9..23) ----------------
