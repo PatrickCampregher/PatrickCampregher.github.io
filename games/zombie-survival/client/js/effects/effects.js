@@ -2,6 +2,7 @@
 /* global BABYLON */
 import { softCircleCanvas, smokeCanvas, bulletHoleCanvas, bloodSplatCanvas, scorchCanvas, flameCanvas } from '../maps/textures.js';
 import { raycastWorld, bulletFilter } from '/shared/collision.js';
+import { particleDensity } from '../settings/settings.js';
 
 const B = () => BABYLON;
 const V3 = (x, y, z) => new (BABYLON.Vector3)(x, y, z);
@@ -18,6 +19,7 @@ export class Effects {
     this.scene = scene; this.mats = mats; this.tex = textures; this.settings = settings; this.lighting = lighting;
     const q = settings.graphics.effects || 'high';
     this.quality = q === 'low' ? 0 : q === 'medium' ? 1 : q === 'high' ? 2 : 3;
+    this.density = particleDensity(settings.graphics); // particle density setting (0..1) scales pools, rates and bursts
     this.time = 0;
     this.active = [];   // timed items {t, dur, update(k), end()}
     this.fires = [];
@@ -52,7 +54,7 @@ export class Effects {
   }
 
   _ps(name, tex, cap, opts) {
-    const ps = new (B().ParticleSystem)(name, cap, this.scene);
+    const ps = new (B().ParticleSystem)(name, Math.max(6, Math.round(cap * Math.max(0.35, this.density))), this.scene);
     ps.particleTexture = tex;
     ps.emitter = V3(0, -100, 0);
     ps.minEmitBox = V3(-0.02, -0.02, -0.02); ps.maxEmitBox = V3(0.02, 0.02, 0.02);
@@ -75,7 +77,7 @@ export class Effects {
 
   _makeParticleSystems() {
     const C4 = (r, g, b, a) => new (B().Color4)(r, g, b, a);
-    const n = this.quality >= 2 ? 1 : 0.6;
+    const n = Math.max(0.35, this.density);
     this.sparks = new Pool(4, () => this._ps('sparks', this.tSoft, 60, { additive: true, minSize: 0.03, maxSize: 0.08, minLife: 0.15, maxLife: 0.45, gravity: -14, minPower: 3, maxPower: 9, c1: C4(1, 0.85, 0.5, 1), c2: C4(1, 0.6, 0.2, 1) }));
     this.dust = new Pool(4, () => this._ps('dust', this.tSmoke, 20, { minSize: 0.15, maxSize: 0.4, minLife: 0.4, maxLife: 0.9, gravity: 0.6, minPower: 0.6, maxPower: 1.8, c1: C4(0.6, 0.58, 0.55, 0.5), c2: C4(0.5, 0.48, 0.45, 0.35), sizeGrad: [[0, 0.5], [1, 1.6]] }));
     this.bloodPs = new Pool(6, () => this._ps('blood', this.tSoft, 40, { minSize: 0.06, maxSize: 0.16, minLife: 0.25, maxLife: 0.6, gravity: -16, minPower: 2, maxPower: 6, c1: C4(0.55, 0.02, 0.02, 1), c2: C4(0.35, 0.0, 0.0, 1) }));
@@ -351,7 +353,8 @@ export class Effects {
     flames.color1 = C4(1, 0.75, 0.3, 1); flames.color2 = C4(1, 0.45, 0.1, 1); flames.colorDead = C4(0.3, 0.05, 0, 0);
     flames.minSize = 0.5 * size; flames.maxSize = 1.1 * size;
     flames.minLifeTime = 0.35; flames.maxLifeTime = 0.8;
-    flames.emitRate = this.quality >= 2 ? 40 : 22;
+    const d = Math.max(0.35, this.density);
+    flames.emitRate = Math.round(40 * d);
     flames.blendMode = B().ParticleSystem.BLENDMODE_ADD;
     flames.gravity = V3(0, 2.5, 0);
     flames.direction1 = V3(-0.3, 1.5, -0.3); flames.direction2 = V3(0.3, 2.5, 0.3);
@@ -367,27 +370,48 @@ export class Effects {
     smoke.color1 = C4(0.18, 0.16, 0.15, 0.55); smoke.color2 = C4(0.1, 0.09, 0.09, 0.4); smoke.colorDead = C4(0.05, 0.05, 0.05, 0);
     smoke.minSize = 0.8 * size; smoke.maxSize = 1.6 * size;
     smoke.minLifeTime = 2.0; smoke.maxLifeTime = 4.0;
-    smoke.emitRate = this.quality >= 2 ? 10 : 5;
+    smoke.emitRate = Math.round(10 * d);
     smoke.gravity = V3(0.4, 1.2, 0.2);
     smoke.direction1 = V3(-0.2, 1, -0.2); smoke.direction2 = V3(0.2, 1.8, 0.2);
     smoke.minEmitPower = 0.4; smoke.maxEmitPower = 0.9;
     smoke.addSizeGradient(0, 0.5); smoke.addSizeGradient(1, 2.4);
     smoke.updateSpeed = 0.014;
     smoke.start();
-    const embers = this.quality >= 2 ? new (B().ParticleSystem)('embers', 30, this.scene) : null;
+    const embers = this.density >= 0.6 ? new (B().ParticleSystem)('embers', Math.round(40 * d), this.scene) : null;
     if (embers) {
       embers.particleTexture = this.tSoft; embers.emitter = V3(x, y + 0.3, z);
       embers.minEmitBox = V3(-0.3 * size, 0, -0.3 * size); embers.maxEmitBox = V3(0.3 * size, 0.3, 0.3 * size);
       embers.color1 = C4(1, 0.7, 0.2, 1); embers.color2 = C4(1, 0.4, 0.1, 1); embers.colorDead = C4(0.5, 0.1, 0, 0);
-      embers.minSize = 0.03; embers.maxSize = 0.07; embers.minLifeTime = 1.0; embers.maxLifeTime = 2.2; embers.emitRate = 8;
+      embers.minSize = 0.03; embers.maxSize = 0.07; embers.minLifeTime = 1.2; embers.maxLifeTime = 2.8; embers.emitRate = Math.round(11 * d);
       embers.blendMode = B().ParticleSystem.BLENDMODE_ADD; embers.gravity = V3(0.3, 1.5, 0.1);
       embers.direction1 = V3(-0.6, 1, -0.6); embers.direction2 = V3(0.6, 2, 0.6); embers.minEmitPower = 0.5; embers.maxEmitPower = 1.5;
       embers.start();
     }
-    const light = this.lighting.addPointLight('firelight', [x, y + 0.9 * size, z], new (B().Color3)(1, 0.55, 0.2), 2.2 * size, 9 + 5 * size, true);
+    const light = this.lighting.addPointLight('firelight', [x, y + 0.9 * size, z], new (B().Color3)(1, 0.55, 0.2), 2.4 * size, 10 + 6 * size, true);
     light.metadata.fire = true;
-    this.fires.push({ flames, smoke, embers, light });
+    // base rates are kept so the LOD manager can throttle distant fires (setFireLod) and settings can rescale them
+    this.fires.push({ flames, smoke, embers, light, x, y, z, size, barrel, rates: { flames: flames.emitRate, smoke: smoke.emitRate, embers: embers ? embers.emitRate : 0 }, lod: 1 });
     return light;
+  }
+
+  /** Distance LOD for a fire: k = 1 full, 0.35..0.65 reduced, 0 off (existing particles fade out). */
+  setFireLod(f, k) {
+    f.lod = k;
+    f.flames.emitRate = f.rates.flames * k;
+    f.smoke.emitRate = f.rates.smoke * k;
+    if (f.embers) f.embers.emitRate = f.rates.embers * k;
+  }
+
+  /** Graphics settings changed: rescale burst sizes and fire emit rates to the new particle density. */
+  applySettings() {
+    const prev = this.density;
+    this.density = particleDensity(this.settings.graphics);
+    const q = this.settings.graphics.effects || 'high';
+    this.quality = q === 'low' ? 0 : q === 'medium' ? 1 : q === 'high' ? 2 : 3;
+    this._n = Math.max(0.35, this.density);
+    if (Math.abs(prev - this.density) < 1e-6) return;
+    const k = Math.max(0.35, this.density) / Math.max(0.35, prev);
+    for (const f of this.fires) { f.rates.flames *= k; f.rates.smoke *= k; f.rates.embers *= k; this.setFireLod(f, f.lod); }
   }
 
   powerupSparkle(x, y, z) { this.sparkle.emitter.set(x, y, z); this.sparkle.manualEmitCount = 6; }

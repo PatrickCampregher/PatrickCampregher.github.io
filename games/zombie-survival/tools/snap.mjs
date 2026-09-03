@@ -23,6 +23,7 @@ import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { PRESETS } from '../client/js/settings/settings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -247,13 +248,7 @@ async function main() {
 }
 
 function presetFor(name) {
-  const P = {
-    low: { resolutionScale: 0.75, shadows: 'off', textures: 'low', effects: 'low', aa: 'off', ao: false, bloom: false },
-    medium: { resolutionScale: 1.0, shadows: 'low', textures: 'medium', effects: 'medium', aa: 'fxaa', ao: false, bloom: true },
-    high: { resolutionScale: 1.0, shadows: 'high', textures: 'high', effects: 'high', aa: 'fxaa', ao: true, bloom: true },
-    ultra: { resolutionScale: 1.0, shadows: 'ultra', textures: 'high', effects: 'ultra', aa: 'msaa', ao: true, bloom: true },
-  };
-  return P[name] || P.high;
+  return PRESETS[name] || PRESETS.high;
 }
 
 main().then((code) => { cleanup(); setTimeout(() => process.exit(code), 600); }).catch((e) => { console.error('[snap] FAILED:', e.message); cleanup(); setTimeout(() => process.exit(1), 600); });

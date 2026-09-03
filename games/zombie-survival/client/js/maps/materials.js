@@ -1,6 +1,9 @@
 // PBR material library built on the procedural texture sets.
 /* global BABYLON */
 
+// material cache keys that pick up the one-shot reflection probe (car paint, glass, polished metal, machines)
+const REFLECTIVE_KEY = /^(vehicle_|glass$|solid_vchrome|solid_vglass|metal_counter|metal_shelf|metal_dark|metal_panel|paint_|machine|solid_machine|solid_lamp_metal|solid_wmetal)/;
+
 export class MaterialLibrary {
   constructor(scene, textures, settings) {
     this.scene = scene;
@@ -9,6 +12,8 @@ export class MaterialLibrary {
     this.cache = new Map();
     this.maxLights = 6;
     this.usePbr = true;
+    this.frozen = false;
+    this.noFreeze = new Set(); // materials whose light lists change at runtime (dynamic meshes)
   }
 
   _pbr(name) {
@@ -17,7 +22,7 @@ export class MaterialLibrary {
     m.metallic = 1; m.roughness = 1;
     m.usePhysicalLightFalloff = false;
     m.environmentIntensity = 0.7;
-    m.specularIntensity = 0.6;
+    m.specularIntensity = 0.75;
     m.enableSpecularAntiAliasing = true;
     m.backFaceCulling = true;
     m.invertNormalMapX = true;
@@ -46,7 +51,7 @@ export class MaterialLibrary {
     m.useRoughnessFromMetallicTextureGreen = true;
     m.useMetallnessFromMetallicTextureBlue = true;
     m.useRoughnessFromMetallicTextureAlpha = false;
-    m.useAmbientOcclusionFromMetallicTextureRed = true;
+    m.useAmbientOcclusionFromMetallicTextureRed = true; // cavity AO baked from the height map
     m.metallic = 1; m.roughness = 1;
     if (opts.color) m.albedoColor = BABYLON.Color3.FromHexString(opts.color);
     m.metadata = { texScale: set.scale };
@@ -146,6 +151,36 @@ export class MaterialLibrary {
     if (opts.unlit) m.disableLighting = true;
     this.cache.set(k, m);
     return m;
+  }
+
+  /** Apply a rendered reflection probe to the reflective materials (car paint, glass, polished metal, machines). */
+  applyReflectionProbe(cubeTexture) {
+    let n = 0;
+    for (const [key, mat] of this.cache) {
+      if (!REFLECTIVE_KEY.test(key) || !(mat instanceof BABYLON.PBRMaterial)) continue;
+      mat.reflectionTexture = cubeTexture;
+      if (key.startsWith('vehicle_')) mat.roughness = 0.45;
+      n++;
+    }
+    return n;
+  }
+
+  /** Mark materials used by meshes whose light lists change at runtime; they are never frozen. */
+  protect(meshes) {
+    for (const m of meshes) if (m && m.material) this.noFreeze.add(m.material);
+  }
+
+  /** Freeze every static material (skips per-draw readiness checks). Call once the scene is warmed up. */
+  freezeStatic() {
+    let n = 0;
+    for (const mat of this.cache.values()) { if (this.noFreeze.has(mat) || mat.isFrozen) continue; mat.freeze(); n++; }
+    this.frozen = true;
+    return n;
+  }
+
+  unfreezeAll() {
+    for (const mat of this.cache.values()) if (mat.isFrozen) mat.unfreeze();
+    this.frozen = false;
   }
 
   dispose() { for (const m of this.cache.values()) m.dispose(); this.cache.clear(); }

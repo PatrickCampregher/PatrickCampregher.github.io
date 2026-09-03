@@ -10,6 +10,8 @@ import { MaterialLibrary } from '../maps/materials.js';
 import { LightingRig, buildSky, buildEnvironment } from '../maps/lighting.js';
 import { buildMap } from '../maps/mapBuilder.js';
 import { Effects } from '../effects/effects.js';
+import { Atmosphere } from '../effects/atmosphere.js';
+import { LodManager } from '../maps/lod.js';
 import { buildWeaponModel, cloneWeaponModel } from '../weapons/weaponModels.js';
 import { ViewModel, WeaponModelCache } from '../weapons/viewModel.js';
 import { LocalPlayer } from './player.js';
@@ -41,6 +43,9 @@ export class Game {
     this.gameOver = false;
     this.lastRenderT = 0;
     this.paused = false;
+    this.perf = { fps: 0, frameMs: 0, drawCalls: 0, activeMeshes: 0, particles: 0, zombies: 0, hiddenLod: 0, shadowCasters: 0 }; // window.dev-friendly render stats
+    this._perfT = 0;
+    this._zlist = [];
     for (const p of this.initMsg.players) { this.names[p.id] = p.name; this.scores[p.id] = p.points; this.states[p.id] = p.state; }
   }
 
@@ -52,8 +57,8 @@ export class Game {
   async load(progress) {
     const g = this.settings.graphics;
     progress(0.02, 'Starting engine');
-    this.engine = new (B().Engine)(this.canvas, false, { preserveDrawingBuffer: false, stencil: true, powerPreference: 'high-performance', doNotHandleContextLost: true, audioEngine: false }, false);
-    this.engine.setHardwareScalingLevel(1 / (g.resolutionScale || 1));
+    this.engine = new (B().Engine)(this.canvas, false, { preserveDrawingBuffer: false, stencil: true, powerPreference: 'high-performance', doNotHandleContextLost: true, audioEngine: false, adaptToDeviceRatio: false }, false);
+    this.engine.setHardwareScalingLevel(1 / Math.max(0.5, Math.min(2, g.resolutionScale || 1)));
     const scene = this.scene = new (B().Scene)(this.engine);
     scene.skipPointerMovePicking = true;
     scene.autoClear = true; scene.autoClearDepthAndStencil = true;
@@ -62,7 +67,7 @@ export class Game {
     this.camera = new (B().FreeCamera)('cam', V3(0, 1.7, 0), scene);
     this.camera.fovMode = B().Camera.FOVMODE_HORIZONTAL_FIXED;
     this.camera.fov = (g.fov || 95) * Math.PI / 180;
-    this.camera.minZ = 0.05; this.camera.maxZ = 700;
+    this.camera.minZ = 0.05; this.camera.maxZ = Math.max(700, (g.renderDistance || 170) * 3); // sky dome radius 450; haze closes in long before
     this.camera.inputs.clear();
     scene.activeCamera = this.camera;
     await nextFrame();
@@ -76,7 +81,7 @@ export class Game {
     await this.textures.preload(this.textures.names(), (k) => progress(0.1 + 0.45 * k, 'Painting textures'));
     progress(0.56, 'Lighting the town');
     this.lighting = new LightingRig(scene, this.engine, this.settings, this.camera);
-    buildSky(scene, this.mats);
+    buildSky(scene, this.mats, { rig: this.lighting });
     buildEnvironment(scene);
     this.effects = new Effects(scene, this.mats, this.textures, this.settings, this.lighting);
     this.effects.onShake = (x, y, z, r) => { if (this.player) { const d = Math.hypot(this.player.x - x, this.player.z - z); this.player.addShake(Math.max(0, 0.08 * (1 - d / (r * 4)))); } };
@@ -84,6 +89,8 @@ export class Game {
     progress(0.62, 'Building Ashford Street');
     this.mapVis = buildMap(scene, this.world, this.mats, this.lighting, this.textures, this.effects, this.settings);
     this.machines = buildMachines(scene, this.world, this.mats, this.lighting, this.textures, this.effects, this.settings, this);
+    for (const m of this.mapVis.shadowCasters) this.lighting.addCaster(m, false);
+    this.lighting.addCaster(this.mapVis.boardBase, true);
     await nextFrame();
     progress(0.8, 'Loading weapons');
     this.weaponCache = new WeaponModelCache(scene, this.mats, (id) => buildWeaponModel(scene, this.mats, WEAPONS[id]));
@@ -98,7 +105,16 @@ export class Game {
     this.entities = new Entities(this);
     this.player = new LocalPlayer(this);
     this.lighting.finalizeStaticLights();
+    for (const m of this.entities.dynamicBaseMeshes()) this.lighting.addCaster(m, true);
     this._setupReflections();
+    progress(0.88, 'Stirring the ashes');
+    this.atmosphere = new Atmosphere(scene, this.textures, this.effects, this.lighting, this.settings, this.world, this.mapVis);
+    this.lod = new LodManager(scene, this.mapVis, this.effects, this.lighting, this.mats, this.settings);
+    // materials attached to meshes whose light lists change at runtime must never be frozen
+    this.mats.protect([...this.entities.dynamicBaseMeshes(), ...(this.viewModel.lightMeshes || []), this.mapVis.boardBase]);
+    for (const w of WEAPON_LIST) this.mats.protect(this.weaponCache.get(w.id).meshes);
+    this.lighting.onSettingsApplied = () => { this.effects.applySettings(); this.atmosphere.applySettings(); this.lod.onSettingsChanged(); this.camera.maxZ = Math.max(700, (this.settings.graphics.renderDistance || 170) * 3); };
+    this._setupInstrumentation();
     this._applyInit(this.initMsg);
     this.viewModel.setWeapon(WEAPONS.warden_p9, true);
     this._bindNetwork();
@@ -107,9 +123,13 @@ export class Game {
     this.camera.position.set(this.player.x, this.player.y + 1.6, this.player.z);
     this.camera.rotation.set(0, this.player.yaw, 0);
     this._dynamicLights(true);
+    this.atmosphere.update(0.016, this.camera);
+    this.lod.update(1, this.camera.position);
     scene.render();
     await nextFrame();
     scene.render();
+    await nextFrame();
+    this.lod.freezeMaterials();
     progress(1, 'Ready');
     this._startAmbience();
   }
@@ -159,6 +179,8 @@ export class Game {
       this.viewModel.update(dt, { mouseDX: this.input.locked ? this.input.mouseDX : 0, mouseDY: this.input.locked ? this.input.mouseDY : 0, speed: p.speed2d, sprinting: p.sprinting, onGround: p.onGround, ads: p.ads, crouch: p.crouchK > 0.5 });
       this.effects.update(dt);
       this.lighting.update(dt);
+      this.atmosphere.update(dt, this.camera);
+      this.lod.update(dt, this.camera.position);
       this._updateBoxVisual(dt);
       this._updateEffectsHud(dt);
       this.hud.update(dt);
@@ -168,42 +190,68 @@ export class Game {
       audio.setListener(cam.position.x, cam.position.y, cam.position.z, fwd.x, fwd.y, fwd.z);
       this.lightT += dt; if (this.lightT > 0.5) { this.lightT = 0; this._dynamicLights(); }
       this.fpsAcc += dt; this.fpsN++;
-      if (this.fpsAcc >= 0.5) { this.fpsShown = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; this.hud.fps(this.fpsShown, g.showFps); }
+      if (this.fpsAcc >= 0.5) { this.fpsShown = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; this.hud.fps(this.fpsShown, g.showFps); this._updatePerf(); }
     } catch (e) { console.error(e); }
     this.input.endFrame();
     this.scene.render();
   }
 
-  /** One-shot reflection probe for car paint and storefront glass (HIGH/ULTRA). */
+  /** One-shot reflection probe (street + sky) applied to car paint, glass, polished metal and machines (HIGH/ULTRA). */
   _setupReflections() {
     const g = this.settings.graphics;
     if (!(g.effects === 'high' || g.effects === 'ultra') || !B().ReflectionProbe) return;
     try {
-      const probe = new (B().ReflectionProbe)('townProbe', 128, this.scene);
-      probe.position = V3(0, 2.5, 0);
+      const probe = new (B().ReflectionProbe)('townProbe', g.effects === 'ultra' ? 256 : 128, this.scene);
+      const sp = this.world.playerSpawns && this.world.playerSpawns[0];
+      probe.position = V3(sp ? sp.x : 0, 2.5, sp ? sp.z : 0);
       probe.refreshRate = B().RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
       for (const m of this.mapVis.staticMeshes) if (m.name.startsWith('chunk_') || m.name === 'sky') probe.renderList.push(m);
       const sky = this.scene.getMeshByName('sky'); if (sky && !probe.renderList.includes(sky)) probe.renderList.push(sky);
-      for (const [key, mat] of this.mats.cache) {
-        if (key.startsWith('vehicle_') || key === 'glass') { mat.reflectionTexture = probe.cubeTexture; if (key !== 'glass') mat.roughness = 0.45; }
-      }
+      const moon = this.scene.getMeshByName('moon'); if (moon) probe.renderList.push(moon);
+      this.mats.applyReflectionProbe(probe.cubeTexture);
       this.probe = probe;
     } catch (e) { console.warn('reflection probe unavailable', e); }
+  }
+
+  /** Render statistics (window.dev-friendly): SceneInstrumentation for draw calls / frame time. */
+  _setupInstrumentation() {
+    try {
+      const si = new (B().SceneInstrumentation)(this.scene);
+      si.captureFrameTime = true;
+      this._instr = si;
+    } catch (e) { this._instr = null; }
+  }
+
+  _updatePerf() {
+    const p = this.perf;
+    p.fps = this.fpsShown;
+    if (this._instr) { p.drawCalls = this._instr.drawCallsCounter.current; p.frameMs = +this._instr.frameTimeCounter.lastSecAverage.toFixed(2); }
+    p.activeMeshes = this.scene.getActiveMeshes().length;
+    let particles = this.atmosphere ? this.atmosphere.particleCount : 0;
+    for (const f of this.effects.fires) particles += f.flames.particles.length + f.smoke.particles.length + (f.embers ? f.embers.particles.length : 0);
+    p.particles = particles;
+    p.zombies = this.entities.zombies.size;
+    p.hiddenLod = this.lod ? this.lod.stats.hidden : 0;
+    const sm = this.lighting.shadow && this.lighting.shadow.getShadowMap();
+    p.shadowCasters = sm && sm.renderList ? sm.renderList.length : 0;
   }
 
   /** Re-register shadow casters after the shadow generator was rebuilt (graphics settings changed). */
   reapplyShadows() {
     const sg = this.lighting.shadow;
-    if (!sg) return;
-    for (const m of this.mapVis.shadowCasters) sg.addShadowCaster(m, false);
-    for (const m of this.entities.dynamicBaseMeshes()) sg.addShadowCaster(m, false);
-    sg.addShadowCaster(this.mapVis.boardBase, false);
+    for (const m of this.mapVis.shadowCasters) this.lighting.addCaster(m, false);
+    for (const m of this.entities.dynamicBaseMeshes()) this.lighting.addCaster(m, true);
+    this.lighting.addCaster(this.mapVis.boardBase, true);
     this.entities.rigs.shadow = sg;
+    this._dynamicLights(true);
   }
 
+  /** Dynamic meshes (zombies, players, weapons, boards) get the point lights that matter most around the player and the horde. */
   _dynamicLights(initial = false) {
     const meshes = [...this.entities.dynamicBaseMeshes(), ...(this.viewModel.lightMeshes || []), this.mapVis.boardBase];
-    this.lighting.updateDynamicLights(meshes, this.camera.position);
+    const zl = this._zlist; zl.length = 0;
+    for (const e of this.entities.zombies.values()) if (!e.dead) zl.push(e);
+    this.lighting.updateDynamicLights(meshes, this.camera.position, zl, 5);
   }
 
   // ---------------- network ----------------

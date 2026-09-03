@@ -63,7 +63,13 @@ Because the authority lives in the server process (not in the host's browser tab
 
 ## Graphics settings
 
-Presets LOW / MEDIUM / HIGH / ULTRA plus render resolution scale, shadows (PCF / cascaded), texture size, effects, anti-aliasing (FXAA / MSAA), ambient occlusion, bloom, VSync, FPS limit and FOV. Settings persist in the browser.
+Presets LOW / MEDIUM / HIGH / ULTRA plus render resolution scale, shadows (PCF / cascaded), texture size, effects, anti-aliasing (FXAA / MSAA), ambient occlusion, bloom, **render distance / haze**, **atmosphere particles**, film grain, VSync, FPS limit and FOV. Settings persist in the browser.
+
+* **Render distance** (60–300 m) sets how far you see clearly before the night haze closes in (~30 % haze at half the distance, ~75 % at the full distance). Buildings, vehicles, fires and zombies are never hidden by distance; only small props and decals switch off beyond about half the render distance, and distant fire emitters throttle down.
+* **Atmosphere particles**: OFF / LOW (a little ash) / MEDIUM (half budgets) / HIGH (drifting embers, falling ash, smoke columns over burning buildings and cars, spark bursts from damaged electrics and buzzing lamps). Budgets at HIGH: ~120 embers + ~150 ash flakes around the camera, ~26 smoke puffs per structure fire, 3 spark bursts of ≤48. Nothing spawns within 1.2 m of the camera.
+* Lighting: moonlight with a camera-following, texel-snapped shadow frustum (PCF on MEDIUM/HIGH, 3 cascades on ULTRA), a cool sky fill so zombies stay readable in alleys, warm street/fire point lights assigned per chunk, ACES tone mapping with colour grading, bloom on emissives only, SSAO on HIGH/ULTRA, a one-shot reflection probe on car paint/glass/metal.
+* Textures are procedural PBR sets (albedo, normal, roughness, cavity AO) generated in Web Workers at 256/512/1024 px depending on the texture quality setting.
+* `window.dev.g.perf` shows live render stats (fps, frame ms, draw calls, active meshes, particles, LOD-hidden props, shadow casters).
 
 ## Developer notes
 
