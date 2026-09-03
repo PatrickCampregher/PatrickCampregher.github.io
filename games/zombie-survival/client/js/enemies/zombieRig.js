@@ -19,7 +19,15 @@ const PART_DEFS = [
   { n: 'llegR', s: [0.15, 0.44, 0.15], mat: 'pants' },
   { n: 'footL', s: [0.13, 0.09, 0.26], mat: 'shoe' },
   { n: 'footR', s: [0.13, 0.09, 0.26], mat: 'shoe' },
+  // zombie-only head details. at = [x, top y, z] relative to the head joint; every part lies inside the head box
+  // (0.24 x 0.27 x 0.26 standing on the joint), so the shared head hit volume (shared/zombies.js) is unchanged.
+  { n: 'brow', s: [0.25, 0.05, 0.05], mat: 'skin', zombie: true, tint: 0.88, at: [0, 0.24, 0.125] },
+  { n: 'jaw', s: [0.20, 0.07, 0.10], mat: 'skin', zombie: true, tint: 0.8, at: [0, 0.075, 0.105] },
+  { n: 'socketL', s: [0.075, 0.055, 0.02], mat: 'skin', zombie: true, tint: 0.28, at: [-0.055, 0.2, 0.128] },
+  { n: 'socketR', s: [0.075, 0.055, 0.02], mat: 'skin', zombie: true, tint: 0.28, at: [0.055, 0.2, 0.128] },
+  { n: 'hair', s: [0.25, 0.03, 0.27], mat: 'shoe', zombie: true, tint: 0.75, at: [0, 0.27, 0] },
 ];
+const HEAD_PARTS = ['head', 'brow', 'jaw', 'socketL', 'socketR', 'hair'];
 
 const ZOMBIE_CLOTH = ['#5a5a66', '#4a4030', '#3d4a3a', '#5b3a3a', '#3a3a4d', '#6b5a48', '#494949', '#2f3f4f'];
 const ZOMBIE_PANTS = ['#2e2e38', '#3a2e22', '#2c3a2c', '#333', '#2a3548'];
@@ -61,6 +69,7 @@ export class RigFactory {
       return mats.solid('pshoe', '#151515', { rough: 0.7 });
     };
     for (const pd of PART_DEFS) {
+      if (pd.zombie && kind !== 'zombie') continue;
       const mesh = BABYLON.MeshBuilder.CreateBox('rig_' + kind + '_' + pd.n, { width: pd.s[0], height: pd.s[1], depth: pd.s[2] }, this.scene);
       // shift geometry so the origin is at the top of the part (joint pivot)
       mesh.bakeTransformIntoVertices(BABYLON.Matrix.Translation(0, -pd.s[1] / 2, 0));
@@ -120,9 +129,9 @@ export class Rig {
     const llegRJ = J('llegR', ulegRJ, 0, -0.46, 0);
     const footLJ = J('footL', llegLJ, 0, -0.44, 0.05);
     const footRJ = J('footR', llegRJ, 0, -0.44, 0.05);
-    const attach = (name, joint, yOff = 0) => {
+    const attach = (name, joint, yOff = 0, x = 0, z = 0) => {
       const inst = bases[name].createInstance('i_' + name);
-      inst.parent = joint; inst.position.y = yOff; inst.isPickable = false;
+      inst.parent = joint; inst.position.set(x, yOff, z); inst.isPickable = false;
       inst.instancedBuffers.color = new BABYLON.Color4(1, 1, 1, 1);
       this.parts[name] = inst;
       return inst;
@@ -131,6 +140,7 @@ export class Rig {
     attach('torso', torsoJ, 0.58);
     attach('neck', neckJ, 0.1);
     attach('head', headJ, 0.27);
+    if (kind === 'zombie') for (const pd of PART_DEFS) if (pd.zombie) attach(pd.n, headJ, pd.at[1], pd.at[0], pd.at[2]);
     attach('uarmL', uarmLJ); attach('uarmR', uarmRJ);
     attach('larmL', larmLJ); attach('larmR', larmRJ);
     attach('ulegL', ulegLJ); attach('ulegR', ulegRJ);
@@ -178,7 +188,7 @@ export class Rig {
 
   reset(id, opts) {
     this.id = id; this.inUse = true; this.deathT = -1; this.flashT = 0; this.phase = Math.random() * 6; this.hitAnim = 0;
-    this.headless = false; this.parts.head.isVisible = true; if (this.eyes) this.eyes.isVisible = true;
+    this.headless = false; for (const n of HEAD_PARTS) if (this.parts[n]) this.parts[n].isVisible = true; if (this.eyes) this.eyes.isVisible = true;
     this.scale = opts.scale || 1;
     this.root.scaling.setAll(this.scale);
     this.root.rotationQuaternion = null;
@@ -194,13 +204,19 @@ export class Rig {
     if (this.shoulderLight) this.shoulderLight.instancedBuffers.color = c3(cloth);
     if (this.cap) { const cc = BABYLON.Color3.FromHexString(cloth); this.cap.instancedBuffers.color = new BABYLON.Color4(cc.r * 0.45, cc.g * 0.45, cc.b * 0.45, 1); }
     for (const pd of PART_DEFS) {
+      const inst = this.parts[pd.n];
+      if (!inst) continue;
       let col;
       if (pd.mat === 'skin') col = skinCol;
       else if (pd.mat === 'cloth') col = c3(cloth);
       else if (pd.mat === 'pants') col = this.kind === 'zombie' ? c3(pants) : new BABYLON.Color4(1, 1, 1, 1);
       else col = new BABYLON.Color4(1, 1, 1, 1);
+      // zombies: fixed tints for the face details, random wear per cloth/pants part (torn, grimy look)
+      let k = pd.tint || 1;
+      if (this.kind === 'zombie' && (pd.mat === 'cloth' || pd.mat === 'pants')) k *= 0.7 + Math.random() * 0.3;
+      if (k !== 1) col = new BABYLON.Color4(col.r * k, col.g * k, col.b * k, 1);
       this.baseColors[pd.n] = col;
-      this.parts[pd.n].instancedBuffers.color = col;
+      inst.instancedBuffers.color = col;
     }
     this.show();
   }
@@ -225,7 +241,7 @@ export class Rig {
   hitReact(part) { this.hitAnim = part === 1 ? 0.35 : 0.22; this.hitPart = part; }
 
   /** Start death animation. kind: 0 collapse, 1 headshot, 2 blast (fly back) */
-  die(kind) { this.deathT = 0; this.deathKind = kind; if (kind === 1) { this.headless = true; this.parts.head.isVisible = false; if (this.eyes) this.eyes.isVisible = false; } }
+  die(kind) { this.deathT = 0; this.deathKind = kind; if (kind === 1) { this.headless = true; for (const n of HEAD_PARTS) if (this.parts[n]) this.parts[n].isVisible = false; if (this.eyes) this.eyes.isVisible = false; } }
   get dead() { return this.deathT >= 0; }
 
   // ---------------- verification helpers (hit volumes vs. the drawn skull) ----------------
