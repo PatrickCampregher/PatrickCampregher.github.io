@@ -12,7 +12,11 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const easeIn = (t) => t * t * t;
 const easeInOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const bump = (t) => Math.sin(t * Math.PI);                     // 0 -> 1 -> 0
-const spring = (s, dt, k, damp) => { s.v += (-k * s.x - damp * s.v) * dt; s.x += s.v * dt; };
+// damped spring, semi-implicit Euler in <= 8 ms substeps so it stays stable at low frame rates (k * h^2 << 1)
+const spring = (s, dt, k, damp) => {
+  const n = Math.min(16, Math.max(1, Math.ceil(dt / 0.008))), h = dt / n;
+  for (let i = 0; i < n; i++) { s.v += (-k * s.x - damp * s.v) * h; s.x += s.v * h; }
+};
 
 export class ViewModel {
   constructor(scene, camera, modelCache) {
@@ -56,6 +60,8 @@ export class ViewModel {
   }
 
   setWeapon(def, instant = false) {
+    // detach the shared helper meshes first: disposing the old model root would dispose its descendants
+    this.loadShell.parent = null; this.loadRound.parent = null;
     if (this.model) { this.model.dispose(); this.model = null; }
     this.loadShell.isVisible = false; this.loadRound.isVisible = false;
     this.def = def;
@@ -190,11 +196,12 @@ export class ViewModel {
   _reloadPose(k, kind) {
     const m = this.model, P = m.parts, H = this.homes, out = _pose;
     out[0] = out[1] = out[2] = out[3] = out[4] = out[5] = 0;
-    const tilt = (amt) => { out[3] += 0.28 * amt; out[5] += -0.45 * amt; out[4] += 0.12 * amt; out[1] += -0.035 * amt; out[0] += 0.01 * amt; };
+    // reload presentation: small pitch, muzzle yawed toward the screen center, top rolled toward the camera, gun pulled in
+    const tilt = (amt) => { out[3] += 0.1 * amt; out[4] += -0.2 * amt; out[5] += 0.3 * amt; out[1] += -0.02 * amt; out[0] += -0.03 * amt; };
     const settle = k < 0.12 ? easeOut(k / 0.12) : k > 0.88 ? 1 - easeInOut((k - 0.88) / 0.12) : 1;
     if (kind === 'shells') {
       // gun rolled to expose the loading port; one shell per cycle slides in; pump/charge at the end
-      tilt(settle * 0.9); out[4] += 0.25 * settle;
+      tilt(settle * 0.9); out[5] += 0.2 * settle;
       const n = Math.max(1, this.reloadCount), per = this.reloadPer;
       const t = this.reloadT, tEnd = 0.25 + n * per;
       if (t > 0.2 && t < tEnd) {
@@ -226,7 +233,7 @@ export class ViewModel {
       } else this.loadShell.isVisible = false;
     } else if (kind === 'cylinder') {
       // present the cylinder, swing out, tip up (casings fall), tip down (rounds in), swing in
-      out[4] += 0.5 * settle; out[5] += -0.35 * settle; out[0] += 0.02 * settle; out[1] += -0.02 * settle;
+      out[3] += 0.15 * settle; out[4] += 0.35 * settle; out[5] += 0.6 * settle; out[0] += -0.08 * settle; out[1] += -0.02 * settle;
       const swing = k < 0.12 ? 0 : k < 0.26 ? easeOut(ph(k, 0.12, 0.26)) : k < 0.8 ? 1 : 1 - easeInOut(ph(k, 0.8, 0.9));
       if (P.cylinder) P.cylinder.rotation.z = H.cylinder.rot.z + 1.5 * swing;
       const up = k < 0.26 ? 0 : k < 0.36 ? easeOut(ph(k, 0.26, 0.36)) : k < 0.44 ? 1 : k < 0.56 ? 1 - easeInOut(ph(k, 0.44, 0.56)) : 0;

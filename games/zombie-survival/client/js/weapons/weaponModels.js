@@ -537,7 +537,7 @@ const BUILD = {
       sightY = 0.112; sightZ = 0.0;
       c.frontPost(0.52, 0.0915, sightY, { base: [0.008, 0.003, 0.008] });
       c.rearRing(sightZ, sightY, 0.087, { r: 0.0115, base: [0.016, 0.004] });
-      c.stockFixed('accent', 0, 0.045, -0.2, 0.036, 0.06, 0.25, -0.1, 'dark');
+      c.stockFixed('accent', 0, 0.028, -0.2, 0.036, 0.05, 0.25, -0.1, 'dark');     // low comb: stays well under the eye line
       c.grip('accent', 0, 0.005, -0.06, 0.03, 0.07, 0.05, 0.6, 0);
       c.trigger(-0.01, 0.028, 0.05, 0.03); c.box('dark', 0.004, 0.016, 0.004, 0, 0.018, 0.0, 0.35);
       c.screws([[0.021, 0.06, -0.05], [-0.021, 0.06, -0.05]], 0.004);
@@ -596,13 +596,13 @@ const BUILD = {
         c.partMat.bolt = 'metal'; c.box('bolt', 0.016, 0.01, 0.024, 0.028, 0.075, 0.02);
         c.rail(0.022, 0.09, -0.06, 0.06, 0.006, 0.02);
         c.grip('accent', 0, -0.01, -0.05, 0.03, 0.09, 0.046, 0.3, 3);
-        c.stockFixed('accent', 0, 0.055, -0.22, 0.036, 0.055, 0.24, -0.04, 'dark');
+        c.stockFixed('accent', 0, 0.036, -0.22, 0.036, 0.05, 0.24, -0.06, 'dark');
         c.trigger(-0.02, 0.006, 0.05, 0.03);
         boltKind = 'recip';
       } else {
         c.partMat.bolt = 'accent'; c.box('bolt', 0.04, 0.045, 0.13, 0, 0.05, 0.22); for (let i = 0; i < 6; i++) c.box('bolt', 0.042, 0.003, 0.004, 0, 0.05, 0.17 + i * 0.02);
         for (const s of [-1, 1]) c.box('dark', 0.004, 0.008, 0.16, s * 0.018, 0.055, 0.1);
-        c.stockFixed('accent', 0, 0.045, -0.22, 0.036, 0.06, 0.26, -0.1, 'dark');
+        c.stockFixed('accent', 0, 0.03, -0.22, 0.036, 0.05, 0.26, -0.1, 'dark');
         c.grip('accent', 0, 0.005, -0.06, 0.03, 0.07, 0.05, 0.6, 0);
         c.trigger(-0.02, 0.026, 0.05, 0.03);
       }
@@ -792,7 +792,7 @@ const BUILD = {
     let sightY, sightZ, muzzle, eject = [0.03, 0.07, 0.0];
     if (st === 'nova') {
       c.cyl('body', 0.022, 0.16, 0, 0.065, 0.06, 'z', null, 12);
-      c.sph('body', 0.024, 0, 0.065, -0.02, 8);
+      c.sph('body', 0.02, 0, 0.058, -0.02, 8);
       c.box('accent', 0.014, 0.006, 0.17, 0, 0.09, 0.045);                                           // top rail carrying the sights
       c.cyl('accent', 0.02, 0.05, 0, 0.065, 0.16, 'z', 0.011, 12);
       c.cyl('glow', 0.007, 0.02, 0, 0.065, 0.192, 'z', null, 8);
