@@ -53,8 +53,8 @@ export const bar = {
     { x: -17.5, y: 6.9, z: 24.45, w: 19.6, h: 0.25, d: 0.5, mat: 'concrete' },  // rear cornice
     { x: -27.45, y: 6.9, z: 16.5, w: 0.5, h: 0.25, d: 15.4, mat: 'concrete' },  // west cornice
     { x: -25, y: 7.3, z: 20, w: 1.0, h: 1.4, d: 1.0, mat: 'brick_dark' },        // chimney
-    { x: -19, y: 3.6, z: 9, w: 1.8, h: 0.03, d: 0.37, mat: 'wood_dark' },        // balcony door threshold (hides the wall-top seam)
-    { x: -8, y: 3.6, z: 18, w: 0.37, h: 0.03, d: 1.6, mat: 'wood_dark' },        // bridge door threshold
+    { x: -19, y: 3.6, z: 9, w: 1.86, h: 0.03, d: 0.37, mat: 'wood_dark' },       // balcony door threshold (hides the wall-top seam)
+    { x: -8, y: 3.6, z: 18, w: 0.37, h: 0.03, d: 1.66, mat: 'wood_dark' },       // bridge door threshold
   ],
 };
 
@@ -88,6 +88,6 @@ export const pharmacy = {
   decor: [
     { x: 4, y: 3.05, z: 8.7, w: 16.4, h: 0.6, d: 0.3, mat: 'paint_green' },     // fascia band (sign backing)
     { x: 4, y: 3.5, z: 8.6, w: 16.6, h: 0.16, d: 0.5, mat: 'concrete' },        // ledge under the parapet
-    { x: -4, y: 3.6, z: 18, w: 0.37, h: 0.03, d: 1.6, mat: 'boards' },           // bridge landing threshold on the pharmacy wall
+    { x: -4, y: 3.6, z: 18, w: 0.37, h: 0.03, d: 1.66, mat: 'boards' },          // bridge landing threshold on the pharmacy wall
   ],
 };

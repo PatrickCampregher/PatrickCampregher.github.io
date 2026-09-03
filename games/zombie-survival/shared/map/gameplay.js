@@ -8,7 +8,7 @@ export const doors = [
   D('bar_front', 750, -18, 0, 9, 2.0, 2.4, 0.4, 'door', 'The Rusty Nail', ['street', 'bar']),
   D('pharm_front', 750, 4.5, 0, 9, 2.0, 2.4, 0.4, 'door', 'Pharmacy', ['street', 'pharmacy']),
   D('diner_front', 750, -20.5, 0, -9, 2.0, 2.4, 0.4, 'door', 'Diner', ['street', 'diner']),
-  D('garage_side', 750, 41, 0, -22, 0.4, 2.3, 1.6, 'door', 'Auto Garage', ['garage', 'parking']),
+  D('garage_side', 750, 41, 0, -22, 0.4, 2.3, 1.6, 'door', 'Auto Garage', ['garage', 'parking', 'roof']),
   D('alley_gate', 1000, -6, 0, 9, 3.6, 3.0, 0.4, 'gate', 'North Alley', ['street', 'plaza']),
   D('bar_back', 1000, -8, 0, 21, 0.4, 2.3, 1.6, 'door', 'Back Door', ['bar', 'plaza']),
   D('diner_back', 1000, -14, 0, -24, 1.6, 2.3, 0.4, 'door', 'Back Lot', ['diner', 'backlot']),
@@ -16,7 +16,7 @@ export const doors = [
   D('east_barricade', 1000, 12, 0, 0, 0.5, 3.0, 12, 'gate', 'Foundry Avenue', ['street', 'xstreet']),
   D('backlot_east', 1000, 12, 0, -27, 0.4, 2.6, 3.0, 'gate', 'Foundry Avenue', ['backlot', 'xstreet']),
   D('plaza_east', 1000, 12, 0, 30, 0.4, 2.6, 3.0, 'gate', 'Foundry Avenue', ['plaza', 'xstreet']),
-  D('lot_gate', 1000, 47, 0, -9, 4.0, 2.6, 0.4, 'gate', 'Parking Lot', ['xstreet', 'parking']),
+  D('lot_gate', 1000, 47, 0, -9, 4.0, 2.6, 0.4, 'gate', 'Parking Lot', ['xstreet', 'parking', 'roof']),   // the roof is reached from the lot by the fire escape
   D('garage_roll', 1000, 24, 0, -16, 0.4, 3.4, 3.6, 'rollup', 'Auto Garage', ['xstreet', 'garage']),
   D('theatre_main', 1250, 36, 0, 9, 2.6, 3.0, 0.4, 'door', 'The Palace', ['xstreet', 'theatre']),
   D('stage_door', 1500, 24, 0, 31, 0.4, 2.3, 1.6, 'door', 'Stage Door', ['xstreet', 'theatre']),
@@ -74,7 +74,9 @@ export const entries = [
   entry('lot_s1', 'hole', 'parking', [47, 0, -31.6], [47, 0, -28.4], 0),
   entry('lot_s2', 'hole', 'parking', [53, 0, -31.6], [53, 0, -28.4], 0),
   manhole('lot_mh', 'parking', 49.5, -21.5),
-  entry('roof_s1', 'hole', 'parking', [34, 5.2, -28.6], [34, 5.2, -25.0], 0),
+  // Garage roof: zombies climb over the south parapet from the collapsed building behind
+  entry('roof_s1', 'hole', 'roof', [34, 5.2, -28.6], [34, 5.2, -25.0], 0),
+  entry('roof_s2', 'hole', 'roof', [27, 5.2, -28.6], [27, 5.2, -25.0], 0),
   // The Palace
   winEntry('th_e1', 'theatre', [49.4, 0, 22], [46.6, 0.15, 22], -HALF),
   winEntry('th_e2', 'theatre', [49.4, 0, 27], [46.6, 0.15, 27], -HALF),
@@ -111,7 +113,7 @@ export const machines = [
   perk('revive', -10, 0.15, 8.38, PI, 'street'),      // sidewalk in front of the bar, next to the start
   perk('jugg', 4, 0, 39.05, PI, 'plaza'),             // plaza, against the north wall
   perk('speed', -27.38, 0.15, -16, HALF, 'diner'),    // diner, west wall between the windows
-  perk('dtap', 31, 5.2, -14.55, PI, 'parking'),       // garage roof, on the stairhead
+  perk('dtap', 31, 5.2, -14.55, PI, 'roof'),          // garage roof, on the stairhead
   { type: 'pap', x: 36, y: 0.4, z: 32.955, yaw: PI, area: 'theatre' },   // theatre stage, centre back
 ];
 

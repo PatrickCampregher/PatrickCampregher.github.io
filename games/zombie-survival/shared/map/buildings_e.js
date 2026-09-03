@@ -15,7 +15,7 @@ export const garage = {
     }),
     // roof parapets: south has the zombie climb-in from the collapsed building behind, north a drop-down gap,
     // east the fire-escape platform opening
-    wall(24 - E, -27, 41 + E, -27, 1.2, 'concrete', [ehole(34, 2.0, 'roof_s1')], { y0: 5.2, t: T }),
+    wall(24 - E, -27, 41 + E, -27, 1.2, 'concrete', [ehole(27, 2.0, 'roof_s2'), ehole(34, 2.0, 'roof_s1')], { y0: 5.2, t: T }),
     wall(24 - E, -9, 41 + E, -9, 1.2, 'concrete', [hole(30, 2.0)], { y0: 5.2, t: T }),
     parapet(24, -26.825, 24, -9.175, 5.2, 'concrete'),
     parapet(41, -26.825, 41, -9.175, 5.2, 'concrete', [hole(-10.4, 2.0)]),
@@ -35,7 +35,7 @@ export const garage = {
     // roof
     box(31, 5.2, -13, 2.6, 2.4, 2.2, 'concrete', { kind: 'shed' }),          // stairhead (Double Tap on its south face)
     box(37, 5.2, -9.8, 2.4, 0.8, 0.9, 'sandbag', { vault: true, kind: 'sandbags' }),
-    box(27, 5.2, -24, 1.2, 0.8, 1.2, 'metal_panel', { kind: 'vent' }),
+    box(25.5, 5.2, -21, 1.2, 0.8, 1.2, 'metal_panel', { kind: 'vent' }),
   ],
   decor: [
     { x: 23.7, y: 3.55, z: -16, w: 0.25, h: 0.3, d: 4.4, mat: 'metal_dark' },   // roll-up header

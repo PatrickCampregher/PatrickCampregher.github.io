@@ -19,6 +19,7 @@ export const areas = {
   garage: { name: 'Auto Garage', rects: [[24, -27, 41, -9]] },
   parking: { name: 'Parking Lot', rects: [[41, -30, 56, -9]] },
   theatre: { name: 'The Palace', rects: [[24, 9, 48, 34]] },
+  roof: { name: 'Garage Roof', rects: [[24, -27, 41, -9]] },   // upper layer only (same footprint as the garage); unlocked with the parking lot
 };
 
 // Ground visuals (y = 0). Never overlap two grounds (z-fighting); the base plane sits 2 cm lower.
@@ -63,12 +64,12 @@ export const floors = [
   { x0: 24, z0: 15, x1: 27, z1: 19, y: 3.6, level: 1, area: 'theatre', mat: 'carpet_red' },   // mezzanine west end (stair arrives)
   { x0: 27, z0: 14, x1: 45, z1: 19, y: 3.6, level: 1, area: 'theatre', mat: 'carpet_red' },   // mezzanine centre
   { x0: 45, z0: 15, x1: 48, z1: 19, y: 3.6, level: 1, area: 'theatre', mat: 'carpet_red' },   // mezzanine east end
-  { x0: 2, z0: -16, x1: 12, z1: -9, y: 3.4, level: 1, area: 'backlot', mat: 'concrete' },     // surviving floor fragment ("the perch")
+  { x0: 2, z0: -16, x1: 11.75, z1: -9, y: 3.4, level: 1, area: 'backlot', mat: 'concrete' },  // surviving floor fragment ("the perch"); ends at the east wall's inner face
   { x0: 41.3, z0: -18.2, x1: 44.3, z1: -15.4, y: 2.9, level: 1, area: 'parking', mat: 'metal_stair' }, // fire escape landing (covers flight 2's first step)
   // ---- level 2 ----
-  { x0: 24, z0: -27, x1: 41, z1: -9.18, y: 5.2, level: 2, area: 'parking', mat: 'roof_tar' }, // garage roof (ends at the north wall's inner face)
+  { x0: 24, z0: -26.82, x1: 41, z1: -9.18, y: 5.2, level: 2, area: 'roof', mat: 'roof_tar' }, // garage roof (ends at the N/S walls' inner faces: parapet gaps expose the wall tops)
   { x0: 41.18, z0: -11.4, x1: 44.3, z1: -9.4, y: 5.2, level: 2, area: 'parking', mat: 'metal_stair' }, // fire escape top platform
-  { x0: 41.0, z0: -11.38, x1: 41.2, z1: -9.42, y: 5.21, level: 2, area: 'parking', mat: 'metal_dark', thick: 0.27 }, // threshold plate over the wall top in the parapet opening (zombies need a floor box under their centre)
+  { x0: 40.82, z0: -11.38, x1: 41.2, z1: -9.42, y: 5.21, level: 2, area: 'roof', mat: 'metal_dark', thick: 0.27 }, // threshold plate over the wall top in the parapet opening (zombies need a floor box under their centre)
 ];
 
 // Straight staircases (mapbuild.js schema). Bottom edge centre (x,z) at y0, climbing along yaw.

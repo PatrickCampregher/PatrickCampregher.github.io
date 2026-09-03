@@ -129,23 +129,28 @@ const insideSolid = (x, y, z, label, cat, radius = 0.25, h = 1.6) => {
       if (a.b === b.b || Math.abs(a.at - b.at) > 0.002) continue;
       const ou = Math.min(a.u1, b.u1) - Math.max(a.u0, b.u0), ov = Math.min(a.v1, b.v1) - Math.max(a.v0, b.v0);
       if (ou <= 0.015 || ov <= 0.015) continue; // stair steps overlap their neighbours by 1 cm by design
-      // the shared patch must be exposed: skip when it is buried inside a third box or below the ground plane
-      const uc = (Math.max(a.u0, b.u0) + Math.min(a.u1, b.u1)) / 2, vc = (Math.max(a.v0, b.v0) + Math.min(a.v1, b.v1)) / 2;
-      const px = a.ax === 'x' ? a.at : uc, pz = a.ax === 'z' ? a.at : (a.ax === 'y' ? vc : uc), py = a.ax === 'y' ? a.at : vc;
+      // the shared patch must be exposed: skip when it is buried inside third boxes or below the ground plane.
+      // Sampled at the centre and four inset corners; every sample must be covered by some box that occupies
+      // the space the faces point into (a stacked wall, a slab, a decor threshold ...).
       if (a.ax !== 'y' && Math.min(a.v1, b.v1) <= 0.001) continue;
-      // buried = a third box contains the patch centre strictly in-plane and occupies the space the faces point into
-      let buried = false;
+      const U0 = Math.max(a.u0, b.u0), U1 = Math.min(a.u1, b.u1), V0 = Math.max(a.v0, b.v0), V1 = Math.min(a.v1, b.v1);
+      const samples = [[0.5, 0.5], [0.1, 0.1], [0.9, 0.1], [0.1, 0.9], [0.9, 0.9]].map(([su, sv]) => [U0 + (U1 - U0) * su, V0 + (V1 - V0) * sv]);
       const eps = 1e-3;
-      for (const o of coverBoxes) {
-        if (o === a.b || o === b.b || o.invisible) continue;
-        const lo = a.ax === 'x' ? o.minX : a.ax === 'z' ? o.minZ : o.y0, hi = a.ax === 'x' ? o.maxX : a.ax === 'z' ? o.maxZ : o.y1;
-        const inPlane = a.ax === 'x' ? (pz > o.minZ + eps && pz < o.maxZ - eps && py > o.y0 + eps && py < o.y1 - eps)
-          : a.ax === 'z' ? (px > o.minX + eps && px < o.maxX - eps && py > o.y0 + eps && py < o.y1 - eps)
-            : (px > o.minX + eps && px < o.maxX - eps && pz > o.minZ + eps && pz < o.maxZ - eps);
-        if (!inPlane) continue;
-        const covers = a.n > 0 ? (lo <= a.at + eps && hi > a.at + eps) : (hi >= a.at - eps && lo < a.at - eps);
-        if (covers) { buried = true; break; }
-      }
+      const coveredAt = (u, v) => {
+        const px = a.ax === 'x' ? a.at : u, pz = a.ax === 'z' ? a.at : (a.ax === 'y' ? v : u), py = a.ax === 'y' ? a.at : v;
+        for (const o of coverBoxes) {
+          if (o === a.b || o === b.b || o.invisible) continue;
+          const lo = a.ax === 'x' ? o.minX : a.ax === 'z' ? o.minZ : o.y0, hi = a.ax === 'x' ? o.maxX : a.ax === 'z' ? o.maxZ : o.y1;
+          const inPlane = a.ax === 'x' ? (pz > o.minZ + eps && pz < o.maxZ - eps && py > o.y0 + eps && py < o.y1 - eps)
+            : a.ax === 'z' ? (px > o.minX + eps && px < o.maxX - eps && py > o.y0 + eps && py < o.y1 - eps)
+              : (px > o.minX + eps && px < o.maxX - eps && pz > o.minZ + eps && pz < o.maxZ - eps);
+          if (!inPlane) continue;
+          const covers = a.n > 0 ? (lo <= a.at + eps && hi > a.at + eps) : (hi >= a.at - eps && lo < a.at - eps);
+          if (covers) return true;
+        }
+        return false;
+      };
+      const buried = samples.every(([u, v]) => coveredAt(u, v));
       if (buried) continue;
       const k = [a.b, b.b].map(x => `${x.cx},${x.cz},${x.y0}`).sort().join('|') + a.ax;
       if (seen.has(k)) continue; seen.add(k);
