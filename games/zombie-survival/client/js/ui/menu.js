@@ -127,6 +127,9 @@ export class MenuController {
       <div class="field"><label>Anti-Aliasing</label><select id="g-aa"><option value="off">OFF</option><option value="fxaa">FXAA</option><option value="msaa">MSAA 4x</option></select></div>
       <div class="field"><label>Ambient Occlusion</label><select id="g-ao"><option value="1">ON</option><option value="0">OFF</option></select></div>
       <div class="field"><label>Bloom</label><select id="g-bloom"><option value="1">ON (subtle)</option><option value="0">OFF</option></select></div>
+      <div class="field"><label>Render Distance / Haze <span class="setting-val" id="g-dist-v"></span></label><input type="range" id="g-dist" min="60" max="300" step="10"></div>
+      <div class="field"><label>Atmosphere Particles</label><select id="g-particles"><option value="off">OFF</option><option value="low">LOW (ash only)</option><option value="medium">MEDIUM</option><option value="high">HIGH (embers, smoke, sparks)</option></select></div>
+      <div class="field"><label>Film Grain</label><select id="g-grain"><option value="0">OFF</option><option value="1">ON (light)</option></select></div>
       <div class="field"><label>VSync</label><select id="g-vsync"><option value="1">ON</option><option value="0">OFF (use FPS limit)</option></select></div>
       <div class="field"><label>FPS Limit <span class="setting-val" id="g-fps-v"></span></label><input type="range" id="g-fps" min="0" max="240" step="10"></div>
       <div class="field"><label>Field of View <span class="setting-val" id="g-fov-v"></span></label><input type="range" id="g-fov" min="70" max="120" step="1"></div>
@@ -149,6 +152,9 @@ export class MenuController {
     const bindSel = (id, key, conv = (v) => v) => { $(id).onchange = (e) => { gs[key] = conv(e.target.value); gs.preset = detectPreset(); saveSettings(); this.refreshSettings(); this.app.onGraphicsChanged(); }; };
     bindSel('g-shadows', 'shadows'); bindSel('g-textures', 'textures'); bindSel('g-effects', 'effects'); bindSel('g-aa', 'aa');
     bindSel('g-ao', 'ao', v => v === '1'); bindSel('g-bloom', 'bloom', v => v === '1'); bindSel('g-vsync', 'vsync', v => v === '1'); bindSel('g-showfps', 'showFps', v => v === '1');
+    bindSel('g-particles', 'particles'); bindSel('g-grain', 'grain', v => v === '1');
+    $('g-dist').oninput = (e) => { gs.renderDistance = parseInt(e.target.value, 10); $('g-dist-v').textContent = gs.renderDistance + ' m'; };
+    $('g-dist').onchange = () => { gs.preset = detectPreset(); saveSettings(); this.refreshSettings(); this.app.onGraphicsChanged(); };
     $('g-res').oninput = (e) => { gs.resolutionScale = parseFloat(e.target.value); $('g-res-v').textContent = Math.round(gs.resolutionScale * 100) + '%'; };
     $('g-res').onchange = () => { gs.preset = detectPreset(); saveSettings(); this.refreshSettings(); this.app.onGraphicsChanged(); };
     $('g-fps').oninput = (e) => { gs.fpsLimit = parseInt(e.target.value, 10); $('g-fps-v').textContent = gs.fpsLimit ? gs.fpsLimit : 'Unlimited'; };
@@ -181,6 +187,8 @@ export class MenuController {
     $('g-shadows').value = gs.shadows; $('g-textures').value = gs.textures; $('g-effects').value = gs.effects; $('g-aa').value = gs.aa;
     $('g-ao').value = gs.ao ? '1' : '0'; $('g-bloom').value = gs.bloom ? '1' : '0'; $('g-vsync').value = gs.vsync ? '1' : '0'; $('g-showfps').value = gs.showFps ? '1' : '0';
     $('g-fps').value = gs.fpsLimit; $('g-fps-v').textContent = gs.fpsLimit ? gs.fpsLimit : 'Unlimited';
+    $('g-dist').value = gs.renderDistance || 170; $('g-dist-v').textContent = (gs.renderDistance || 170) + ' m';
+    $('g-particles').value = gs.particles || 'high'; $('g-grain').value = gs.grain ? '1' : '0';
     $('g-fov').value = gs.fov; $('g-fov-v').textContent = gs.fov + '°';
     $('c-sens').value = cs.sensitivity; $('c-sens-v').textContent = cs.sensitivity.toFixed(2);
     $('c-ads').value = cs.adsSensitivity; $('c-ads-v').textContent = cs.adsSensitivity.toFixed(2);
