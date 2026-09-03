@@ -24,6 +24,7 @@ export class HandAnim {
     this.g = game; this.scene = game.scene;
     this.root = new (B().TransformNode)('hand_root', this.scene);
     this.root.parent = game.camera;
+    this.root.scaling.setAll(0.86);
     this.root.setEnabled(false);
     this.t = -1; this.mode = null; this.dur = 0; this.perkId = null; this.weaponModel = null;
     this._labelMats = new Map(); this._liquidMats = new Map();
@@ -34,7 +35,8 @@ export class HandAnim {
     this._buildBottle();
   }
 
-  get busy() { return this.t >= 0; }
+  /** True while an animation plays; also expires by wall clock so a stalled render loop can never lock the player out. */
+  get busy() { return this.t >= 0 && performance.now() - this._startMs < (this.dur + 0.5) * 1000; }
 
   _mesh(m) { m.renderingGroupId = 1; m.isPickable = false; m.receiveShadows = false; m.applyFog = false; return m; }
 
@@ -89,7 +91,7 @@ export class HandAnim {
     this.bottle.setEnabled(true); this.hand.setEnabled(true);
     this.bottle.position.set(0, 0, 0); this.bottle.rotation.set(0, Math.PI, 0);
     this.hand.position.set(0, -0.02, 0); this.hand.rotation.set(0, 0, 0);
-    this.mode = 'drink'; this.perkId = perkId; this.t = 0; this.dur = DRINK_DUR; this._sipPlayed = false; this._tossPlayed = false; this._shown = false;
+    this.mode = 'drink'; this.perkId = perkId; this.t = 0; this.dur = DRINK_DUR; this._startMs = performance.now(); this._sipPlayed = false; this._tossPlayed = false; this._shown = false;
     this.root.setEnabled(true);
     this.g.viewModel.setVisible(false);
   }
@@ -103,7 +105,7 @@ export class HandAnim {
       this.weaponModel.root.parent = this.root;
       for (const m of this.weaponModel.meshes) this._mesh(m);
     }
-    this.mode = 'stow'; this.t = 0; this.dur = STOW_DUR; this._shown = false;
+    this.mode = 'stow'; this.t = 0; this.dur = STOW_DUR; this._startMs = performance.now(); this._shown = false;
     this.root.setEnabled(true);
     this.g.viewModel.setVisible(false);
   }
@@ -139,7 +141,7 @@ export class HandAnim {
       if (t >= 0.75 && !this._shown) { this._shown = true; this._restoreViewModel(); }
     }
     if (!this._shown) vm.setVisible(false);
-    if (t >= this.dur) { this.t = -1; this.mode = null; this.root.setEnabled(false); this._clearWeapon(); }
+    if (t >= this.dur || !this.busy) { if (!this._shown) { this._shown = true; this._restoreViewModel(); } this.t = -1; this.mode = null; this.root.setEnabled(false); this._clearWeapon(); }
   }
 
   _restoreViewModel() {
@@ -153,6 +155,7 @@ function labelCanvas(id) {
   const p = PERKS[id];
   const c = document.createElement('canvas'); c.width = 256; c.height = 64;
   const ctx = c.getContext('2d');
+  ctx.translate(0, 64); ctx.scale(1, -1); // mesh texture: pre-flipped (see machines.js canvas())
   ctx.fillStyle = p.accent; ctx.fillRect(0, 0, 256, 64);
   ctx.fillStyle = p.color; ctx.fillRect(0, 6, 256, 52);
   ctx.drawImage(perkIconCanvas(id, 48), 104, 8);

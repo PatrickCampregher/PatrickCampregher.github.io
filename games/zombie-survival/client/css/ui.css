@@ -230,7 +230,7 @@ button { font-family: inherit; }
 #hud-mline { position: absolute; left: 50%; top: 44%; transform: translateX(-50%); max-width: 60vw; font-family: var(--font-ui); font-style: italic; font-size: 17px; letter-spacing: 1px; color: #fff; text-shadow: 0 1px 3px #000, 0 0 10px #000; padding: 7px 18px; border-left: 3px solid var(--accent2); background: rgba(0,0,0,0.42); animation: mlineIn .3s ease-out; }
 #hud-mline.ml-jugg { border-color: #ff4a38; } #hud-mline.ml-revive { border-color: #3ad4ff; } #hud-mline.ml-speed { border-color: #5aff6a; } #hud-mline.ml-dtap { border-color: #ff9a3a; } #hud-mline.ml-pap { border-color: #b45cff; }
 @keyframes mlineIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-#hud-pap { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); width: 280px; text-align: center; }
+#hud-pap { position: absolute; left: 28px; top: 118px; width: 240px; text-align: left; }
 #hud-pap .lbl { font-size: 13px; letter-spacing: 6px; color: #d9a6ff; font-family: var(--font-title); text-shadow: 0 0 10px #7a2bd6, 0 2px 0 #000; }
 #hud-pap .bar { height: 6px; background: rgba(255,255,255,0.15); margin: 6px 0; box-shadow: 0 0 8px rgba(180, 92, 255, 0.35); }
 #hud-pap-bar { height: 100%; width: 0; background: linear-gradient(90deg, #7a2bd6, #d9a6ff); transition: width .12s linear; }

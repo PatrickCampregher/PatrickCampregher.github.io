@@ -21,11 +21,13 @@ const easeInOut = (t) => { t = clamp01(t); return t < 0.5 ? 4 * t * t * t : 1 - 
 const PAP_COLOR = '#b45cff', PAP_LIGHT = '#c77dff';
 
 // ---------------- canvas art (icons, signs, grime, hazard stripes) ----------------
-function canvas(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); return c; }
+// `flip`: canvases used as mesh textures are drawn upside-down because textures.fromCanvas uploads without
+// a Y flip while plane/cylinder UVs put v=1 at the top (HUD canvases stay unflipped).
+function canvas(w, h, draw, flip = false) { const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d'); if (flip) { ctx.translate(0, h); ctx.scale(1, -1); } draw(ctx, w, h); return c; }
 function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 
-/** Perk badge icon (HUD + machine emblems + bottle labels). Drawn at 64 units, scaled to `size`. */
-export function perkIconCanvas(id, size = 64) {
+/** Perk badge icon (HUD + machine emblems + bottle labels). Drawn at 64 units, scaled to `size`; `flip` for mesh textures. */
+export function perkIconCanvas(id, size = 64, flip = false) {
   const p = PERKS[id] || PERKS.jugg;
   return canvas(size, size, (ctx, s) => {
     ctx.scale(s / 64, s / 64);
@@ -58,7 +60,7 @@ export function perkIconCanvas(id, size = 64) {
         ctx.fillStyle = p.accent; roundRect(ctx, 40, 35, 4.5, 13, 2); ctx.fill(); roundRect(ctx, 47, 35, 4.5, 13, 2); ctx.fill();
       }
     }
-  });
+  }, flip);
 }
 function signCanvas(text, sub, accent, w = 512, h = 128) {
   return canvas(w, h, (ctx) => {
@@ -70,26 +72,17 @@ function signCanvas(text, sub, accent, w = 512, h = 128) {
     ctx.font = `bold ${sub ? 60 : 68}px Impact, "Arial Narrow", sans-serif`;
     ctx.fillText(text.toUpperCase(), w / 2, sub ? h * 0.4 : h * 0.52);
     if (sub) { ctx.shadowBlur = 6; ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif'; ctx.fillStyle = '#fbfbff'; ctx.fillText(sub.toUpperCase(), w / 2, h * 0.8); }
-  });
-}
-function labelCanvas(id) {
-  const p = PERKS[id];
-  return canvas(256, 64, (ctx, w, h) => {
-    ctx.fillStyle = p.accent; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = p.color; ctx.fillRect(0, 6, w, h - 12);
-    ctx.drawImage(perkIconCanvas(id, 48), w / 2 - 24, 8);
-    ctx.fillStyle = p.accent; ctx.font = 'bold 20px Impact, "Arial Narrow", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(p.flavor, w * 0.22, h / 2); ctx.fillText(p.flavor, w * 0.78, h / 2);
-  });
+  }, true);
 }
 function grimeCanvas(n = 128, seed = 1) {
+  // putImageData ignores transforms: weight the grime toward canvas row 0 (= the bottom on the mesh)
   return canvas(n, n, (ctx) => {
     const img = ctx.createImageData(n, n), d = img.data;
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const u = x / n, v = y / n;
       const nz = fbm(u * 5 + seed * 3, v * 5 + seed, 3);
       const edge = clamp01(Math.min(u, 1 - u) * 4);
-      const a = clamp01((nz - 0.42) * 2.4) * edge * (0.25 + v * 0.75);
+      const a = clamp01((nz - 0.42) * 2.4) * edge * (0.25 + (1 - v) * 0.75);
       const i = (y * n + x) * 4; d[i] = 22; d[i + 1] = 18; d[i + 2] = 14; d[i + 3] = a * 215;
     }
     ctx.putImageData(img, 0, 0);
@@ -110,7 +103,7 @@ function bottleCutoutCanvas(color) {
     path(); ctx.fillStyle = '#050607'; ctx.fill();
     ctx.shadowColor = color; ctx.shadowBlur = 14; ctx.strokeStyle = color; ctx.lineWidth = 4; path(); ctx.stroke();
     ctx.shadowBlur = 0; ctx.fillStyle = color; ctx.globalAlpha = 0.55; ctx.fillRect(14, 120, 36, 52);
-  });
+  }, true);
 }
 
 // ---------------- mesh helpers ----------------
@@ -333,9 +326,9 @@ class PerkMachine {
     const signTex = M.textures.fromCanvas('mach_sign_' + this.id, signCanvas(def.name, def.tagline, def.accent), { clamp: true });
     this.signMat = new (B().StandardMaterial)('mat_sign_' + this.id, scene);
     this.signMat.diffuseTexture = signTex; this.signMat.emissiveTexture = signTex; this.signMat.disableLighting = true; this.signMat.specularColor = B().Color3.Black();
-    const sign = B().MeshBuilder.CreatePlane('pm_sign', { width: W - 0.12, height: 0.24 }, scene);
+    const sign = B().MeshBuilder.CreatePlane('pm_sign', { width: W - 0.12, height: 0.24, sideOrientation: B().Mesh.DOUBLESIDE }, scene);
     sign.position.set(0, 1.91, hd + 0.004); sign.rotation.y = Math.PI; sign.material = this.signMat; sign.parent = root; sign.isPickable = false;
-    const embTex = M.textures.fromCanvas('mach_emblem_' + this.id, perkIconCanvas(this.id, 128), { clamp: true });
+    const embTex = M.textures.fromCanvas('mach_emblem_' + this.id, perkIconCanvas(this.id, 128, true), { clamp: true });
     const embMat = mats.decal('mach_emblem_' + this.id, embTex, { emissive: '#ffffff', unlit: true });
     const embS = Math.min(0.24, top - wn.y1 - 0.03);
     const emblem = B().MeshBuilder.CreatePlane('pm_emblem', { width: embS, height: embS, sideOrientation: B().Mesh.DOUBLESIDE }, scene);
@@ -355,7 +348,8 @@ class PerkMachine {
     lamp.position.set(cx, wn.y0 + 0.08, fz + 0.045); lamp.material = this.lampMat; lamp.parent = root; lamp.isPickable = false;
     // Speed Cola: rotating bottle-cap ornament on the roof
     if (S.ornament) {
-      cyl('chrome', 0.03, 0.14, 0, 2.14, -0.18);
+      const pole = B().MeshBuilder.CreateCylinder('pm_pole', { diameter: 0.03, height: 0.14, tessellation: 10 }, scene);
+      pole.position.set(0, 2.14, -0.18); pole.material = M.matChrome; pole.parent = root; pole.isPickable = false;
       const cap = B().MeshBuilder.CreateCylinder('pm_cap', { diameter: 0.3, height: 0.1, tessellation: 14 }, scene);
       const capIn = B().MeshBuilder.CreateCylinder('pm_capin', { diameter: 0.24, height: 0.104, tessellation: 14 }, scene);
       const ornament = B().Mesh.MergeMeshes([cap, capIn], true, true, undefined, false, false);
@@ -363,7 +357,6 @@ class PerkMachine {
       const capTop = B().MeshBuilder.CreatePlane('pm_capemb', { width: 0.2, height: 0.2, sideOrientation: B().Mesh.DOUBLESIDE }, scene);
       capTop.rotation.x = Math.PI / 2; capTop.position.y = 0.052; capTop.material = embMat; capTop.parent = ornament; capTop.isPickable = false;
       this.ornament = ornament;
-      this.meshes.push(mergeParts(g.chrome.splice(0), M.matChrome, 'pm_chrome2', root));
     }
     // bottles: one base mesh (multi-material), instanced on the shelves + a spinning display bottle + the dispensed one
     this.bottleBase = this._buildBottle(matEmis, matAccent);
@@ -502,9 +495,10 @@ class PapMachine {
     // drum cradle + rear housing
     box('dark', 1.1, 0.32, 1.2, 0, 0.38, -0.1);
     box('dark', 1.3, 1.5, 0.3, 0, 1.15, -0.72);
-    // porthole ring + tunnel + tray dock
-    const ring = B().MeshBuilder.CreateTorus('pp_ring', { diameter: 0.78, thickness: 0.07, tessellation: 24 }, scene); ring.position.set(0, 1.15, 0.5); ring.rotation.x = Math.PI / 2; g.chrome.push(ring);
-    cyl('dark', 0.66, 0.5, 0, 1.15, 0.25, Math.PI / 2, 0, 20);
+    // porthole ring + open tunnel (the drum's hex face is its back wall, the core glows inside) + tray dock
+    const ring = B().MeshBuilder.CreateTorus('pp_ring', { diameter: 0.78, thickness: 0.07, tessellation: 24 }, scene); ring.position.set(0, 1.15, 0.3); ring.rotation.x = Math.PI / 2; g.chrome.push(ring);
+    const tube = B().MeshBuilder.CreateCylinder('pp_tube', { diameter: 0.66, height: 0.3, tessellation: 20, cap: B().Mesh.NO_CAP, sideOrientation: B().Mesh.DOUBLESIDE }, scene);
+    tube.position.set(0, 1.15, 0.15); tube.rotation.x = Math.PI / 2; tube.material = M.matInterior; tube.parent = root; tube.isPickable = false;
     box('dark', 1.1, 0.06, 0.55, 0, 0.6, 0.6);                            // tray dock ledge
     box('hazard', 1.1, 0.04, 0.03, 0, 0.615, 0.87);
     box('dark', 0.05, 0.16, 0.55, -0.55, 0.7, 0.6); box('dark', 0.05, 0.16, 0.55, 0.55, 0.7, 0.6);   // dock side rails
@@ -519,20 +513,20 @@ class PapMachine {
     const merged = { dark: mergeParts(g.dark, M.matDark, 'pap_dark', root), steel: mergeParts(g.steel, M.matSteel, 'pap_steel', root), chrome: mergeParts(g.chrome, M.matChrome, 'pap_chrome', root), purple: mergeParts(g.purple, matPurple, 'pap_purple', root), hazard: mergeParts(g.hazard, M.hazardMat, 'pap_hazard', root), panel: mergeParts(g.panel, matPanel, 'pap_panel', root) };
     for (const k in merged) if (merged[k]) this.meshes.push(merged[k]);
     // hex drum (spins around its front-loading axis) with emissive rings
-    this.drumPivot = new (B().TransformNode)('pap_drumpivot', scene); this.drumPivot.parent = root; this.drumPivot.position.set(0, 1.15, -0.1);
-    const drum = B().MeshBuilder.CreateCylinder('pap_drum', { diameter: 1.28, height: 1.15, tessellation: 6 }, scene);
+    this.drumPivot = new (B().TransformNode)('pap_drumpivot', scene); this.drumPivot.parent = root; this.drumPivot.position.set(0, 1.15, -0.43);
+    const drum = B().MeshBuilder.CreateCylinder('pap_drum', { diameter: 1.28, height: 0.86, tessellation: 6 }, scene);
     drum.rotation.x = Math.PI / 2; drum.material = mats.get('metal_dark'); drum.parent = this.drumPivot; drum.isPickable = false; drum.receiveShadows = true;
     const rings = [];
-    for (const rz of [-0.45, 0.0, 0.42]) { const r = B().MeshBuilder.CreateTorus('pap_ring', { diameter: 1.3, thickness: 0.045, tessellation: 6 }, scene); r.position.z = rz; r.rotation.x = Math.PI / 2; r.rotation.y = Math.PI / 6; rings.push(r); }
+    for (const rz of [-0.3, 0.0, 0.3]) { const r = B().MeshBuilder.CreateTorus('pap_ring', { diameter: 1.3, thickness: 0.045, tessellation: 6 }, scene); r.position.z = rz; r.rotation.x = Math.PI / 2; r.rotation.y = Math.PI / 6; rings.push(r); }
     const ringM = B().Mesh.MergeMeshes(rings, true, true, undefined, false, false); ringM.material = matPurple; ringM.parent = this.drumPivot; ringM.isPickable = false;
     this.drum = drum; this.drumRings = ringM;
     // pulsing core deep inside the porthole + additive halo
     this.coreMat = mats.solid('pap_core', PAP_LIGHT, { emissive: PAP_LIGHT, emissiveIntensity: 2.5, rough: 0.2 });
     this.core = B().MeshBuilder.CreateSphere('pap_core', { diameter: 0.3, segments: 12 }, scene);
-    this.core.position.set(0, 1.15, 0.12); this.core.material = this.coreMat; this.core.parent = root; this.core.isPickable = false;
+    this.core.position.set(0, 1.15, 0.13); this.core.material = this.coreMat; this.core.parent = root; this.core.isPickable = false;
     this.haloMat = mats.glow('pap_halo', PAP_LIGHT, 0.35);
     this.halo = B().MeshBuilder.CreatePlane('pap_halo', { size: 0.7 }, scene);
-    this.halo.position.set(0, 1.15, 0.52); this.halo.material = this.haloMat; this.halo.billboardMode = B().Mesh.BILLBOARDMODE_ALL; this.halo.parent = root; this.halo.isPickable = false;
+    this.halo.position.set(0, 1.15, 0.34); this.halo.material = this.haloMat; this.halo.billboardMode = B().Mesh.BILLBOARDMODE_ALL; this.halo.parent = root; this.halo.isPickable = false;
     // gears (instances of one mesh, spinning at different speeds)
     const gearBase = this._buildGear();
     gearBase.parent = root;
@@ -550,7 +544,7 @@ class PapMachine {
     const signTex = M.textures.fromCanvas('pap_sign', signCanvas('Pack-a-Punch', 'weapon upgrade  -  5000', PAP_LIGHT, 1024, 160), { clamp: true });
     this.signMat = new (B().StandardMaterial)('mat_pap_sign', scene);
     this.signMat.diffuseTexture = signTex; this.signMat.emissiveTexture = signTex; this.signMat.disableLighting = true; this.signMat.specularColor = B().Color3.Black();
-    const sign = B().MeshBuilder.CreatePlane('pap_sign', { width: 1.7, height: 0.27 }, scene);
+    const sign = B().MeshBuilder.CreatePlane('pap_sign', { width: 1.7, height: 0.27, sideOrientation: B().Mesh.DOUBLESIDE }, scene);
     sign.position.set(0, 2.18, 0.206); sign.rotation.y = Math.PI; sign.material = this.signMat; sign.parent = root; sign.isPickable = false;
     // grime
     for (const [mat, x, y, w, h, z, ry] of [[M.grimeMat, -1.0, 0.75, 0.48, 1.0, 0.746, Math.PI], [M.grimeMat2, 1.0, 0.7, 0.48, 1.0, 0.746, Math.PI], [M.grimeMat, 0, 0.6, 1.0, 0.5, 0.88, Math.PI]]) {
@@ -569,10 +563,10 @@ class PapMachine {
       const ps = new (B().ParticleSystem)('pap_steam', 60, scene);
       ps.particleTexture = M.effects.tSmoke; const wp = toWorld(this.m, sx * 1.0, 2.25, -0.05); ps.emitter = V3(wp[0], wp[1], wp[2]);
       ps.minEmitBox = V3(-0.15, 0, -0.15); ps.maxEmitBox = V3(0.15, 0.1, 0.15);
-      ps.color1 = new (B().Color4)(0.85, 0.82, 0.9, 0.35); ps.color2 = new (B().Color4)(0.7, 0.66, 0.78, 0.25); ps.colorDead = new (B().Color4)(0.5, 0.5, 0.55, 0);
-      ps.minSize = 0.25; ps.maxSize = 0.55; ps.minLifeTime = 0.8; ps.maxLifeTime = 1.6; ps.emitRate = 0;
+      ps.color1 = new (B().Color4)(0.8, 0.78, 0.86, 0.22); ps.color2 = new (B().Color4)(0.66, 0.62, 0.74, 0.16); ps.colorDead = new (B().Color4)(0.5, 0.5, 0.55, 0);
+      ps.minSize = 0.18; ps.maxSize = 0.36; ps.minLifeTime = 0.7; ps.maxLifeTime = 1.4; ps.emitRate = 0;
       ps.direction1 = V3(-0.3, 1.2, -0.3); ps.direction2 = V3(0.3, 2.2, 0.3); ps.minEmitPower = 0.5; ps.maxEmitPower = 1.2; ps.gravity = V3(0, 0.6, 0);
-      ps.addSizeGradient(0, 0.5); ps.addSizeGradient(1, 2.2); ps.updateSpeed = 0.014; ps.preventAutoStart = true; ps.start();
+      ps.addSizeGradient(0, 0.5); ps.addSizeGradient(1, 1.7); ps.updateSpeed = 0.014; ps.preventAutoStart = true; ps.start();
       this.steam.push(ps);
     }
     // light
@@ -600,12 +594,16 @@ class PapMachine {
   }
 
   _setTrayModel(id, upgraded) {
-    if (this.trayModel) { this.trayModel.dispose(); this.trayModel = null; this.trayModelId = null; }
+    if (this.trayModel) {
+      const gone = new Set(this.trayModel.meshes);
+      this.light.includedOnlyMeshes = this.light.includedOnlyMeshes.filter(m => !gone.has(m));
+      this.trayModel.dispose(); this.trayModel = null; this.trayModelId = null;
+    }
     if (!id || !WEAPONS[id] || !this.M.game.weaponCache) { this.aura.setEnabled(false); return; }
     const model = cloneWeaponModel(this.M.game.weaponCache.get(id), 'pap_w');
     model.root.parent = this.tray;
-    model.root.position.set(model.length * 0.42, 0.075, 0.0); model.root.rotation.set(0, -Math.PI / 2, 0);
-    for (const m of model.meshes) { m.isPickable = false; m.receiveShadows = false; }
+    model.root.position.set(model.length * 0.42, 0.085, 0.0); model.root.rotation.set(0, -Math.PI / 2, 0);
+    for (const m of model.meshes) { m.isPickable = false; m.receiveShadows = false; this.light.includedOnlyMeshes.push(m); }
     this.trayModel = model; this.trayModelId = id;
     this.aura.setEnabled(!!upgraded);
   }
@@ -632,7 +630,7 @@ class PapMachine {
       this.drumSpeed = initial ? 0 : this.drumSpeed;
       if (!initial) {
         audio.play('pap_done', { pos: this.pos, vol: 1.1, ref: 6, max: 60, important: true });
-        for (const ps of this.steam) ps.manualEmitCount = Math.round(40 * (M.quality >= 2 ? 1 : 0.5));
+        for (const ps of this.steam) ps.manualEmitCount = Math.round(22 * (M.quality >= 2 ? 1 : 0.5));
         M.shake(0.1, this.m.x, this.m.z, 18);
         this.flash = 1.2;
         this._arcBurst(4);
