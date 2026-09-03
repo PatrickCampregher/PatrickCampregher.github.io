@@ -251,6 +251,36 @@ for (const st of world.visuals.stairs) {
   if (Math.abs(bot - s.y0) > 0.2) P('stair', `stair at ${at(s.x, s.z)} starts at y ${f2(s.y0)} but the floor before it is ${f2(bot)}`);
 }
 
+// ---------- 8) zombie-walkability of stairs: the server probes the floor under the zombie's CENTRE only ----------
+// (no radius), so every point along a stair and past its top needs a floor/stair box directly below, with
+// rises <= 0.55 m. Walks each stair from 0.5 m before the bottom to 1.5 m beyond the top in 5 cm steps.
+for (const st of world.visuals.stairs) {
+  const s = st.def;
+  const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
+  let prev = floorTopAt(s.x - fx * 0.5, s.z - fz * 0.5, s.y0 + 0.6);
+  for (let a = -0.5; a <= s.len + 1.5; a += 0.05) {
+    const x = s.x + fx * a, z = s.z + fz * a;
+    const top = floorTopAt(x, z, prev + 0.56);
+    if (top < prev - 0.56 && a > 0 && a < s.len + 1.4) { P('stair-walk', `stair at ${at(s.x, s.z)}: no floor under the centre line ${f2(a)} m along (drop from ${f2(prev)} to ${f2(top)})`); break; }
+    prev = Math.max(top, prev - 0.56);
+  }
+}
+// small gaps between upper slabs of the same layer (a zombie's centre over the gap has no floor -> it falls)
+{
+  const slabs = boxes.filter(b => b.kind === 'floor' && b.upper);
+  for (const a of slabs) {
+    const edges = [[a.maxX + 0.05, (a.minZ + a.maxZ) / 2, 1, 0], [a.minX - 0.05, (a.minZ + a.maxZ) / 2, -1, 0], [(a.minX + a.maxX) / 2, a.maxZ + 0.05, 0, 1], [(a.minX + a.maxX) / 2, a.minZ - 0.05, 0, -1]];
+    for (const [x, z, dx, dz] of edges) {
+      const here = floorTopAt(x, z, a.y1 + 0.56);
+      if (Math.abs(here - a.y1) <= 0.56) continue; // continuous floor
+      for (let g = 0.1; g <= 0.6; g += 0.05) {
+        const t = floorTopAt(x + dx * g, z + dz * g, a.y1 + 0.56);
+        if (Math.abs(t - a.y1) <= 0.56) { P('slab-gap', `upper slab ${at(a.cx, a.cz)} y${f2(a.y1)}: ${f2(g + 0.05)} m gap to the next floor at ${at(x + dx * g, z + dz * g)}`); break; }
+      }
+    }
+  }
+}
+
 // ---------- report ----------
 const byCat = {};
 for (const p of problems) { const c = p.slice(1, p.indexOf(']')); byCat[c] = (byCat[c] || 0) + 1; }

@@ -21,11 +21,10 @@ export const garage = {
     parapet(41, -26.825, 41, -9.175, 5.2, 'concrete', [hole(-10.4, 2.0)]),
     // fire escape railings (landing y 2.9, platform y 5.2); stairs get visual handrails only
     rail(44.3, -18.2, 44.3, -15.4, 2.9),
-    rail(41.3, -18.2, 44.3, -18.2, 2.9),
-    rail(41.3, -15.4, 42.9, -15.4, 2.9),
+    rail(41.3, -18.2, 44.3, -18.2, 2.9),          // (the landing's north edge is where flight 1 arrives: no rail)
     rail(44.3, -11.4, 44.3, -9.4, 5.2),
     rail(41.2, -9.4, 44.3, -9.4, 5.2),
-    rail(41.2, -11.4, 42.9, -11.4, 5.2),
+    rail(41.2, -11.4, 42.8, -11.4, 5.2),
   ],
   boxes: [
     box(32, 0.15, -26.2, 6, 1.0, 1.0, 'metal_counter', { vault: true, kind: 'workbench' }),

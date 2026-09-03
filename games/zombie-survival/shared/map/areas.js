@@ -68,6 +68,7 @@ export const floors = [
   // ---- level 2 ----
   { x0: 24, z0: -27, x1: 41, z1: -9.18, y: 5.2, level: 2, area: 'parking', mat: 'roof_tar' }, // garage roof (ends at the north wall's inner face)
   { x0: 41.18, z0: -11.4, x1: 44.3, z1: -9.4, y: 5.2, level: 2, area: 'parking', mat: 'metal_stair' }, // fire escape top platform
+  { x0: 41.0, z0: -11.4, x1: 41.2, z1: -9.4, y: 5.21, level: 2, area: 'parking', mat: 'metal_dark', thick: 0.27 }, // threshold plate over the wall top in the parapet opening (zombies need a floor box under their centre)
 ];
 
 // Straight staircases (mapbuild.js schema). Bottom edge centre (x,z) at y0, climbing along yaw.

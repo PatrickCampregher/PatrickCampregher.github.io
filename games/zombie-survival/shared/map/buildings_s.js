@@ -9,7 +9,7 @@ export const diner = {
   walls: [
     // street facade (faces +Z). West half intact, east half ruined (jagged tops).
     wall(-28 - E, -9, -18, -9, 4.2, 'brick_red', [glass(-25, 2.6), door(-20.5, 'diner_front', 2.0, 2.4)]),
-    wall(-18, -9, -10 + E, -9, 4.2, 'brick_red', [glass(-15.5, 2.4, 0.7, 2.4), dwin(-11.8, 1.4, 1.4, 2.4)], { ruined: true }),
+    wall(-18, -9, -10 + E, -9, 4.2, 'brick_red', [glass(-15.5, 2.4, 0.7, 2.4), dwin(-11.3, 1.4, 1.4, 2.4)], { ruined: true }),
     // back wall to the alley (west half intact, east half ruined) with the back door
     wall(-28 - E, -24, -18, -24, 4.2, 'brick_red', []),
     wall(-18, -24, -10 + E, -24, 4.2, 'brick_red', [door(-14, 'diner_back', 1.6, 2.3)], { ruined: true }),

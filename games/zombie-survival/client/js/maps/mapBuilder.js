@@ -8,6 +8,12 @@ import { chalkWeaponCanvas, signCanvas, clockCanvas } from './textures.js';
 const B = () => BABYLON;
 const V3 = (x, y, z) => new (BABYLON.Vector3)(x, y, z);
 const CHUNK = 16;
+/** Canvas textures are uploaded without a vertical flip (fromCanvas -> update(false)), so text canvases are flipped here. */
+function flipCanvas(c) {
+  const f = document.createElement('canvas'); f.width = c.width; f.height = c.height;
+  const ctx = f.getContext('2d'); ctx.translate(0, c.height); ctx.scale(1, -1); ctx.drawImage(c, 0, 0);
+  return f;
+}
 
 function scaleUVs(mesh, su, sv) {
   const uvs = mesh.getVerticesData(B().VertexBuffer.UVKind);
@@ -175,12 +181,12 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
   const signLights = [];
   (MAP.signs || []).forEach((sg, i) => {
     const nx = Math.sin(sg.yaw), nz = Math.cos(sg.yaw);
-    const tex = textures.fromCanvas('sign_' + i, signCanvas(sg.text, sg.color, sg), { clamp: true });
+    const tex = textures.fromCanvas('sign_' + i, flipCanvas(signCanvas(sg.text, sg.color, sg)), { clamp: true });
     const mat = mats.decal('sign_' + i, tex, { emissive: sg.painted ? '#6a6a66' : '#ffffff', unlit: !sg.painted });
     mat.backFaceCulling = true; mat.zOffset = 0;
     const plane = B().MeshBuilder.CreatePlane('sign_' + i, { width: sg.w, height: sg.h }, scene);
     plane.material = mat; plane.isPickable = false;
-    plane.position.set(sg.x + nx * 0.16, sg.y, sg.z + nz * 0.16); plane.rotation.y = sg.yaw; plane.freezeWorldMatrix(); staticMeshes.push(plane);
+    plane.position.set(sg.x + nx * 0.16, sg.y, sg.z + nz * 0.16); plane.rotation.y = sg.yaw + Math.PI; plane.freezeWorldMatrix(); staticMeshes.push(plane);
     const back = boxMesh(scene, sg.w + 0.24, sg.h + 0.24, 0.12, 1);
     back.position.set(sg.x + nx * 0.08, sg.y, sg.z + nz * 0.08); back.rotation.y = sg.yaw; addToGroup(sg.painted ? 'wood_dark' : 'metal_dark', back, back.position.x, back.position.z, true);
     if (!sg.painted) signLights.push(lighting.addPointLight('sign_' + i, [sg.x + nx * 0.9, sg.y - 0.3, sg.z + nz * 0.9], sg.color, sg.bulbs ? 2.2 : 1.7, sg.bulbs ? 12 : 9, !!sg.neon && !sg.bulbs));
@@ -333,7 +339,7 @@ export function buildMap(scene, world, mats, lighting, textures, effects, settin
   world.wallBuys.forEach((wb, index) => {
     const def = WEAPONS[wb.weapon];
     const canvas = chalkWeaponCanvas(256, def.look, def.name, wb.cost);
-    const tex = textures.fromCanvas('chalk_' + wb.weapon, canvas, { clamp: true });
+    const tex = textures.fromCanvas('chalk_' + wb.weapon, flipCanvas(canvas), { clamp: true });
     const mat = mats.decal('chalk_' + wb.weapon, tex, { emissive: '#8a8a88' });
     const plane = B().MeshBuilder.CreatePlane('wallbuy_' + wb.weapon, { size: 1.6, sideOrientation: B().Mesh.DOUBLESIDE }, scene);
     plane.material = mat; plane.isPickable = false;

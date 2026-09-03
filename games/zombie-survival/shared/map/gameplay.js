@@ -96,7 +96,7 @@ export const boxLocations = [
 
 // Wall buys: (x,y,z) on the wall face, yaw = outward normal of that face.
 export const wallBuys = [
-  { weapon: 'warden_p9', cost: 300, x: -12.5, y: 1.5, z: -8.825, yaw: 0, area: 'street' },
+  { weapon: 'warden_p9', cost: 300, x: -13.2, y: 1.5, z: -8.825, yaw: 0, area: 'street' },
   { weapon: 'gatekeeper_12', cost: 500, x: -26.825, y: 1.5, z: 15.5, yaw: HALF, area: 'bar' },
   { weapon: 'vesper_smg', cost: 750, x: -10.175, y: 1.5, z: -15, yaw: -HALF, area: 'diner' },
   { weapon: 'ironhorse_44', cost: 900, x: 11.825, y: 1.5, z: 15.5, yaw: -HALF, area: 'pharmacy' },
