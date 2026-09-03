@@ -201,7 +201,7 @@ export class ViewModel {
     const settle = k < 0.12 ? easeOut(k / 0.12) : k > 0.88 ? 1 - easeInOut((k - 0.88) / 0.12) : 1;
     if (kind === 'shells') {
       // gun rolled to expose the loading port; one shell per cycle slides in; pump/charge at the end
-      tilt(settle * 0.9); out[5] += 0.2 * settle;
+      tilt(settle * 0.5); out[5] += -0.65 * settle; out[1] += -0.01 * settle;   // roll the loading port (underside) toward the camera
       const n = Math.max(1, this.reloadCount), per = this.reloadPer;
       const t = this.reloadT, tEnd = 0.25 + n * per;
       if (t > 0.2 && t < tEnd) {
@@ -250,7 +250,7 @@ export class ViewModel {
       // feed cover opens, box drops, new box rises, cover slams, charging handle
       tilt(settle * 0.7);
       const open = k < 0.08 ? 0 : k < 0.22 ? easeOut(ph(k, 0.08, 0.22)) : k < 0.8 ? 1 : 1 - easeIn(ph(k, 0.8, 0.86));
-      if (P.cover) P.cover.rotation.x = H.cover.rot.x - 1.1 * open;      // -x rotation lifts the front of the cover (rear hinge)
+      if (P.cover) P.cover.rotation.x = H.cover.rot.x - 0.85 * open;     // -x rotation lifts the front of the cover (rear hinge)
       if (P.mag) {
         const drop = k < 0.22 ? 0 : k < 0.45 ? easeIn(ph(k, 0.22, 0.45)) : 0;
         const rise = k < 0.5 ? 0 : k < 0.72 ? 1 - easeOut(ph(k, 0.5, 0.72)) : 0;
