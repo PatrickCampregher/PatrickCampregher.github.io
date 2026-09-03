@@ -30,12 +30,15 @@ export const ZOMBIE_HEIGHT = 1.82;
 // The hit volumes are derived from the same chain with the pose the rig applies per state/progress/speed, so they
 // follow the skull through every animation (walk/run lean, attack lunge, tearing, climbing crouch, stagger, limp):
 //   head = sphere of r 0.23·scale around the true head-box centre (box half-diagonal 0.2225)
-//   body = cylinder of r 0.30·scale along the spine (pelvis -> neck top) - covers the neck, tilts with the lean
+//   body = elliptic cylinder (0.30 sideways x 0.19 front/back, ·scale) along the spine (pelvis -> neck top):
+//          covers torso + shoulders + neck, tilts with the lean; thin enough front/back that bullets passing
+//          just over the back or in front of the chest into the skull are not eaten by the torso volume
 //   legs = cylinder of r 0.26·scale below the pelvis along the same tilted axis
 export const ZOMBIE_HEAD_R = 0.23;
-export const ZOMBIE_BODY_R = 0.30;
+export const ZOMBIE_BODY_R = 0.30;   // sideways half-width of the body ellipse (torso 0.22 + arms)
+export const ZOMBIE_BODY_RZ = 0.19;  // front/back half-depth of the body ellipse (torso 0.13 + margin)
 export const ZOMBIE_LEGS_R = 0.26;
-export const HEAD_PRIORITY = 0.25;  // a head hit wins over a body/legs entry up to this many metres before it
+export const HEAD_PRIORITY = 0.35;  // a head hit wins over a body/legs entry up to this many metres before it (neck/shoulder region)
 export const RIG = { pelvisY: 1.02, neckY: 0.58, headJointY: 0.10, headSize: [0.24, 0.27, 0.26], torsoSize: [0.44, 0.56, 0.26], bodyA: -0.17, bodyB: 0.70, legsA: -1.02, legsB: -0.17 };
 // Rest-pose reference heights (feet = 0, scale 1). Superseded by zombieHitVolumes(); kept for older callers.
 export const ZOMBIE_HEAD_Y = 1.835;
@@ -96,8 +99,11 @@ export function zombieHitVolumes(scale, state, aux, speed, limp, out = {}) {
   h.z = (yh * cr * sp + zh * cp) * s;
   h.r = ZOMBIE_HEAD_R * s;
   out.pelvisY = py * s; out.pitch = P.pelvis; out.legsPitch = P.legs; out.scale = s;
-  const b = out.body || (out.body = {}); b.a = RIG.bodyA * s; b.b = RIG.bodyB * s; b.r = ZOMBIE_BODY_R * s;
-  const l = out.legs || (out.legs = {}); l.a = RIG.legsA * s; l.b = RIG.legsB * s; l.r = (state === ZSTATE.ENTERING ? 0.30 : ZOMBIE_LEGS_R) * s;
+  // while climbing the skull hangs in front of a nearly horizontal torso: bullets reaching it from behind/beside
+  // skim along the back, so the head keeps priority over a longer stretch of torso volume
+  out.headPriority = (state === ZSTATE.ENTERING ? 0.5 : HEAD_PRIORITY) * s;
+  const b = out.body || (out.body = {}); b.a = RIG.bodyA * s; b.b = RIG.bodyB * s; b.r = ZOMBIE_BODY_R * s; b.rz = ZOMBIE_BODY_RZ * s;
+  const l = out.legs || (out.legs = {}); l.a = RIG.legsA * s; l.b = RIG.legsB * s; l.r = (state === ZSTATE.ENTERING ? 0.30 : ZOMBIE_LEGS_R) * s; l.rz = l.r;
   return out;
 }
 
@@ -128,19 +134,24 @@ export function rayZombie(vol, px, py, pz, yaw, ox, oy, oz, dx, dy, dz, maxT, hi
   let t = -1, part = BODY_PART.BODY;
   if (tB >= 0 && tB < maxT) { t = tB; part = BODY_PART.BODY; }
   if (tL >= 0 && tL < maxT && (t < 0 || tL < t)) { t = tL; part = BODY_PART.LEGS; }
-  if (tH >= 0 && (t < 0 || tH < t + HEAD_PRIORITY)) { if (t < 0 || tH < t) t = tH; part = BODY_PART.HEAD; }
+  if (tH >= 0 && (t < 0 || tH < t + (vol.headPriority || HEAD_PRIORITY))) { if (t < 0 || tH < t) t = tH; part = BODY_PART.HEAD; }
   if (hit) hit.part = part;
   return t;
 }
 
-/** Ray vs. a cylinder whose axis is the spine: origin (0, pelvisY, 0), tilted forward about x by `pitch`. */
+/**
+ * Ray vs. an (elliptic) cylinder whose axis is the spine: origin (0, pelvisY, 0), tilted forward about x by `pitch`;
+ * half-width cyl.r sideways, half-depth cyl.rz front/back. The ray parameter t is preserved by the rigid transform and
+ * by the depth scaling (origin and direction are scaled together), so the returned distance is a world distance.
+ */
 function raySpineCylinder(pelvisY, pitch, cyl, ox, oy, oz, dx, dy, dz) {
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
   const y = oy - pelvisY;
   // inverse of the rig's pitch rotation (y' = y cos - z sin, z' = y sin + z cos) applied to the ray
   const sy = y * cp + oz * sp, sz = -y * sp + oz * cp;
   const sdy = dy * cp + dz * sp, sdz = -dy * sp + dz * cp;
-  return rayVCylinder(ox, sy, sz, dx, sdy, sdz, 0, 0, cyl.r, cyl.a, cyl.b);
+  const k = cyl.rz ? cyl.r / cyl.rz : 1; // stretch depth so the ellipse becomes the circle of radius r
+  return rayVCylinder(ox, sy, sz * k, dx, sdy, sdz * k, 0, 0, cyl.r, cyl.a, cyl.b);
 }
 
 /** Health per zombie for a round. Bounded growth so late rounds stay skill-based. */
