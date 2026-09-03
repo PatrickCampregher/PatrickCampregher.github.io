@@ -78,7 +78,7 @@ export class Game {
     await this.textures.preload(this.textures.names(), (k) => progress(0.1 + 0.45 * k, 'Painting textures'));
     progress(0.56, 'Lighting the town');
     this.lighting = new LightingRig(scene, this.engine, this.settings, this.camera);
-    buildSky(scene, this.mats);
+    buildSky(scene, this.mats, { rig: this.lighting });
     buildEnvironment(scene);
     this.effects = new Effects(scene, this.mats, this.textures, this.settings, this.lighting);
     this.effects.onShake = (x, y, z, r) => { if (this.player) { const d = Math.hypot(this.player.x - x, this.player.z - z); this.player.addShake(Math.max(0, 0.08 * (1 - d / (r * 4)))); } };

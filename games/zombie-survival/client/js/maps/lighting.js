@@ -20,7 +20,7 @@ function skyColorAt(e) {
  * thin cloud wisps, smoke bands and distant fire glows along the horizon, plus a moon with a soft halo.
  */
 export function buildSky(scene, mats, opts = {}) {
-  const W = 1024, H = 512;
+  const W = 2048, H = 1024;
   const dome = B().MeshBuilder.CreateSphere('sky', { diameter: 900, segments: 32, sideOrientation: B().Mesh.BACKSIDE }, scene);
   // find which texture v corresponds to the top of the sphere so the horizon lands at the equator
   let topV = 1;
@@ -43,21 +43,21 @@ export function buildSky(scene, mats, opts = {}) {
   // faint milky band (dense faint stars + haze) across the upper sky
   {
     const yBand = elevToRow(0.45), yBand2 = elevToRow(0.2);
-    const gg = ctx.createLinearGradient(0, Math.min(yBand, yBand2) - 60, 0, Math.max(yBand, yBand2) + 60);
-    gg.addColorStop(0, 'rgba(110,120,170,0)'); gg.addColorStop(0.5, 'rgba(110,120,170,0.14)'); gg.addColorStop(1, 'rgba(110,120,170,0)');
-    ctx.fillStyle = gg; ctx.fillRect(0, Math.min(yBand, yBand2) - 60, W, Math.abs(yBand - yBand2) + 120);
+    const gg = ctx.createLinearGradient(0, Math.min(yBand, yBand2) - 120, 0, Math.max(yBand, yBand2) + 120);
+    gg.addColorStop(0, 'rgba(110,120,170,0)'); gg.addColorStop(0.5, 'rgba(110,120,170,0.1)'); gg.addColorStop(1, 'rgba(110,120,170,0)');
+    ctx.fillStyle = gg; ctx.fillRect(0, Math.min(yBand, yBand2) - 120, W, Math.abs(yBand - yBand2) + 240);
   }
   // stars
-  for (let i = 0; i < 2400; i++) {
+  for (let i = 0; i < 3200; i++) {
     const y = Math.floor(rnd() * H); const e = rowToElev(y); if (e < 0.05) continue;
     const x = Math.floor(rnd() * W); const a = rnd();
-    const big = a > 0.9;
+    const big = a > 0.93;
     const tint = rnd();
     const col = tint < 0.15 ? '255,228,205' : tint < 0.3 ? '205,218,255' : '240,244,255';
-    const alpha = (0.35 + a * 0.65) * Math.min(1, (e - 0.05) * 6 + 0.25);
+    const alpha = (0.18 + a * 0.55) * Math.min(1, (e - 0.05) * 6 + 0.25);
     ctx.fillStyle = `rgba(${col},${alpha.toFixed(2)})`;
     ctx.fillRect(x, y, big ? 2 : 1, big ? 2 : 1);
-    if (a > 0.97) { ctx.fillStyle = `rgba(${col},0.45)`; ctx.fillRect(x - 1, y - 1, 4, 4); ctx.fillStyle = `rgba(${col},0.2)`; ctx.fillRect(x - 3, y, 8, 2); ctx.fillRect(x, y - 3, 2, 8); }
+    if (a > 0.985) { ctx.fillStyle = `rgba(${col},0.3)`; ctx.fillRect(x - 1, y - 1, 4, 4); }
   }
   // thin cloud wisps (noise), mostly low in the sky, lit faintly from below by the fires
   {
@@ -80,22 +80,22 @@ export function buildSky(scene, mats, opts = {}) {
   // smoke haze bands near the horizon
   for (let i = 0; i < 26; i++) {
     const e = (rnd() - 0.35) * 0.3; const y = elevToRow(e);
-    const gg = ctx.createLinearGradient(0, y - 12, 0, y + 12); gg.addColorStop(0, 'rgba(60,40,35,0)'); gg.addColorStop(0.5, `rgba(70,50,44,${0.06 + rnd() * 0.09})`); gg.addColorStop(1, 'rgba(60,40,35,0)'); ctx.fillStyle = gg; ctx.fillRect(0, y - 12, W, 24);
+    const gg = ctx.createLinearGradient(0, y - 24, 0, y + 24); gg.addColorStop(0, 'rgba(60,40,35,0)'); gg.addColorStop(0.5, `rgba(70,50,44,${0.06 + rnd() * 0.09})`); gg.addColorStop(1, 'rgba(60,40,35,0)'); ctx.fillStyle = gg; ctx.fillRect(0, y - 24, W, 48);
   }
   // distant fires: warm glows just below the horizon with dark smoke plumes leaning sideways above them
   const glows = opts.glows || 5;
   for (let i = 0; i < glows; i++) {
-    const x = ((i + 0.3 + rnd() * 0.5) / glows) * W; const r = 30 + rnd() * 60; const y = yHorizon - up * 3;
+    const x = ((i + 0.3 + rnd() * 0.5) / glows) * W; const r = 60 + rnd() * 120; const y = yHorizon - up * 6;
     const gg = ctx.createRadialGradient(x, y, 0, x, y, r);
     const str = 0.16 + rnd() * 0.2;
     gg.addColorStop(0, `rgba(255,150,60,${str})`); gg.addColorStop(0.35, `rgba(230,110,40,${str * 0.45})`); gg.addColorStop(1, 'rgba(120,50,20,0)');
     ctx.fillStyle = gg; ctx.fillRect(x - r, y - r, r * 2, r * 2);
     // plume
-    const lean = (rnd() - 0.5) * 1.6; const len = 60 + rnd() * 70;
-    for (let k = 0; k < 14; k++) { const t = k / 14; const px = x + lean * len * t + (rnd() - 0.5) * 12; const py = y + up * (len * t); const pr = 10 + t * 26; const pg = ctx.createRadialGradient(px, py, 0, px, py, pr); pg.addColorStop(0, `rgba(20,14,14,${0.28 * (1 - t)})`); pg.addColorStop(1, 'rgba(20,14,14,0)'); ctx.fillStyle = pg; ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2); }
+    const lean = (rnd() - 0.5) * 1.6; const len = 120 + rnd() * 140;
+    for (let k = 0; k < 14; k++) { const t = k / 14; const px = x + lean * len * t + (rnd() - 0.5) * 24; const py = y + up * (len * t); const pr = 20 + t * 52; const pg = ctx.createRadialGradient(px, py, 0, px, py, pr); pg.addColorStop(0, `rgba(20,14,14,${0.28 * (1 - t)})`); pg.addColorStop(1, 'rgba(20,14,14,0)'); ctx.fillStyle = pg; ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2); }
   }
   const tex = new (B().DynamicTexture)('skytex', c, scene, false, B().Texture.BILINEAR_SAMPLINGMODE);
-  tex.update(false);
+  tex.update(true); // invertY: canvas row 0 must land on v = 1 (matches rowToElev); update(false) mirrored the sky
   tex.wrapU = B().Texture.WRAP_ADDRESSMODE; tex.wrapV = B().Texture.CLAMP_ADDRESSMODE;
   const m = new (B().StandardMaterial)('skymat', scene);
   m.emissiveTexture = tex; m.diffuseColor = B().Color3.Black(); m.specularColor = B().Color3.Black(); m.disableLighting = true;
@@ -108,16 +108,18 @@ export function buildSky(scene, mats, opts = {}) {
   const moonPos = moonDir.scale(400);
   const moon = B().MeshBuilder.CreateDisc('moon', { radius: 13, tessellation: 40 }, scene);
   const mm = new (B().StandardMaterial)('moonmat', scene);
-  mm.emissiveColor = new (B().Color3)(0.92, 0.95, 1.0); mm.disableLighting = true; mm.diffuseColor = B().Color3.Black();
-  moon.material = mm; moon.position.copyFrom(moonPos); moon.lookAt(B().Vector3.Zero()); moon.rotation.y += Math.PI; moon.applyFog = false; moon.isPickable = false; moon.infiniteDistance = true;
+  mm.emissiveColor = new (B().Color3)(0.92, 0.95, 1.0); mm.disableLighting = true; mm.diffuseColor = B().Color3.Black(); mm.backFaceCulling = false;
+  moon.material = mm; moon.position.copyFrom(moonPos); moon.billboardMode = B().Mesh.BILLBOARDMODE_ALL; moon.applyFog = false; moon.isPickable = false; moon.infiniteDistance = true;
   const halo = B().MeshBuilder.CreatePlane('moonglow', { size: 180 }, scene);
   const hm = new (B().StandardMaterial)('mat_moonhalo', scene);
   const ht = new (B().DynamicTexture)('moonhalo', haloCanvas(256, 2.6), scene, true, B().Texture.TRILINEAR_SAMPLINGMODE); ht.update(false); ht.hasAlpha = true;
   hm.emissiveTexture = ht; hm.opacityTexture = ht; hm.emissiveColor = new (B().Color3)(0.5, 0.58, 0.8); hm.diffuseColor = B().Color3.Black(); hm.specularColor = B().Color3.Black();
   hm.disableLighting = true; hm.alphaMode = B().Engine.ALPHA_ADD; hm.backFaceCulling = false; hm.alpha = 0.55;
-  halo.material = hm; halo.position.copyFrom(moonPos); halo.lookAt(B().Vector3.Zero()); halo.rotation.y += Math.PI; halo.applyFog = false; halo.isPickable = false; halo.infiniteDistance = true;
+  halo.material = hm; halo.position.copyFrom(moonPos); halo.billboardMode = B().Mesh.BILLBOARDMODE_ALL; halo.applyFog = false; halo.isPickable = false; halo.infiniteDistance = true;
   halo.alwaysSelectAsActiveMesh = true; moon.alwaysSelectAsActiveMesh = true;
-  for (const x of [dome, moon, halo]) { x.freezeWorldMatrix(); x.doNotSyncBoundingInfo = true; }
+  dome.freezeWorldMatrix(); dome.doNotSyncBoundingInfo = true;
+  // the sky is not part of the prepass (SSAO would otherwise sample an undefined depth behind it and mottle it)
+  if (opts.rig) for (const mat of [m, mm, hm]) opts.rig.registerSkyMaterial(mat);
   return { dome, moon, halo, tex, moonDir };
 }
 
@@ -169,6 +171,7 @@ export class LightingRig {
     this._dynSet = new Set();
     this._scored = [];
     this.onSettingsApplied = null; // hook for other systems (LOD/material freeze, effects density)
+    this.skyMaterials = [];        // excluded from the SSAO prepass
     // ambient (scene.ambientColor only feeds materials with an ambient colour; PBR relies on the environment cube + hemi)
     scene.clearColor = new (B().Color4)(0.02, 0.025, 0.04, 1);
     scene.ambientColor = new (B().Color3)(0.18, 0.2, 0.26);
@@ -197,6 +200,13 @@ export class LightingRig {
     this.renderDistance = 170;
     this.pipeline = null; this.ssao = null;
     this.applySettings();
+  }
+
+  /** Sky/moon materials must not render into the SSAO prepass (they sit behind everything at the far plane). */
+  registerSkyMaterial(mat) {
+    if (this.skyMaterials.indexOf(mat) < 0) this.skyMaterials.push(mat);
+    const pr = this.scene.prePassRenderer;
+    if (pr && pr.excludedMaterials.indexOf(mat) < 0) pr.excludedMaterials.push(mat);
   }
 
   addPointLight(name, pos, color, intensity, range, flicker = false) {
@@ -396,6 +406,7 @@ export class LightingRig {
         const ssao = new (B().SSAO2RenderingPipeline)('ssao', scene, { ssaoRatio: ultra ? 0.75 : 0.5, blurRatio: ultra ? 0.75 : 0.5 }, [this.camera]);
         ssao.radius = 1.3; ssao.totalStrength = 1.15; ssao.base = 0.14; ssao.samples = ultra ? 16 : 12; ssao.maxZ = 55; ssao.minZAspect = 0.5; ssao.expensiveBlur = ultra;
         this.ssao = ssao;
+        for (const mat of this.skyMaterials) this.registerSkyMaterial(mat);
       } catch (e) { console.warn('SSAO unavailable', e); }
     }
     this.fogFor(g);
