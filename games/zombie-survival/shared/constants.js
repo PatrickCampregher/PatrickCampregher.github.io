@@ -1,7 +1,7 @@
 // Shared gameplay constants (used by both the Node server and the browser client).
 
 export const GAME_VERSION = '1.0.0';
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 export const TICK_RATE = 30;            // server simulation Hz
 export const TICK_MS = 1000 / TICK_RATE;

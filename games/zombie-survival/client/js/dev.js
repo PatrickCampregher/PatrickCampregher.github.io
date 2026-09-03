@@ -14,7 +14,7 @@ export function installDevHelpers(app) {
     mouse(dx, dy) { app.input.mouseDX += dx; app.input.mouseDY += dy; },
     aimAt(x, y, z) { const p = app.game.player; const ex = p.x, ey = p.y + p.eyeHeight, ez = p.z; const dx = x - ex, dy = y - ey, dz = z - ez; p.yaw = Math.atan2(dx, dz); p.pitch = -Math.atan2(dy, Math.hypot(dx, dz)); },
     nearestZombie() { const g = app.game; let best = null, bd = 1e9; for (const e of g.entities.zombies.values()) { if (e.dead) continue; const d = Math.hypot(e.x - g.player.x, e.z - g.player.z); if (d < bd) { bd = d; best = e; } } return best; },
-    aimZombie(part = 1) { const e = this.nearestZombie(); if (!e) return null; this.aimAt(e.x, e.y + (part === 1 ? 1.64 : 1.15), e.z); return e; },
+    aimZombie(part = 1) { const e = this.nearestZombie(); if (!e) return null; const ents = app.game.entities; if (part === 1 && ents.headCenter) { const h = ents.headCenter(e); this.aimAt(h.x, h.y, h.z); } else this.aimAt(e.x, e.y + (part === 1 ? 1.83 : 1.15), e.z); return e; },
     async fire(ms = 120) { this.hold('Mouse0', true); await sleep(ms); this.hold('Mouse0', false); },
     tele(x, z, y = 0) { const p = app.game.player; p.x = x; p.z = z; p.y = y; p.vx = p.vz = p.vy = 0; this.cheat({ tp: [x, z, y] }); },
     cheat(o) { app.gameConn.send({ t: 'cheat', ...o }); },
