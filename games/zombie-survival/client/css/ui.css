@@ -109,18 +109,30 @@ button { font-family: inherit; }
 #hud-damage { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 .dmgdir { position: absolute; left: -60px; top: -170px; width: 120px; height: 40px; background: radial-gradient(ellipse at 50% 100%, rgba(255, 40, 30, 0.85), transparent 70%); transform-origin: 60px 170px; animation: dmgfade .9s forwards; }
 @keyframes dmgfade { from { opacity: 1; } to { opacity: 0; } }
-#hud-scope { position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 0, transparent 30vh, rgba(0,0,0,0.92) 32vh, #000 100%); }
-#hud-scope .ring { position: absolute; left: 50%; top: 50%; width: 62vh; height: 62vh; transform: translate(-50%, -50%); border-radius: 50%; border: 3px solid #111; box-shadow: inset 0 0 40px rgba(0,0,0,0.8); }
-#hud-scope i { position: absolute; background: rgba(10,10,10,0.9); }
-#hud-scope i.h { left: 50%; top: 50%; width: 60vh; height: 1.5px; transform: translate(-50%, -50%); }
-#hud-scope i.v { left: 50%; top: 50%; width: 1.5px; height: 60vh; transform: translate(-50%, -50%); }
+/* scope overlay: clear 70vh sight picture, thin reticle with a center gap, mil ticks, soft vignette */
+#hud-scope { position: absolute; inset: 0; --r: 35vh; background: radial-gradient(circle at center, transparent 0, transparent calc(var(--r) - 1vh), rgba(0,0,0,0.85) calc(var(--r) + 0.5vh), #000 calc(var(--r) + 9vh)); }
+#hud-scope .glass { position: absolute; left: 50%; top: 50%; width: calc(var(--r) * 2); height: calc(var(--r) * 2); transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 42% 38%, rgba(140,180,255,0.06), transparent 55%), radial-gradient(circle at center, transparent 78%, rgba(0,0,0,0.35) 100%); }
+#hud-scope .ring { position: absolute; left: 50%; top: 50%; width: calc(var(--r) * 2 + 1vh); height: calc(var(--r) * 2 + 1vh); transform: translate(-50%, -50%); border-radius: 50%; border: 0.6vh solid #0a0a0a; box-shadow: inset 0 0 18px rgba(0,0,0,0.9), 0 0 12px rgba(0,0,0,0.9); }
+#hud-scope i, #hud-scope b { position: absolute; left: 50%; top: 50%; background: rgba(12,12,12,0.92); }
+#hud-scope i.h { height: 1px; width: calc(var(--r) - 3vh); }
+#hud-scope i.h.l { transform: translate(calc(-100% - 2.6vh), -50%); }
+#hud-scope i.h.r { transform: translate(2.6vh, -50%); }
+#hud-scope i.v { width: 1px; height: calc(var(--r) - 3vh); }
+#hud-scope i.v.t { transform: translate(-50%, calc(-100% - 2.6vh)); }
+#hud-scope i.v.b { transform: translate(-50%, 2.6vh); }
+#hud-scope i.dot { width: 3px; height: 3px; border-radius: 50%; transform: translate(-50%, -50%); background: rgba(255,60,50,0.95); box-shadow: 0 0 3px rgba(255,80,60,0.8); }
+#hud-scope b { width: 1px; height: 1.6vh; }
+#hud-scope b.m1 { transform: translate(-50%, 6vh); } #hud-scope b.m2 { transform: translate(-50%, 10vh); } #hud-scope b.m3 { transform: translate(-50%, 14vh); } #hud-scope b.m4 { transform: translate(-50%, 18vh); }
+#hud-scope.lite { --r: 42vh; }
+#hud-scope.lite .ring { border-width: 0.35vh; }
+#hud-scope.lite b { display: none; }
 #hud-crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 10px; }
-#hud-crosshair i { position: absolute; background: #fff; box-shadow: 0 0 2px #000, 0 0 3px #000; }
-#hud-crosshair i:nth-child(1) { width: 2px; height: 8px; left: -1px; top: calc(-8px - var(--gap)); }
-#hud-crosshair i:nth-child(2) { width: 2px; height: 8px; left: -1px; top: var(--gap); }
-#hud-crosshair i:nth-child(3) { width: 8px; height: 2px; top: -1px; left: calc(-8px - var(--gap)); }
-#hud-crosshair i:nth-child(4) { width: 8px; height: 2px; top: -1px; left: var(--gap); }
-#hud-crosshair i:nth-child(5) { width: 2px; height: 2px; left: -1px; top: -1px; }
+#hud-crosshair i { position: absolute; background: rgba(255,255,255,0.92); box-shadow: 0 0 2px #000, 0 0 3px #000; transition: top .05s linear, left .05s linear; }
+#hud-crosshair i:nth-child(1) { width: 2px; height: 7px; left: -1px; top: calc(-7px - var(--gap)); }
+#hud-crosshair i:nth-child(2) { width: 2px; height: 7px; left: -1px; top: var(--gap); }
+#hud-crosshair i:nth-child(3) { width: 7px; height: 2px; top: -1px; left: calc(-7px - var(--gap)); }
+#hud-crosshair i:nth-child(4) { width: 7px; height: 2px; top: -1px; left: var(--gap); }
+#hud-crosshair i:nth-child(5) { width: 2px; height: 2px; left: -1px; top: -1px; border-radius: 50%; }
 .hitmarker { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; }
 .hitmarker i { position: absolute; width: 12px; height: 2px; background: #fff; box-shadow: 0 0 3px #000; left: -6px; top: -1px; }
 .hitmarker i:nth-child(1) { transform: translate(-9px, -9px) rotate(45deg); }

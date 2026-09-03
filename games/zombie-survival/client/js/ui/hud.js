@@ -113,7 +113,16 @@ export class HUD {
     if (progress != null) { this.el.promptBar.classList.remove('hidden'); this.el.promptBar.firstElementChild.style.width = (progress * 100) + '%'; }
     else this.el.promptBar.classList.add('hidden');
   }
-  scope(on) { if (this._scope !== on) { this._scope = on; document.getElementById('hud-scope').classList.toggle('hidden', !on); } }
+  /** Scope overlay for scoped weapons; low magnifications (< 2.5x) use the lighter 'lite' frame. */
+  scope(on, zoom = 3) {
+    const lite = on && zoom < 2.5;
+    if (this._scope !== on || this._scopeLite !== lite) {
+      this._scope = on; this._scopeLite = lite;
+      const el = document.getElementById('hud-scope');
+      el.classList.toggle('hidden', !on);
+      el.classList.toggle('lite', lite);
+    }
+  }
   crosshair(spreadPx, hidden) {
     const c = this.el.cross;
     c.classList.toggle('hidden', !!hidden);

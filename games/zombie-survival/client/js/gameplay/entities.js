@@ -119,9 +119,10 @@ export class Entities {
   _setPlayerWeapon(e, idx) {
     e.weapon = idx;
     const def = WEAPON_LIST[idx];
-    if (!def) { e.rig.setWeapon(null); return; }
+    if (!def) { e.rig.setWeapon(null); e.weaponModel = null; return; }
+    // models are built lazily on first use (shared base per weapon id), the remote player gets a lightweight clone
     const model = cloneWeaponModel(this.g.weaponCache.get(def.id), 'rp_w');
-    for (const m of model.meshes) m.receiveShadows = false;
+    for (const m of model.meshes) { m.receiveShadows = false; m.isPickable = false; }
     e.rig.setWeapon(model.root);
     e.weaponModel = model;
   }
@@ -290,8 +291,14 @@ export class Entities {
     if (e && e.weaponModel) muzzle = e.weaponModel.muzzle.getAbsolutePosition().clone(); else muzzle = V3(m.o[0], m.o[1], m.o[2]);
     const d = V3(m.d[0], m.d[1], m.d[2]);
     this.g.effects.muzzleFlash(muzzle, d, def, false);
-    const end = muzzle.add(d.scale(40));
+    const end = muzzle.add(d.scale(def.look && def.look.type === 'energy' ? 60 : 40));
     this.g.effects.tracer(muzzle, end, def);
+    // casing from the remote gun's ejection port (skipped for revolvers / break actions / energy weapons)
+    if (e && e.weaponModel && def.eject && def.eject !== 'none') {
+      const ej = e.weaponModel.eject.getAbsolutePosition();
+      const right = V3(Math.cos(e.yaw), 0, -Math.sin(e.yaw));
+      this.g.effects.shell(ej, right, V3(0, 1, 0), def.eject, 1);
+    }
     audio.play(def.sound, { pos: [muzzle.x, muzzle.y, muzzle.z], vol: 0.9, ref: 6, max: 120, pitch: 0.96 + Math.random() * 0.08 });
   }
 

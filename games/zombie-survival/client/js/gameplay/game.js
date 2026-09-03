@@ -87,9 +87,12 @@ export class Game {
     await nextFrame();
     progress(0.8, 'Loading weapons');
     this.weaponCache = new WeaponModelCache(scene, this.mats, (id) => buildWeaponModel(scene, this.mats, WEAPONS[id]));
-    for (const w of WEAPON_LIST) this.weaponCache.get(w.id);
+    // only the starting pistol + the street wall-buys are built during loading (spread over frames); the rest of the
+    // roster is built lazily on first use and warmed in the background after the game starts
+    for (const id of ['warden_p9', 'vesper_smg', 'gatekeeper_12', 'kestrel_ar']) { if (WEAPONS[id]) this.weaponCache.get(id); await nextFrame(); }
     this.viewModel = new ViewModel(scene, this.camera, this.weaponCache);
     this.handAnim = new HandAnim(this);
+    setTimeout(() => { if (this.running) this.weaponCache.preload(WEAPON_LIST.map(w => w.id), 90); }, 5000);
     await nextFrame();
     progress(0.86, 'Raising the dead');
     this.entities = new Entities(this);
