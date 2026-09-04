@@ -2,7 +2,7 @@
 import { MAP } from '../../shared/mapdata.js';
 import { buildWorld } from '../../shared/mapbuild.js';
 import { NavGrid } from '../../shared/nav.js';
-import { PLAYER, POINTS, ROUND, PSTATE, RSTATE, TICK_RATE, TICK_MS, MYSTERY_BOX } from '../../shared/constants.js';
+import { PLAYER, POINTS, ROUND, PSTATE, RSTATE, TICK_RATE, TICK_MS, MYSTERY_BOX, LAG_PROTECT_AFTER, LAG_PROTECT_MAX, SNAPSHOT_BACKLOG } from '../../shared/constants.js';
 import { WEAPONS, WEAPON_INDEX, mulberry32 } from '../../shared/weapons.js';
 import { ZSTATE, zombieCountForRound, maxAliveForRound, spawnIntervalForRound } from '../../shared/zombies.js';
 import { encodeSnapshot, decodeInput, decodePing, encodePing, BIN } from '../../shared/protocol.js';
@@ -86,6 +86,7 @@ export class GameServer {
       stats: { kills: 0, headshots: 0, revives: 0, shots: 0, hits: 0, downs: 0, points: 0 },
       lastInputSeq: 0, lastInputTime: this.time, acceptAny: true, renderOffset: 0, ready: false, joinedAt: this.time,
       perks: [], mods: computeMods([]), maxHp: PLAYER.maxHealth, soloRevives: 0, selfReviveAt: 0,
+      lagging: false, lagSince: 0, lagExpired: false, snapsDropped: 0,
     };
     this.players.set(p.id, p);
     lp.inGame = true;
@@ -145,7 +146,14 @@ export class GameServer {
     const s = typeof msg === 'string' ? msg : JSON.stringify(msg);
     for (const p of this.players.values()) if (p !== ex && p.conn.alive) p.conn.send(s);
   }
-  broadcastBinary(buf) { for (const p of this.players.values()) if (p.conn.alive) p.conn.send(buf); }
+  /** Snapshots are droppable: a client whose socket is already backed up gets the next fresh one instead of a stale queue. */
+  broadcastBinary(buf) {
+    for (const p of this.players.values()) {
+      if (!p.conn.alive) continue;
+      if (p.conn.bufferedAmount > SNAPSHOT_BACKLOG) { p.snapsDropped = (p.snapsDropped || 0) + 1; continue; }
+      p.conn.send(buf);
+    }
+  }
   markSelf(p) { this._selfDirty.add(p); }
 
   _selfMessage(p) {
@@ -207,7 +215,10 @@ export class GameServer {
     if (inp.seq <= p.lastInputSeq && p.lastInputSeq - inp.seq < 1e6) return;
     p.lastInputSeq = inp.seq;
     if (!p.ready) { p.ready = true; p.invulnUntil = Math.max(p.invulnUntil, this.time + 2); }
-    const dt = Math.max(0, Math.min(0.5, this.time - p.lastInputTime));
+    const gap = this.time - p.lastInputTime;
+    if (gap > LAG_PROTECT_AFTER) p.acceptAny = true; // the client kept moving while its inputs were stuck in the link
+    p.lagExpired = false;
+    const dt = Math.max(0, Math.min(0.5, gap));
     p.lastInputTime = this.time;
     if (!Number.isFinite(inp.x) || !Number.isFinite(inp.y) || !Number.isFinite(inp.z)) return;
     p.yaw = inp.yaw; p.pitch = inp.pitch; p.flags = inp.flags;
@@ -222,6 +233,23 @@ export class GameServer {
   }
 
   _correct(p) { this.sendTo(p, { t: 'correct', x: r2(p.x), y: r2(p.y), z: r2(p.z) }); }
+
+  /** Lag protection: inputs normally arrive at INPUT_RATE; a gap means the link (or the tab) stalled. */
+  _updateLag(p) {
+    if (!p.ready || this.gameOver) return;
+    const gap = this.time - p.lastInputTime;
+    if (!p.lagging) {
+      if (gap > LAG_PROTECT_AFTER && p.state === PSTATE.ALIVE && !p.lagExpired) {
+        p.lagging = true; p.lagSince = this.time;
+        this.broadcast({ t: 'lag', id: p.id, on: true });
+      }
+    } else if (gap <= LAG_PROTECT_AFTER || this.time - p.lagSince > LAG_PROTECT_MAX || p.state !== PSTATE.ALIVE) {
+      p.lagging = false;
+      p.lagExpired = gap > LAG_PROTECT_AFTER; // no second helping until inputs actually resume
+      this.broadcast({ t: 'lag', id: p.id, on: false, dur: Math.round((this.time - p.lagSince) * 10) / 10, dropped: p.snapsDropped });
+      p.snapsDropped = 0;
+    }
+  }
 
   _insideSolid(x, y, z) {
     const boxes = this.world.hash.query(x - 0.3, z - 0.3, x + 0.3, z + 0.3);
@@ -377,6 +405,7 @@ export class GameServer {
     if (p.state !== PSTATE.ALIVE || dmg <= 0) return;
     if (p.invulnUntil > this.time || p.god) return;
     if (!p.ready && this.time - p.joinedAt < 45) return; // client still loading
+    if (z && p.lagging) return; // link stalled: zombies wait, the player never dies to a frozen screen
     p.hp -= dmg;
     p.lastDamage = this.time;
     this.markSelf(p);
@@ -572,6 +601,7 @@ export class GameServer {
   }
 
   _updatePlayer(p, dt) {
+    this._updateLag(p);
     if (p.state === PSTATE.ALIVE) {
       const maxHp = p.maxHp || PLAYER.maxHealth;
       if (p.hp < maxHp && this.time - p.lastDamage > PLAYER.regenDelay) {

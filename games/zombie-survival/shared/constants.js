@@ -7,6 +7,12 @@ export const TICK_RATE = 30;            // server simulation Hz
 export const TICK_MS = 1000 / TICK_RATE;
 export const SNAPSHOT_EVERY = 1;        // send a snapshot every N ticks
 export const INPUT_RATE = 30;           // client input send Hz
+// Netcode robustness: a client whose inputs stop arriving (link stall, tab hitch) is "lagging" - zombies
+// cannot hurt it for up to LAG_PROTECT_MAX s; snapshots are dropped for a client whose socket already
+// holds more than SNAPSHOT_BACKLOG bytes so a stalled link never replays a long stale stream afterwards.
+export const LAG_PROTECT_AFTER = 0.5;    // s without input before protection starts
+export const LAG_PROTECT_MAX = 10;       // s of protection at most per stall
+export const SNAPSHOT_BACKLOG = 12288;   // bytes queued on the socket above which snapshots are skipped
 
 export const DEFAULT_HTTP_PORT = 8080;
 export const DISCOVERY_PORT = 47800;    // UDP LAN discovery

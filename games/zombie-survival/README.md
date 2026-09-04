@@ -62,6 +62,8 @@ client/    Browser: Babylon.js rendering, procedural textures/models/audio, inpu
 
 The **host machine's Node server is the authority** (zombie AI, spawning, rounds, damage validation, points, box, doors, powerups, revives). Browsers send inputs, view direction, shots and interaction requests. Remote players and zombies are interpolated; shots are lag-compensated against zombie position history.
 
+**Netcode robustness (LAN / Wi-Fi):** the client renders remote entities from a playback clock steered towards the newest snapshot minus an adaptive delay (two snapshot intervals plus the measured arrival jitter, 60-400 ms), so bursty delivery does not freeze or rubber-band zombies; the clock is synced from the lowest-RTT pings only. When no snapshot has arrived for 350 ms the HUD shows *CONNECTION UNSTABLE*. On the server, a player whose inputs stop arriving for 0.5 s is *lagging*: zombies cannot hurt them (for up to 10 s per stall, so a hidden tab is not permanent god mode), their first position after the stall is accepted unclamped, and snapshots are skipped for a socket that already holds more than 12 KB so a stalled link never replays a long stale stream afterwards. The FPS overlay shows ping and the current interpolation delay.
+
 Because the authority lives in the server process (not in the host's browser tab), the game keeps running if the host closes their tab; lobby host rights migrate to the next player.
 
 ## Graphics settings
@@ -81,6 +83,7 @@ Presets LOW / MEDIUM / HIGH / ULTRA plus render resolution scale, shadows (PCF /
 * `node tools/probe-route.mjs lot_e1 33.25,-26.75,5.2` force-spawns one zombie at an entry with a bot at a position and logs its route (deterministic check that a stair / fire escape is walkable for the server physics).
 * `node tools/validate-map.mjs` checks the map data for geometry hygiene (prop overlaps, floating props, coplanar faces, upper-slab clearance) and gameplay placement (entries, wall buys, machines, box spots, spawns). It must report zero problems.
 * `node tools/snap.mjs --serve --port 8102 --god --pos X,Z[,Y] --look YAW,PITCH --out tools/shots/name.png` takes headless WebGL screenshots of the running game (see the file header for `--js`/`--eval`).
+* `node tools/test-netlag.mjs` checks lag protection and snapshot backpressure headlessly; `node tools/bench-tick.mjs 4` reports server step timing with four moving players at round 25. In a browser, `dev.netStall(2500)` emulates a 2.5 s link stall (nothing in or out, then the backlog arrives at once).
 * `node tools/mp-test.mjs` runs a two-client multiplayer check in headless Chrome (host + direct-connect join, shared zombies/rounds/doors/points, hits, leaving).
 * `node tools/test-perks.mjs` (perks, Pack-a-Punch state machine, solo revive), `node tools/test-hitbox.mjs` (skull coverage of the head hit volume in every zombie pose) and `node tools/weapon-report.mjs` (roster balance table) are the other headless tests.
 * `node tools/trailer.mjs` renders the trailer (`tools/trailer/trailer.mp4`): a scripted shot list captured frame by frame from the real client with the server stepped in lockstep (`{t:'cheat', pause, step}` dev messages), a soundtrack rendered offline from the game's own synthesized sounds, and an H.264 encode via ffmpeg (`--ffmpeg <path>`, `--only shot,ids` for quick previews).

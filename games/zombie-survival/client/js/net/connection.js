@@ -10,12 +10,18 @@ export class Connection {
     this.rtt = 0;
     this._rttSamples = [];
     this.serverOffset = 0;   // serverTime(ms) - performance.now()
-    this._offsetSamples = [];
+    this._offsetSamples = []; // [{rtt, offset}] from pongs; the lowest-rtt sample is the most trustworthy (Cristian)
     this._pingTimer = null;
     this.onSnapshot = null;
     this.onClose = null;
     this.snapshotsReceived = 0;
     this.lastServerTime = 0;
+    // snapshot arrival statistics (drive the client's adaptive interpolation delay + the connection warning)
+    this.lastSnapAt = 0;      // performance.now() of the newest snapshot
+    this.snapInterval = 33;   // ms between snapshots as sent by the server (EMA)
+    this.jitter = 0;          // ms: decaying peak of |arrival delta - server delta|
+    this.gapMax = 0;          // ms: decaying peak of the longest arrival gap
+    this._prevSnapTime = 0;
   }
 
   connect(timeoutMs = 5000) {
@@ -31,7 +37,8 @@ export class Connection {
         done = true; clearTimeout(timer);
         this.open = true;
         this._pingTimer = setInterval(() => this.ping(), 1000);
-        this.ping();
+        // a quick burst of pings settles the clock estimate before the first snapshots matter
+        for (let i = 0; i < 5; i++) setTimeout(() => this.ping(), 60 * i);
         resolve(this);
       };
       ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); reject(new Error('Could not connect to ' + this.url)); } };
@@ -72,12 +79,24 @@ export class Connection {
     const type = dv.getUint8(0);
     if (type === BIN.SNAPSHOT) {
       const snap = decodeSnapshot(dv, 1);
+      const now = performance.now();
       this.snapshotsReceived++;
+      if (this._prevSnapTime > 0 && snap.time > this._prevSnapTime) {
+        const serverDelta = snap.time - this._prevSnapTime;
+        const arrivalDelta = now - this.lastSnapAt;
+        // decaying peaks: a spike fades to half in ~1 s; a full stall (> 400 ms) is handled by the playback
+        // clock's resync and must not inflate the routine delay for long, so its contribution is capped
+        const decay = Math.min(1, arrivalDelta / 1000);
+        this.jitter = Math.max(Math.min(400, Math.abs(arrivalDelta - serverDelta)), this.jitter - Math.max(30, this.jitter * 0.5) * decay);
+        this.gapMax = Math.max(arrivalDelta, this.gapMax - Math.max(60, this.gapMax * 0.5) * decay);
+        if (serverDelta < 500) this.snapInterval += (serverDelta - this.snapInterval) * 0.1;
+      }
+      this._prevSnapTime = snap.time;
       this.lastServerTime = snap.time;
-      // passive clock sync from snapshot (one-way): server time ~ now + offset; refine with rtt/2
-      const est = snap.time - (performance.now() - this.rtt / 2);
-      this._pushOffset(est, 0.15);
-      if (this.onSnapshot) this.onSnapshot(snap, performance.now());
+      this.lastSnapAt = now;
+      // one-way clock estimate: only used until the first pong arrives (arrival jitter would otherwise steer the clock)
+      if (this._offsetSamples.length === 0) this.serverOffset = snap.time - (now - this.rtt / 2);
+      if (this.onSnapshot) this.onSnapshot(snap, now);
     } else if (type === BIN.PONG) {
       const pg = decodePing(dv);
       const now = performance.now();
@@ -86,10 +105,7 @@ export class Connection {
       if (this._rttSamples.length > 8) this._rttSamples.shift();
       const sorted = [...this._rttSamples].sort((a, b) => a - b);
       this.rtt = sorted[Math.floor(sorted.length / 2)];
-      if (pg.serverTime > 0) {
-        const offset = pg.serverTime - (now - rtt / 2);
-        this._pushOffset(offset, 0.5);
-      }
+      if (pg.serverTime > 0) this._pushOffset(pg.serverTime - (now - rtt / 2), rtt);
     } else if (type === BIN.PING) {
       // server-initiated RTT measurement: echo back
       const pg = decodePing(dv);
@@ -97,12 +113,21 @@ export class Connection {
     }
   }
 
-  _pushOffset(offset, weight) {
-    if (this._offsetSamples.length === 0) { this.serverOffset = offset; }
-    else this.serverOffset += (offset - this.serverOffset) * weight;
-    this._offsetSamples.push(offset);
-    if (this._offsetSamples.length > 20) this._offsetSamples.shift();
+  _pushOffset(offset, rtt) {
+    this._offsetSamples.push({ offset, rtt });
+    if (this._offsetSamples.length > 12) this._offsetSamples.shift();
+    // the sample with the smallest round trip suffered the least queueing: take its offset, ease towards it
+    let best = this._offsetSamples[0];
+    for (const s of this._offsetSamples) if (s.rtt < best.rtt) best = s;
+    if (this._offsetSamples.length <= 2) this.serverOffset = best.offset;
+    else this.serverOffset += (best.offset - this.serverOffset) * 0.3;
   }
+
+  /** Forget arrival statistics gathered while the page was busy (loading blocks the main thread and delivers snapshots in bursts). */
+  resetNetStats() { this.jitter = 0; this.gapMax = 0; this._prevSnapTime = 0; this.lastSnapAt = 0; }
+
+  /** ms since the newest snapshot arrived (0 before the first one). */
+  snapshotAge() { return this.lastSnapAt ? performance.now() - this.lastSnapAt : 0; }
 
   /** Estimated current server time in ms. */
   serverTime() { return performance.now() + this.serverOffset; }

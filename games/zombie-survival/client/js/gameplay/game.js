@@ -43,7 +43,10 @@ export class Game {
     this.gameOver = false;
     this.lastRenderT = 0;
     this.paused = false;
-    this.perf = { fps: 0, frameMs: 0, drawCalls: 0, activeMeshes: 0, particles: 0, zombies: 0, hiddenLod: 0, shadowCasters: 0 }; // window.dev-friendly render stats
+    this.perf = { fps: 0, frameMs: 0, drawCalls: 0, activeMeshes: 0, particles: 0, zombies: 0, hiddenLod: 0, shadowCasters: 0, rtt: 0, jitter: 0, interp: 0, snapAge: 0 }; // window.dev-friendly render + net stats
+    // Playback clock for remote entities, in server ms. Runs at ~1x and is steered towards
+    // (newest snapshot time - adaptive delay); it never depends on the arrival time of individual snapshots.
+    this.net = { rt: 0, delay: 80, stalled: false };
     this._perfT = 0;
     this._zlist = [];
     for (const p of this.initMsg.players) { this.names[p.id] = p.name; this.scores[p.id] = p.points; this.states[p.id] = p.state; }
@@ -51,7 +54,25 @@ export class Game {
 
   playerName(id) { return this.names[id] || ('Player ' + id); }
   serverTimeMs() { return this.conn.serverTime(); }
-  renderTimeMs() { const interp = Math.max(60, Math.min(160, 60 + this.conn.rtt * 0.5)); return this.conn.serverTime() - interp; }
+  renderTimeMs() { return this.net.rt || this.conn.serverTime() - 100; }
+
+  _updateNetClock(dt) {
+    const c = this.conn, n = this.net;
+    if (!c.lastSnapAt) return;
+    const age = c.snapshotAge();
+    // interpolation delay: two snapshot intervals plus the observed arrival jitter (Wi-Fi bursts, TCP retransmits)
+    const target = Math.max(60, Math.min(400, c.snapInterval * 2 + c.jitter * 1.2 + 10));
+    n.delay += (target - n.delay) * Math.min(1, dt * 2);
+    const ideal = c.lastServerTime + age - n.delay;
+    const err = ideal - n.rt;
+    if (n.rt === 0 || Math.abs(err) > 300) n.rt = ideal; // join / stall recovery: jump instead of running seconds behind
+    else n.rt += dt * 1000 * (1 + Math.max(-0.15, Math.min(0.25, err / 400))); // otherwise converge by speeding up or slowing down a little
+    // never run more than a short extrapolation past the data we actually have
+    const cap = c.lastServerTime + 150;
+    if (n.rt > cap) n.rt = cap;
+    const stalled = age > 350;
+    if (stalled !== n.stalled) { n.stalled = stalled; this.hud.netWarn(stalled); }
+  }
 
   // ---------------- loading ----------------
   async load(progress) {
@@ -155,6 +176,7 @@ export class Game {
     // a Resume button - a real gesture - instead of a running game with every control dead.
     this.input.onLockFail = () => { if (this.running && !this.gameOver) this.setPaused(true); };
     this.input.requestLock();
+    this.conn.resetNetStats(); this.net.rt = 0; // loading stalls the main thread: start the playback clock from clean statistics
     this.engine.runRenderLoop(() => this._frame());
     window.addEventListener('resize', this._onResize = () => this.engine.resize());
     this.hud.banner(`SURVIVE`, `Ashford Street - defend, earn points, open the town`, 3500, 'cool');
@@ -179,6 +201,7 @@ export class Game {
     // the lock, surface the pause overlay so there is always a way back in.
     if (!this.input.locked && !this.paused && !this.gameOver && this.now > 0.5) this.setPaused(true);
     try {
+      this._updateNetClock(dt);
       this.player.update(dt);
       const rt = this.renderTimeMs();
       this.entities.update(dt, rt);
@@ -197,7 +220,7 @@ export class Game {
       audio.setListener(cam.position.x, cam.position.y, cam.position.z, fwd.x, fwd.y, fwd.z);
       this.lightT += dt; if (this.lightT > 0.5) { this.lightT = 0; this._dynamicLights(); }
       this.fpsAcc += dt; this.fpsN++;
-      if (this.fpsAcc >= 0.5) { this.fpsShown = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; this.hud.fps(this.fpsShown, g.showFps); this._updatePerf(); }
+      if (this.fpsAcc >= 0.5) { this.fpsShown = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; this._updatePerf(); this.hud.fps(this.fpsShown, g.showFps, `${Math.round(this.conn.rtt)}ms ping · ${Math.round(this.net.delay)}ms buf`); }
     } catch (e) { console.error(e); }
     this.input.endFrame();
     this.scene.render();
@@ -238,6 +261,7 @@ export class Game {
     for (const f of this.effects.fires) particles += f.flames.particles.length + f.smoke.particles.length + (f.embers ? f.embers.particles.length : 0);
     p.particles = particles;
     p.zombies = this.entities.zombies.size;
+    p.rtt = Math.round(this.conn.rtt); p.jitter = Math.round(this.conn.jitter); p.interp = Math.round(this.net.delay); p.snapAge = Math.round(this.conn.snapshotAge());
     p.hiddenLod = this.lod ? this.lod.stats.hidden : 0;
     const sm = this.lighting.shadow && this.lighting.shadow.getShadowMap();
     p.shadowCasters = sm && sm.renderList ? sm.renderList.length : 0;
@@ -328,6 +352,10 @@ export class Game {
     on('mline', (m) => this.hud.machineLine(m.text, m.m));
     on('scores', (m) => { for (const id in m.s) this.scores[id] = m.s[id]; this._team(); });
     on('pjoin', (m) => { this.names[m.id] = m.name; this.scores[m.id] = m.points; this.states[m.id] = PSTATE.ALIVE; this.hud.feed(`${m.name} joined`); this._team(); });
+    on('lag', (m) => {
+      if (m.id === this.myId) { if (!m.on) this.hud.feed(`Connection recovered after ${m.dur}s`, 'bad'); }
+      else this.hud.feed(m.on ? `${this.playerName(m.id)} is lagging` : `${this.playerName(m.id)} is back`);
+    });
     on('pleave', (m) => { this.hud.feed(`${this.playerName(m.id)} left`); delete this.scores[m.id]; delete this.states[m.id]; this.entities.onPlayerLeave(m.id); this._team(); });
     on('zvanish', (m) => this.entities.onZombieVanish(m.id));
     on('chat', (m) => this.hud.feed(`${m.from}: ${m.text}`));

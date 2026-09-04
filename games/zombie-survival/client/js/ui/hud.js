@@ -16,7 +16,7 @@ export class HUD {
       cross: $('hud-crosshair'), hit: $('hud-hitmarker'), dmg: $('hud-damage'), vignette: $('hud-vignette'), powerups: $('hud-powerups'),
       notice: $('hud-notice'), banner: $('hud-banner'), bannerMain: $('hud-banner-main'), bannerSub: $('hud-banner-sub'),
       revive: $('hud-revive'), reviveBar: $('hud-revive-bar'), reviveText: $('hud-revive-text'), downed: $('hud-downed'), downedText: $('hud-downed-text'),
-      fps: $('hud-fps'), zleft: $('hud-zleft'), feed: $('hud-feed'), reload: $('hud-reload'), lowammo: $('hud-lowammo'),
+      fps: $('hud-fps'), net: $('hud-net'), zleft: $('hud-zleft'), feed: $('hud-feed'), reload: $('hud-reload'), lowammo: $('hud-lowammo'),
       perks: $('hud-perks'), mline: $('hud-mline'), pap: $('hud-pap'), papBar: $('hud-pap-bar'), papText: $('hud-pap-text'),
     };
     this._maxHp = 100; this._selfReviveT = 0; this._mlineT = 0; this._perkKey = ''; this._papKey = ''; this._mlineTimer = null;
@@ -177,7 +177,9 @@ export class HUD {
     while (this.el.feed.children.length > 5) this.el.feed.firstChild.remove();
     setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 400); }, 3500);
   }
-  fps(v, show) { this.el.fps.classList.toggle('hidden', !show); if (show) this._set('fps', this.el.fps, v + ' FPS'); }
+  fps(v, show, extra = '') { this.el.fps.classList.toggle('hidden', !show); if (show) this._set('fps', this.el.fps, v + ' FPS' + (extra ? ' · ' + extra : '')); }
+  /** Connection warning: no fresh snapshot for a while (link stall). */
+  netWarn(on) { this.el.net.classList.toggle('hidden', !on); }
 
   update(dt) {
     if (this._noticeT > 0) { this._noticeT -= dt; if (this._noticeT <= 0) this.el.notice.classList.add('hidden'); }

@@ -188,6 +188,9 @@ button { font-family: inherit; }
 #hud-prompt .txt em { color: var(--accent2); font-style: normal; }
 #hud-prompt-bar { width: 220px; height: 5px; background: rgba(255,255,255,0.15); margin: 8px auto 0; }
 #hud-prompt-bar > div { height: 100%; background: var(--accent2); }
+#hud-net { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); font-family: var(--font-mono); font-size: 13px; letter-spacing: 2px; color: #ffb454; background: rgba(0,0,0,0.55); padding: 6px 14px; border: 1px solid rgba(255,180,84,0.5); border-radius: 3px; display: flex; align-items: center; gap: 8px; }
+#hud-net i { width: 8px; height: 8px; border-radius: 50%; background: #ffb454; animation: netBlink 0.8s steps(2) infinite; }
+@keyframes netBlink { to { opacity: 0.2; } }
 #hud-notice { position: absolute; left: 50%; top: 36%; transform: translateX(-50%); font-size: 26px; letter-spacing: 3px; color: var(--accent2); text-shadow: 0 2px 0 #000, 0 0 12px rgba(0,0,0,0.9); }
 #hud-notice.anim { animation: noticeIn .25s ease-out; }
 @keyframes noticeIn { from { transform: translateX(-50%) scale(1.4); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }

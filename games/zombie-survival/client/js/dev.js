@@ -18,6 +18,16 @@ export function installDevHelpers(app) {
     async fire(ms = 120) { this.hold('Mouse0', true); await sleep(ms); this.hold('Mouse0', false); },
     tele(x, z, y = 0) { const p = app.game.player; p.x = x; p.z = z; p.y = y; p.vx = p.vz = p.vy = 0; this.cheat({ tp: [x, z, y] }); },
     cheat(o) { app.gameConn.send({ t: 'cheat', ...o }); },
+    /** Emulate a link stall: nothing in or out for `ms`, then the whole backlog arrives at once (what TCP does after a Wi-Fi hiccup). */
+    async netStall(ms = 2500) {
+      const c = app.gameConn, ws = c.ws, orig = ws.onmessage, q = [];
+      const send = c.send, sendBinary = c.sendBinary;
+      ws.onmessage = (ev) => q.push(ev); c.send = () => {}; c.sendBinary = () => {};
+      await sleep(ms);
+      c.send = send; c.sendBinary = sendBinary; ws.onmessage = orig;
+      for (const ev of q) orig.call(ws, ev);
+      return q.length;
+    },
     async shot(name = 'shot', w = 1280, h = 720) {
       const g = app.game; if (!g) return 'no game';
       if (g.engine.getRenderWidth() !== w) g.engine.setSize(w, h);

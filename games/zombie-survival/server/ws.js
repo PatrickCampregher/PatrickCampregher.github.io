@@ -117,6 +117,9 @@ export class WSConnection extends EventEmitter {
     return this._sendFrame(0x2, Buffer.from(data));
   }
 
+  /** Bytes accepted by send() but not yet handed to the kernel (a slow or stalled link piles up here). */
+  get bufferedAmount() { return this.alive ? this.socket.writableLength : 0; }
+
   ping() { return this._sendFrame(0x9, Buffer.alloc(0)); }
 
   close(code = 1000, reason = '') {
