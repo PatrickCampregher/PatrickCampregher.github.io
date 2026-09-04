@@ -150,6 +150,10 @@ export class Game {
     this.input.enabled = true;
     this.hud.show();
     this.input.onLockChange = (locked) => { if (!locked && this.running && !this.gameOver) this.setPaused(true); else if (locked) this.setPaused(false); };
+    // The lock request below is issued long after the click that started the game, so the browser
+    // often refuses it (expired user activation). Falling back to the pause overlay gives the player
+    // a Resume button - a real gesture - instead of a running game with every control dead.
+    this.input.onLockFail = () => { if (this.running && !this.gameOver) this.setPaused(true); };
     this.input.requestLock();
     this.engine.runRenderLoop(() => this._frame());
     window.addEventListener('resize', this._onResize = () => this.engine.resize());
@@ -171,6 +175,9 @@ export class Game {
     this.lastRenderT = nowMs;
     if (dt > 0.1) dt = 0.1;
     this.now += dt;
+    // Safety net: unlocked and unpaused means no input reaches the player at all. Whatever swallowed
+    // the lock, surface the pause overlay so there is always a way back in.
+    if (!this.input.locked && !this.paused && !this.gameOver && this.now > 0.5) this.setPaused(true);
     try {
       this.player.update(dt);
       const rt = this.renderTimeMs();
@@ -463,7 +470,7 @@ export class Game {
     audio.stopAllLoops();
     for (const off of this.offs) off();
     this.conn.onSnapshot = null; this.conn.onClose = null;
-    this.input.enabled = false; this.input.onLockChange = null; this.input.exitLock();
+    this.input.enabled = false; this.input.onLockChange = null; this.input.onLockFail = null; this.input.exitLock();
     window.removeEventListener('resize', this._onResize);
     this.hud.hide();
     try { this.engine.stopRenderLoop(); } catch (e) { /* ignore */ }

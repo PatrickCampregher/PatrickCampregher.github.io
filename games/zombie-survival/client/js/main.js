@@ -211,7 +211,9 @@ class App {
 
   // ---------------- overlays ----------------
   _bindOverlays() {
-    $('btn-resume').onclick = () => { this.hidePause(); this.input.requestLock(); };
+    // Do not hide the overlay optimistically: if the browser refuses the lock we would be left with
+    // no overlay and no working controls. hidePause() runs from onLockChange once the lock is real.
+    $('btn-resume').onclick = () => { this.input.requestLock(); };
     $('btn-pause-settings').onclick = () => { this.menu.refreshSettings(); $('pause-settings').classList.toggle('hidden'); this.menu.setTab('graphics'); };
     $('btn-pause-leave').onclick = () => this.leaveGame();
     $('btn-go-lobby').onclick = () => { $('gameover').classList.add('hidden'); };
@@ -220,6 +222,12 @@ class App {
   }
   showPause() {
     $('pause').classList.remove('hidden');
+    const hint = $('pause-hint');
+    if (hint) {
+      hint.textContent = this.input.lockError
+        ? 'The browser blocked the mouse capture - click Resume (or anywhere on the game) to grab it'
+        : 'Click Resume to lock the mouse again';
+    }
     // settings panel lives inside the menu DOM; move it into the pause overlay
     const sp = $('pause-settings');
     if (!sp.contains($('settings-body'))) sp.appendChild($('settings-body'));
