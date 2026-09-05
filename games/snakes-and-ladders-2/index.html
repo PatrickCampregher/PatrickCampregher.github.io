@@ -933,7 +933,7 @@
     //  R2  Snakes go down, ladders go up, start and end lie on different rows.
     //  R3  Every jump is at least 5 squares (a jump of 2 is just noise).
     //  R4  No snake head in the first row (a bite there is pointless).
-    //  R5  At most ONE snake head in the top row (91-98, never 99), and that
+    //  R5  At most ONE snake head in the top row (91-99), and that
     //      snake is at most "medium" length, so the end game stays tense but
     //      one bite never throws a player back to the start.
     //  R6  At most ONE ladder ends in the top row.
@@ -1040,7 +1040,7 @@
           if (rowFromBottom(from) === rowFromBottom(to)) continue;                       // R2
           if (!isLadder && from <= 10) continue;                                          // R4
           if (!isLadder && from >= 91) {                                                  // R5
-            if (topSnakes >= 1 || from === 99 || span > TOP_ROW_MAX_SPAN) continue;
+            if (topSnakes >= 1 || span > TOP_ROW_MAX_SPAN) continue;
           }
           if (isLadder && to >= 91 && topLadders >= 1) continue;                          // R6
           if (isLadder && from <= 10 && span > LONG_LADDER_FROM_ROW1) continue;           // R7
@@ -1198,7 +1198,7 @@
         if (head - tail < MIN_SPAN) errors.push(`snake ${head}->${tail} too short`);
         if (rowFromBottom(head) === rowFromBottom(tail)) errors.push(`snake ${head}->${tail} same row`);
         if (head <= 10) errors.push(`snake head ${head} in first row`);
-        if (head >= 91) { topSnakes++; if (head === 99) errors.push('snake head on 99'); if (head - tail > TOP_ROW_MAX_SPAN) errors.push(`top-row snake ${head}->${tail} too long`); }
+        if (head >= 91) { topSnakes++; if (head - tail > TOP_ROW_MAX_SPAN) errors.push(`top-row snake ${head}->${tail} too long`); }
       }
       for (const [b, t] of Object.entries(ladders)) {
         const bot = +b, top = +t;
