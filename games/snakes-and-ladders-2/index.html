@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SNAKES &amp; LADDERS II — '85 DELUXE</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0420;
+    --bg-2: #14082e;
+    --neon-pink: #ff2bd6;
+    --neon-cyan: #00f0ff;
+    --neon-yellow: #ffd23f;
+    --neon-green: #39ff14;
+    --neon-purple: #b537f2;
+    --dark-square: #10062a;
+    --light-square: #1a0a3c;
+    --p1: #ff8a00; --p1d: #7a3300;
+    --p2: #ffffff; --p2d: #7f86a3;
+    --p3: #c266ff; --p3d: #4e1580;
+    --p4: #4dffd8; --p4d: #0b6b58;
+    --cell: 36px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  button {
+    font-family: inherit;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100dvh;
+    height: var(--app-vh, 100dvh);
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'VT323', monospace;
+    color: var(--neon-cyan);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ===== SYNTHWAVE BACKDROP ===== */
+  .bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: linear-gradient(180deg, #04020e 0%, #0a0420 45%, #1c0a3e 100%);
+  }
+  .bg .sun {
+    position: absolute;
+    left: 50%;
+    top: 3%;
+    width: min(80vw, 460px);
+    height: min(80vw, 460px);
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ffe066 0%, #ff8a00 36%, #ff2bd6 70%, #7a1fa2 100%);
+    opacity: 0.30;
+    -webkit-mask-image: linear-gradient(#000 0 50%, transparent 50% 54%, #000 54% 61%, transparent 61% 64%, #000 64% 71%, transparent 71% 73.5%, #000 73.5% 81%, transparent 81% 83%, #000 83% 91%, transparent 91% 92.5%, #000 92.5%);
+    mask-image: linear-gradient(#000 0 50%, transparent 50% 54%, #000 54% 61%, transparent 61% 64%, #000 64% 71%, transparent 71% 73.5%, #000 73.5% 81%, transparent 81% 83%, #000 83% 91%, transparent 91% 92.5%, #000 92.5%);
+  }
+  .bg .haze {
+    position: absolute;
+    left: 50%;
+    top: 34%;
+    width: 160vw;
+    height: 34vh;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, rgba(255, 43, 214, 0.30), transparent 62%);
+  }
+  .bg .floor {
+    position: absolute;
+    left: -60vw;
+    right: -60vw;
+    bottom: -14vh;
+    height: 56vh;
+    background-image:
+      linear-gradient(rgba(255, 43, 214, 0.95) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(255, 43, 214, 0.95) 2px, transparent 2px);
+    background-size: 64px 64px;
+    transform: perspective(330px) rotateX(62deg);
+    transform-origin: 50% 0;
+    opacity: 0.17;
+    animation: floorScroll 2.6s linear infinite;
+  }
+  @keyframes floorScroll {
+    from { background-position: 0 0; }
+    to   { background-position: 0 64px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bg .floor { animation: none; }
+  }
+  /* scanlines + vignette */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background:
+      repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0 3px, rgba(0, 0, 0, 0.13) 3px 4px),
+      radial-gradient(ellipse at center, transparent 38%, rgba(4, 2, 14, 0.78) 100%);
+  }
+
+  #app {
+    position: relative;
+    z-index: 2;
+    width: 100vw;
+    height: 100dvh;
+    height: var(--app-vh, 100dvh);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ===== START MENU ===== */
+  .menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: max(10px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+    gap: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .menu-body {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+  .topbar a.bc {
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: var(--neon-cyan);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-shadow: 0 0 4px var(--neon-cyan);
+    flex: none;
+  }
+  .topbar a.bc:hover, .topbar a.bc:active { color: var(--neon-pink); text-shadow: 0 0 6px var(--neon-pink); }
+  .topbar .bc-sep { font-size: 16px; color: rgba(0, 240, 255, 0.45); flex: none; }
+  .topbar .bc-current {
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: rgba(0, 240, 255, 0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: none;
+    max-width: 46vw;
+  }
+  .tb-spacer { flex: 1; min-width: 0; }
+  .tb-btns { display: flex; gap: 8px; flex: none; }
+
+  .ic-btn {
+    background: rgba(10, 4, 32, 0.6);
+    border: 1.5px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-size: 12px;
+    line-height: 1;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    text-shadow: 0 0 4px var(--neon-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 4px;
+  }
+  .ic-btn:hover, .ic-btn:active { background: var(--neon-cyan); color: var(--bg); text-shadow: none; }
+  .ic-btn.menu { border-color: var(--neon-purple); color: var(--neon-purple); text-shadow: 0 0 4px var(--neon-purple); }
+  .ic-btn.menu:hover, .ic-btn.menu:active { background: var(--neon-purple); color: var(--bg); text-shadow: none; }
+
+  .menu-title {
+    flex: none;
+    width: 100%;
+    text-align: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(13px, 4.4vw, 30px);
+    color: var(--neon-pink);
+    text-shadow:
+      0 0 10px var(--neon-pink),
+      0 0 30px rgba(255, 43, 214, 0.6),
+      3px 3px 0 var(--neon-cyan);
+    letter-spacing: 1px;
+    line-height: 1.6;
+    padding: 2px 16px 0;
+    white-space: nowrap;
+  }
+  .menu-sub {
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 8px var(--neon-yellow);
+    margin-top: -8px;
+  }
+  .menu-prompt {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 6px var(--neon-yellow);
+    letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+
+  .player-buttons { display: flex; justify-content: center; gap: 8px; flex-shrink: 0; padding: 0 12px; }
+  .p-btn {
+    background: rgba(10, 4, 32, 0.5);
+    border: 3px solid var(--neon-pink);
+    color: var(--neon-pink);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-shadow: 0 0 6px var(--neon-pink);
+    box-shadow: 0 0 8px rgba(255, 43, 214, 0.3);
+    min-width: 50px;
+    border-radius: 6px;
+  }
+  .p-btn.selected { background: var(--neon-pink); color: var(--bg); text-shadow: none; box-shadow: 0 0 18px var(--neon-pink); }
+
+  .menu-actions { display: flex; gap: 12px; justify-content: center; flex-shrink: 0; }
+  .menu-action-btn {
+    background: rgba(10, 4, 32, 0.5);
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-size: 18px;
+    line-height: 1;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    text-shadow: 0 0 4px var(--neon-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 6px;
+  }
+  .menu-action-btn:hover, .menu-action-btn:active { background: var(--neon-cyan); color: var(--bg); text-shadow: none; }
+
+  .menu-board-wrap {
+    flex: 1 1 0;
+    width: 100%;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    overflow: hidden;
+    padding: 6px 22px;
+  }
+
+  .play-btn {
+    background: rgba(10, 4, 32, 0.5);
+    border: 3px solid var(--neon-green);
+    color: var(--neon-green);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    padding: 12px 28px;
+    cursor: pointer;
+    text-shadow: 0 0 6px var(--neon-green);
+    box-shadow: 0 0 14px rgba(57, 255, 20, 0.5);
+    letter-spacing: 3px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    animation: playPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes playPulse {
+    0%, 100% { box-shadow: 0 0 14px rgba(57, 255, 20, 0.5); }
+    50% { box-shadow: 0 0 26px rgba(57, 255, 20, 0.95); }
+  }
+  .play-btn:hover, .play-btn:active { background: var(--neon-green); color: var(--bg); text-shadow: none; }
+
+  /* ===== MODALS ===== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 4, 32, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: linear-gradient(180deg, #160838, #0a0420);
+    border: 3px solid var(--neon-cyan);
+    box-shadow: 0 0 24px var(--neon-cyan), inset 0 0 30px rgba(0, 240, 255, 0.08);
+    padding: 24px 20px;
+    max-width: 320px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    border-radius: 8px;
+  }
+  .modal-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--neon-pink);
+    text-shadow: 0 0 6px var(--neon-pink);
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .modal-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .modal-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 4px var(--neon-cyan);
+    flex: 1;
+  }
+  .stepper { display: flex; align-items: center; gap: 6px; }
+  .stepper button {
+    background: transparent;
+    border: 2px solid var(--neon-yellow);
+    color: var(--neon-yellow);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    text-shadow: 0 0 4px var(--neon-yellow);
+    padding: 0;
+    border-radius: 4px;
+  }
+  .stepper button:hover, .stepper button:active { background: var(--neon-yellow); color: var(--bg); text-shadow: none; }
+  .stepper .value {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 4px var(--neon-yellow);
+    min-width: 28px;
+    text-align: center;
+  }
+  .modal-note { font-size: 16px; color: rgba(0, 240, 255, 0.7); text-align: center; line-height: 1.3; }
+  .modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 4px; }
+  .modal-actions button {
+    flex: 1;
+    background: transparent;
+    border: 2px solid var(--neon-green);
+    color: var(--neon-green);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 10px;
+    cursor: pointer;
+    text-shadow: 0 0 4px var(--neon-green);
+    letter-spacing: 1px;
+    border-radius: 4px;
+  }
+  .modal-actions button.cancel { border-color: var(--neon-purple); color: var(--neon-purple); text-shadow: 0 0 4px var(--neon-purple); }
+  .modal-actions button:hover, .modal-actions button:active { background: var(--neon-green); color: var(--bg); text-shadow: none; }
+  .modal-actions button.cancel:hover, .modal-actions button.cancel:active { background: var(--neon-purple); }
+
+  /* ===== GAME ===== */
+  .game {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: max(10px, env(safe-area-inset-top)) 0 max(12px, env(safe-area-inset-bottom));
+    gap: 10px;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  .controls-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 0 12px;
+  }
+
+  .players-top, .players-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    flex-shrink: 0;
+    align-items: center;
+    padding: 0 10px;
+  }
+  .players-top { transform: rotate(180deg); }
+
+  .player-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; max-width: 280px; justify-self: center; }
+  .player-slot.empty { visibility: hidden; }
+  .player-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 4px var(--neon-cyan);
+    letter-spacing: 1px;
+  }
+  .player-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 5px 8px;
+    width: 100%;
+    border: 2px solid rgba(0, 240, 255, 0.55);
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(0, 240, 255, 0.10), rgba(0, 240, 255, 0.02));
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    touch-action: manipulation;
+  }
+  .player-box.active {
+    border-color: var(--neon-yellow);
+    background: linear-gradient(180deg, rgba(255, 210, 63, 0.16), rgba(255, 210, 63, 0.03));
+    box-shadow: 0 0 14px var(--neon-yellow), inset 0 0 8px rgba(255, 210, 63, 0.2);
+    animation: activePulse 1.2s ease-in-out infinite;
+    cursor: pointer;
+  }
+  .player-box.winner {
+    border-color: var(--neon-yellow);
+    box-shadow: 0 0 22px var(--neon-yellow);
+  }
+  @keyframes activePulse {
+    0%, 100% { box-shadow: 0 0 12px var(--neon-yellow), inset 0 0 6px rgba(255, 210, 63, 0.2); }
+    50% { box-shadow: 0 0 24px var(--neon-yellow), inset 0 0 12px rgba(255, 210, 63, 0.3); }
+  }
+  .player-box.p1 { --c: var(--p1); --cd: var(--p1d); }
+  .player-box.p2 { --c: var(--p2); --cd: var(--p2d); }
+  .player-box.p3 { --c: var(--p3); --cd: var(--p3d); }
+  .player-box.p4 { --c: var(--p4); --cd: var(--p4d); }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: radial-gradient(circle at 32% 30%, #fff 0%, var(--c) 24%, var(--cd) 100%);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px rgba(255, 255, 255, 0.85), 0 3px 6px rgba(0, 0, 0, 0.6), 0 0 10px var(--c);
+  }
+
+  /* Dice with pips */
+  .die {
+    position: relative;
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    background: linear-gradient(145deg, #ffffff 0%, #d5dde8 100%);
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 3px 6px rgba(0, 0, 0, 0.55);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 7px;
+    gap: 2px;
+    transition: opacity 0.2s, filter 0.2s;
+  }
+  .die .pip {
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4b2a80, #1a0a3a 70%);
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  .die .q {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 17px;
+    color: #1a0a3a;
+  }
+  .die.unknown .q { display: flex; }
+  .die[data-face="1"] .pip:nth-child(5),
+  .die[data-face="2"] .pip:nth-child(3), .die[data-face="2"] .pip:nth-child(7),
+  .die[data-face="3"] .pip:nth-child(3), .die[data-face="3"] .pip:nth-child(5), .die[data-face="3"] .pip:nth-child(7),
+  .die[data-face="4"] .pip:nth-child(1), .die[data-face="4"] .pip:nth-child(3), .die[data-face="4"] .pip:nth-child(7), .die[data-face="4"] .pip:nth-child(9),
+  .die[data-face="5"] .pip:nth-child(1), .die[data-face="5"] .pip:nth-child(3), .die[data-face="5"] .pip:nth-child(5), .die[data-face="5"] .pip:nth-child(7), .die[data-face="5"] .pip:nth-child(9),
+  .die[data-face="6"] .pip:nth-child(1), .die[data-face="6"] .pip:nth-child(3), .die[data-face="6"] .pip:nth-child(4), .die[data-face="6"] .pip:nth-child(6), .die[data-face="6"] .pip:nth-child(7), .die[data-face="6"] .pip:nth-child(9) {
+    opacity: 1;
+  }
+  .die.empty { opacity: 0.22; filter: grayscale(1); }
+  .die.rollable {
+    cursor: pointer;
+    box-shadow: 0 0 0 2px var(--neon-green), 0 0 16px var(--neon-green), inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+    animation: dicePulse 1s ease-in-out infinite;
+  }
+  @keyframes dicePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.07); }
+  }
+  .die.rolling { animation: diceSpin 0.45s linear infinite; }
+  @keyframes diceSpin {
+    0%   { transform: rotate(0deg) scale(1); }
+    25%  { transform: rotate(90deg) scale(1.12); }
+    50%  { transform: rotate(180deg) scale(1); }
+    75%  { transform: rotate(270deg) scale(1.12); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+
+  /* Board */
+  .board-wrap {
+    flex: 1 1 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    min-height: 0;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    padding: 0 10px;
+  }
+  .board-frame {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    border: 3px solid var(--neon-cyan);
+    border-radius: 8px;
+    padding: 4px;
+    background: linear-gradient(135deg, #12063a, #07021a);
+    box-shadow:
+      0 0 18px rgba(0, 240, 255, 0.55),
+      0 0 60px rgba(255, 43, 214, 0.20),
+      inset 0 0 22px rgba(0, 240, 255, 0.18);
+  }
+  .board-frame.shake { animation: boardShake 0.45s ease-in-out; }
+  @keyframes boardShake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-5px, 2px) rotate(-0.6deg); }
+    40% { transform: translate(5px, -2px) rotate(0.6deg); }
+    60% { transform: translate(-4px, 1px) rotate(-0.4deg); }
+    80% { transform: translate(3px, -1px) rotate(0.3deg); }
+  }
+  .board-inner { position: relative; width: 100%; height: 100%; }
+  .board {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .tokens { position: absolute; inset: 0; pointer-events: none; }
+  .flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 20;
+    border-radius: 6px;
+  }
+  .flash.snake { background: radial-gradient(ellipse at center, rgba(255, 43, 214, 0.45), rgba(255, 43, 214, 0.15)); }
+  .flash.ladder { background: radial-gradient(ellipse at center, rgba(57, 255, 20, 0.38), rgba(57, 255, 20, 0.12)); }
+  .flash.go { animation: flashFade 0.65s ease-out; }
+  @keyframes flashFade { from { opacity: 1; } to { opacity: 0; } }
+
+  .cell {
+    position: relative;
+    border: 1px solid rgba(0, 240, 255, 0.13);
+    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.22) 100%);
+  }
+  .cell.dark { background-color: var(--dark-square); }
+  .cell.light { background-color: var(--light-square); }
+  .cell .num {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(6px, calc(var(--cell) * 0.2), 11px);
+    color: rgba(0, 240, 255, 0.5);
+    line-height: 1;
+    pointer-events: none;
+  }
+  .cell.snake-head { box-shadow: inset 0 0 0 1px rgba(255, 43, 214, 0.45), inset 0 0 12px rgba(255, 43, 214, 0.22); }
+  .cell.snake-head .num { color: #ff9ae9; text-shadow: 0 0 4px rgba(255, 43, 214, 0.8); }
+  .cell.snake-tail .num { color: rgba(255, 154, 233, 0.75); }
+  .cell.ladder-bot { box-shadow: inset 0 0 0 1px rgba(57, 255, 20, 0.45), inset 0 0 12px rgba(57, 255, 20, 0.2); }
+  .cell.ladder-bot .num { color: #b6ffa6; text-shadow: 0 0 4px rgba(57, 255, 20, 0.8); }
+  .cell.ladder-top .num { color: rgba(182, 255, 166, 0.75); }
+  .cell .sym {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(11px, calc(var(--cell) * 0.5), 26px);
+    pointer-events: none;
+    line-height: 1;
+  }
+  .cell.start { background: linear-gradient(135deg, #00f0ff 0%, #0aa3b3 100%); box-shadow: inset 0 0 14px rgba(255, 255, 255, 0.35); }
+  .cell.start .num { color: #032a30; }
+  .cell.start .sym { color: #032a30; }
+  .cell.finish { background: linear-gradient(135deg, #ffe066 0%, #ff8a00 100%); box-shadow: inset 0 0 14px rgba(255, 255, 255, 0.4), 0 0 14px rgba(255, 210, 63, 0.7); }
+  .cell.finish .num { color: #3a1a00; }
+  .cell.finish .sym { color: #3a1a00; animation: starSpin 3s linear infinite; }
+  @keyframes starSpin {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
+    50% { transform: scale(1.18); filter: drop-shadow(0 0 4px #fff); }
+  }
+
+  /* landing rings in the SVG pulse softly */
+  .overlay .landing { animation: landingPulse 1.6s ease-in-out infinite; }
+  @keyframes landingPulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.85; }
+  }
+
+  /* Tokens */
+  .token {
+    position: absolute;
+    width: calc(var(--cell) * 0.5);
+    height: calc(var(--cell) * 0.5);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: left 0.3s cubic-bezier(0.45, 0, 0.55, 1), top 0.3s cubic-bezier(0.45, 0, 0.55, 1), opacity 0.3s;
+    z-index: 10;
+    will-change: left, top;
+  }
+  .token.p1 { --c: var(--p1); --cd: var(--p1d); }
+  .token.p2 { --c: var(--p2); --cd: var(--p2d); }
+  .token.p3 { --c: var(--p3); --cd: var(--p3d); }
+  .token.p4 { --c: var(--p4); --cd: var(--p4d); }
+  .token .ball {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, #fff 0%, var(--c) 24%, var(--cd) 100%);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px rgba(255, 255, 255, 0.9), 0 4px 8px rgba(0, 0, 0, 0.65), 0 0 12px var(--c);
+  }
+  .token.waiting { opacity: 0.45; }
+  .token.active .ball { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px #fff, 0 4px 8px rgba(0, 0, 0, 0.65), 0 0 16px var(--c), 0 0 28px var(--c); }
+  .token.active::after {
+    content: '';
+    position: absolute;
+    inset: -38%;
+    border-radius: 50%;
+    border: 2px solid var(--c);
+    animation: tokenRing 1.1s ease-out infinite;
+  }
+  @keyframes tokenRing {
+    0% { transform: scale(0.7); opacity: 0.9; }
+    100% { transform: scale(1.25); opacity: 0; }
+  }
+  .token .ball.hop { animation: hop 0.24s ease-out; }
+  @keyframes hop {
+    0% { transform: translateY(0) scale(1); }
+    45% { transform: translateY(-38%) scale(1.15); }
+    100% { transform: translateY(0) scale(1); }
+  }
+
+  .status-bar {
+    flex: none;
+    text-align: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    line-height: 1.4;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 4px var(--neon-yellow);
+    pointer-events: none;
+    padding: 0 12px;
+    margin: -4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .toast {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.85);
+    background: rgba(10, 4, 32, 0.94);
+    border: 3px solid var(--neon-yellow);
+    box-shadow: 0 0 26px var(--neon-yellow), inset 0 0 20px rgba(255, 210, 63, 0.15);
+    padding: 16px 22px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(11px, 3vw, 16px);
+    line-height: 1.7;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 6px var(--neon-yellow);
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s, transform 0.22s;
+    z-index: 60;
+    white-space: nowrap;
+    border-radius: 8px;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  /* ===== WIN OVERLAY ===== */
+  .win-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 4, 32, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px;
+  }
+  .win-overlay.show { display: flex; }
+  .win-overlay canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .win-cup { font-size: clamp(40px, 12vw, 80px); line-height: 1; filter: drop-shadow(0 0 14px var(--neon-yellow)); animation: winPulse 0.7s ease-in-out infinite alternate; position: relative; }
+  .win-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(16px, 4vw, 32px);
+    color: var(--neon-yellow);
+    text-shadow: 0 0 12px currentColor, 4px 4px 0 var(--neon-pink);
+    text-align: center;
+    line-height: 1.5;
+    position: relative;
+  }
+  @keyframes winPulse { from { transform: scale(1); } to { transform: scale(1.06); } }
+  .win-sub {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(9px, 2vw, 13px);
+    color: var(--neon-cyan);
+    text-shadow: 0 0 6px var(--neon-cyan);
+    position: relative;
+    text-align: center;
+    line-height: 1.8;
+  }
+  .win-actions { display: flex; gap: 12px; position: relative; flex-wrap: wrap; justify-content: center; }
+  .big-btn {
+    background: rgba(10, 4, 32, 0.6);
+    border: 3px solid var(--neon-green);
+    color: var(--neon-green);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    padding: 12px 18px;
+    cursor: pointer;
+    text-shadow: 0 0 6px var(--neon-green);
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.4);
+    letter-spacing: 1px;
+    border-radius: 6px;
+  }
+  .big-btn.alt { border-color: var(--neon-purple); color: var(--neon-purple); text-shadow: 0 0 6px var(--neon-purple); box-shadow: 0 0 10px rgba(181, 55, 242, 0.4); }
+  .big-btn:hover, .big-btn:active { background: var(--neon-green); color: var(--bg); text-shadow: none; }
+  .big-btn.alt:hover, .big-btn.alt:active { background: var(--neon-purple); }
+</style>
+</head>
+<body>
+
+<div class="bg" aria-hidden="true">
+  <div class="sun"></div>
+  <div class="haze"></div>
+  <div class="floor"></div>
+</div>
+
+<div id="app">
+  <!-- START MENU -->
+  <div class="menu" id="menu">
+    <div class="topbar">
+      <a class="bc" href="../../index.html">Arcade</a>
+      <span class="bc-sep">›</span>
+      <span class="bc-current">Snakes &amp; Ladders II</span>
+      <div class="tb-spacer"></div>
+      <div class="tb-btns">
+        <button class="ic-btn" id="menuFsBtn" aria-label="Fullscreen" title="Fullscreen">⛶</button>
+      </div>
+    </div>
+    <div class="menu-body">
+      <div class="menu-title">SNAKES &amp; LADDERS II</div>
+      <div class="menu-sub">'85 DELUXE</div>
+      <div class="menu-prompt">SELECT PLAYERS</div>
+      <div class="player-buttons">
+        <button class="p-btn" data-players="1">1</button>
+        <button class="p-btn" data-players="2">2</button>
+        <button class="p-btn" data-players="3">3</button>
+        <button class="p-btn" data-players="4">4</button>
+      </div>
+      <div class="menu-board-wrap">
+        <div class="board-frame">
+          <div class="board-inner" id="menuInner">
+            <div class="board" id="menuBoard"></div>
+            <svg class="overlay" id="menuOverlay"></svg>
+          </div>
+        </div>
+      </div>
+      <div class="menu-actions">
+        <button class="menu-action-btn" id="settingsBtn" aria-label="Settings" title="Settings">⚙</button>
+        <button class="menu-action-btn" id="renewBtn" aria-label="New layout" title="New layout">↻</button>
+      </div>
+      <button class="play-btn" id="playBtn">▶ SPIELEN</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal">
+      <div class="modal-title">SETTINGS</div>
+      <div class="modal-row">
+        <div class="modal-label">SNAKES</div>
+        <div class="stepper">
+          <button id="snakeDec" aria-label="Fewer snakes">−</button>
+          <div class="value" id="snakeVal">7</div>
+          <button id="snakeInc" aria-label="More snakes">+</button>
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-label">LADDERS</div>
+        <div class="stepper">
+          <button id="ladderDec" aria-label="Fewer ladders">−</button>
+          <div class="value" id="ladderVal">7</div>
+          <button id="ladderInc" aria-label="More ladders">+</button>
+        </div>
+      </div>
+      <div class="modal-note">Der Startspieler wird jede Runde ausgelost.<br>Alle Spieler haben exakt gleiche Chancen.</div>
+      <div class="modal-actions">
+        <button class="cancel" id="settingsCancel">CANCEL</button>
+        <button id="settingsApply">APPLY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXIT CONFIRM MODAL -->
+  <div class="modal-backdrop" id="exitModal">
+    <div class="modal">
+      <div class="modal-title">EXIT GAME?</div>
+      <div class="modal-actions">
+        <button class="cancel" id="exitCancel">CANCEL</button>
+        <button id="exitConfirm">EXIT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div class="game" id="game" style="display:none;">
+    <div class="controls-bar" id="controlsBar">
+      <button class="ic-btn" id="fsBtn" aria-label="Fullscreen" title="Fullscreen">⛶</button>
+      <button class="ic-btn menu" id="restartBtn" aria-label="Main menu" title="Main menu">☰</button>
+    </div>
+
+    <div class="players-top" id="playersTop"></div>
+
+    <div class="board-wrap">
+      <div class="board-frame" id="boardFrame">
+        <div class="board-inner" id="boardInner">
+          <div class="board" id="board"></div>
+          <svg class="overlay" id="overlay"></svg>
+          <div class="tokens" id="tokens"></div>
+        </div>
+        <div class="flash" id="flash"></div>
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+    <div class="status-bar" id="status" aria-live="polite">PRESS DICE TO ROLL</div>
+
+    <div class="players-bottom" id="playersBottom"></div>
+  </div>
+
+  <!-- WIN -->
+  <div class="win-overlay" id="winOverlay">
+    <canvas id="confetti"></canvas>
+    <div class="win-cup">🏆</div>
+    <div class="win-title" id="winTitle">PLAYER 1 WINS!</div>
+    <div class="win-sub" id="winSub">★ HIGH SCORE ★</div>
+    <div class="win-actions">
+      <button class="big-btn" id="rematchBtn">↻ REMATCH</button>
+      <button class="big-btn alt" id="winMenuBtn">☰ MENU</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* @@CORE-START */
+  // ============ CORE (pure logic, no DOM) ============
+  // Everything in this block is DOM-free so it can be unit-tested in Node.
+  const CORE = (() => {
+    // --- Board geometry -------------------------------------------------
+    // Serpentine board: 1 at bottom-left, 10 at bottom-right, 11 above 10,
+    // ... 100 at top-left.
+    function rowFromBottom(sq) { return Math.floor((sq - 1) / 10); }
+    // 0-indexed grid, row 0 = TOP row on screen.
+    function squareToGrid(sq) {
+      const rb = rowFromBottom(sq);
+      const idx = (sq - 1) % 10;
+      return { row: 9 - rb, col: (rb % 2 === 0) ? idx : 9 - idx };
+    }
+    function gridToSquare(row, col) {
+      const rb = 9 - row;
+      const idx = (rb % 2 === 0) ? col : 9 - col;
+      return rb * 10 + idx + 1;
+    }
+
+    // --- Dice -----------------------------------------------------------
+    // Uniform integer in [1, sides]. Uses the crypto RNG with rejection
+    // sampling so there is no modulo bias; falls back to Math.random.
+    function rollDie(sides = 6) {
+      const c = (typeof crypto !== 'undefined') ? crypto : null;
+      if (c && typeof c.getRandomValues === 'function') {
+        const buf = new Uint32Array(1);
+        const limit = Math.floor(0x100000000 / sides) * sides;
+        let x;
+        do { c.getRandomValues(buf); x = buf[0]; } while (x >= limit);
+        return (x % sides) + 1;
+      }
+      return Math.floor(Math.random() * sides) + 1;
+    }
+
+    // --- Rules for a human-friendly board ---------------------------------
+    // Hard rules (always enforced):
+    //  R1  Squares 1 and 100 are never endpoints; no square is used twice.
+    //  R2  Snakes go down, ladders go up, start and end lie on different rows.
+    //  R3  Every jump is at least 5 squares (a jump of 2 is just noise).
+    //  R4  No snake head in the first row (a bite there is pointless).
+    //  R5  At most ONE snake head in the top row (91-98, never 99), and that
+    //      snake is at most "medium" length, so the end game stays tense but
+    //      one bite never throws a player back to the start.
+    //  R6  At most ONE ladder ends in the top row.
+    //  R7  Long ladders (> 35 squares) never start in the first row, so a
+    //      single lucky first roll cannot decide the game.
+    //  R8  Lines are steep (column difference <= 4) — flat lines read badly on
+    //      a serpentine board.
+    //  R9  A line never passes over another element's endpoint and no
+    //      endpoint sits on a cell another line passes through.
+    // Progressive rules (strict first, relaxed only when the board is full):
+    //  P1  No crossings (then 1, then 2).
+    //  P2  Endpoints are not orthogonal neighbours of each other.
+    // Selection: several valid candidates are generated and the best one is
+    // chosen by score — game length close to a normal Snakes & Ladders game
+    // (about 36 turns for a lone player), fewest crossings, elements spread
+    // over the whole board instead of clumping.
+    const MIN_SPAN = 5;
+    const BUCKETS = [
+      { name: 'short',  min: 5,  max: 15, share: 0.45 },
+      { name: 'medium', min: 16, max: 35, share: 0.35 },
+      { name: 'long',   min: 36, max: 65, share: 0.20 },
+    ];
+    const TOP_ROW_MAX_SPAN = 35;     // R5
+    const LONG_LADDER_FROM_ROW1 = 35; // R7: ladders from row 1 may span at most this
+    const TARGET_MEAN_TURNS = 36;
+
+    const LEVELS = [
+      { maxCross: 0, minGap: 1, maxColDiff: 4, traversal: true },
+      { maxCross: 0, minGap: 0, maxColDiff: 4, traversal: true },
+      { maxCross: 1, minGap: 0, maxColDiff: 5, traversal: true },
+      { maxCross: 1, minGap: 0, maxColDiff: 6, traversal: false },
+      { maxCross: 2, minGap: 0, maxColDiff: 6, traversal: false },
+      { maxCross: 3, minGap: 0, maxColDiff: 7, traversal: false },
+    ];
+
+    function shuffle(arr, rng) {
+      for (let k = arr.length - 1; k > 0; k--) {
+        const j = Math.floor(rng() * (k + 1));
+        [arr[k], arr[j]] = [arr[j], arr[k]];
+      }
+      return arr;
+    }
+
+    // Largest-remainder split of n elements into the length buckets.
+    function buildBucketPlan(n, rng) {
+      const raw = BUCKETS.map(b => b.share * n);
+      const floors = raw.map(Math.floor);
+      let remaining = n - floors.reduce((a, b) => a + b, 0);
+      const order = raw.map((v, i) => ({ frac: v - Math.floor(v), i })).sort((a, b) => b.frac - a.frac);
+      for (let k = 0; k < remaining; k++) floors[order[k].i]++;
+      const queue = [];
+      floors.forEach((count, idx) => { for (let k = 0; k < count; k++) queue.push(BUCKETS[idx]); });
+      return shuffle(queue, rng);
+    }
+
+    function ccw(ax, ay, bx, by, cx, cy) { return (cy - ay) * (bx - ax) - (by - ay) * (cx - ax); }
+    function segmentsCross(a, b, c, d) {
+      const d1 = ccw(c.x, c.y, d.x, d.y, a.x, a.y);
+      const d2 = ccw(c.x, c.y, d.x, d.y, b.x, b.y);
+      const d3 = ccw(a.x, a.y, b.x, b.y, c.x, c.y);
+      const d4 = ccw(a.x, a.y, b.x, b.y, d.x, d.y);
+      return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+    }
+    function center(sq) { const g = squareToGrid(sq); return { x: g.col + 0.5, y: g.row + 0.5 }; }
+
+    // Cells the straight line between two squares passes through (excluding
+    // the endpoints), sampled finely enough for a 10x10 grid.
+    function cellsTraversed(from, to) {
+      const a = center(from), b = center(to);
+      const out = new Set();
+      const N = 80;
+      for (let i = 1; i < N; i++) {
+        const t = i / N;
+        const c = Math.floor(a.x + (b.x - a.x) * t);
+        const r = Math.floor(a.y + (b.y - a.y) * t);
+        if (r < 0 || r > 9 || c < 0 || c > 9) continue;
+        const sq = gridToSquare(r, c);
+        if (sq !== from && sq !== to) out.add(sq);
+      }
+      return out;
+    }
+
+    // Manhattan distance on the grid: 1 = orthogonal neighbours.
+    function gridDist(sqA, sqB) {
+      const a = squareToGrid(sqA), b = squareToGrid(sqB);
+      return Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
+    }
+
+    function buildCandidate(numSnakes, numLadders, level, rng) {
+      const used = new Set([1, 100]);
+      const traversed = new Set();
+      const segments = [];
+      const snakes = {}, ladders = {};
+      let topSnakes = 0, topLadders = 0, crossings = 0;
+
+      const tryPlace = (isLadder, bucket) => {
+        for (let i = 0; i < 250; i++) {
+          const span = bucket.min + Math.floor(rng() * (bucket.max - bucket.min + 1));
+          let from, to;
+          if (isLadder) { from = 2 + Math.floor(rng() * 98); to = from + span; }
+          else { from = 2 + Math.floor(rng() * 98); to = from - span; }
+          if (from < 2 || from > 99 || to < 2 || to > 99) continue;
+          if (used.has(from) || used.has(to)) continue;
+          if (rowFromBottom(from) === rowFromBottom(to)) continue;                       // R2
+          if (!isLadder && from <= 10) continue;                                          // R4
+          if (!isLadder && from >= 91) {                                                  // R5
+            if (topSnakes >= 1 || from === 99 || span > TOP_ROW_MAX_SPAN) continue;
+          }
+          if (isLadder && to >= 91 && topLadders >= 1) continue;                          // R6
+          if (isLadder && from <= 10 && span > LONG_LADDER_FROM_ROW1) continue;           // R7
+          const ga = squareToGrid(from), gb = squareToGrid(to);
+          if (Math.abs(ga.col - gb.col) > level.maxColDiff) continue;                     // R8
+          if (level.traversal && (traversed.has(from) || traversed.has(to))) continue;    // R9
+          const path = cellsTraversed(from, to);
+          if (level.traversal) {
+            let bad = false;
+            for (const c of path) if (used.has(c)) { bad = true; break; }
+            if (bad) continue;
+          }
+          if (level.minGap > 0) {                                                         // P2
+            let touch = false;
+            for (const u of used) {
+              if (u === 1 || u === 100) continue;
+              if (gridDist(u, from) <= level.minGap || gridDist(u, to) <= level.minGap) { touch = true; break; }
+            }
+            if (touch) continue;
+          }
+          const A = center(from), B = center(to);
+          let cross = 0;
+          for (const s of segments) { if (segmentsCross(A, B, s.a, s.b)) { cross++; if (cross > level.maxCross) break; } }
+          if (cross > level.maxCross) continue;                                           // P1
+
+          used.add(from); used.add(to);
+          segments.push({ a: A, b: B });
+          for (const c of path) traversed.add(c);
+          crossings += cross;
+          if (!isLadder && from >= 91) topSnakes++;
+          if (isLadder && to >= 91) topLadders++;
+          if (isLadder) ladders[from] = to; else snakes[from] = to;
+          return true;
+        }
+        return false;
+      };
+
+      const tryPlanned = (isLadder, planned) => {
+        if (tryPlace(isLadder, planned)) return true;
+        for (const b of shuffle(BUCKETS.filter(b => b !== planned), rng)) if (tryPlace(isLadder, b)) return true;
+        return false;
+      };
+
+      // Interleave ladders and snakes so neither type gets all the free space.
+      const lPlan = buildBucketPlan(numLadders, rng);
+      const sPlan = buildBucketPlan(numSnakes, rng);
+      const order = [];
+      for (let i = 0; i < Math.max(numLadders, numSnakes); i++) {
+        if (i < numLadders) order.push({ isLadder: true, bucket: lPlan[i] });
+        if (i < numSnakes) order.push({ isLadder: false, bucket: sPlan[i] });
+      }
+      for (const item of order) if (!tryPlanned(item.isLadder, item.bucket)) return null;
+      return { snakes, ladders, crossings };
+    }
+
+    // Jump table: index = square, value = square you end up on.
+    function jumpTable(snakes, ladders) {
+      const jump = new Int16Array(101);
+      for (let i = 0; i <= 100; i++) jump[i] = i;
+      for (const [h, t] of Object.entries(snakes)) jump[+h] = +t;
+      for (const [b, t] of Object.entries(ladders)) jump[+b] = +t;
+      return jump;
+    }
+
+    // Mean number of turns a lone player needs to finish (exact roll to
+    // reach 100, overshoot = no move). Returns Infinity for a board that
+    // cannot be finished in a sane number of turns.
+    function meanTurns(snakes, ladders, games, rng) {
+      const jump = jumpTable(snakes, ladders);
+      let total = 0;
+      for (let g = 0; g < games; g++) {
+        let pos = 0, turns = 0;
+        while (pos !== 100) {
+          const t = pos + 1 + Math.floor(rng() * 6);
+          if (t <= 100) pos = jump[t];
+          if (++turns > 3000) return Infinity;
+        }
+        total += turns;
+      }
+      return total / games;
+    }
+
+    function analyzeLayout(snakes, ladders, rng) {
+      const ends = [];
+      for (const [a, b] of Object.entries(snakes)) ends.push(+a, +b);
+      for (const [a, b] of Object.entries(ladders)) ends.push(+a, +b);
+      // touching endpoints
+      let touching = 0;
+      for (let i = 0; i < ends.length; i++)
+        for (let j = i + 1; j < ends.length; j++)
+          if (gridDist(ends[i], ends[j]) <= 1) touching++;
+      // crossings
+      const segs = [];
+      for (const [a, b] of Object.entries(snakes)) segs.push({ a: center(+a), b: center(+b) });
+      for (const [a, b] of Object.entries(ladders)) segs.push({ a: center(+a), b: center(+b) });
+      let crossings = 0;
+      for (let i = 0; i < segs.length; i++)
+        for (let j = i + 1; j < segs.length; j++)
+          if (segmentsCross(segs[i].a, segs[i].b, segs[j].a, segs[j].b)) crossings++;
+      // spread: rows 2..9 without any endpoint, column thirds imbalance
+      const rows = new Array(10).fill(0), thirds = [0, 0, 0];
+      for (const e of ends) { rows[rowFromBottom(e)]++; thirds[Math.floor(squareToGrid(e).col / 3.34)]++; }
+      let emptyRows = 0;
+      for (let r = 1; r <= 8; r++) if (rows[r] === 0) emptyRows++;
+      const rowMax = Math.max(...rows);
+      const thirdSpread = Math.max(...thirds) - Math.min(...thirds);
+      const mean = meanTurns(snakes, ladders, 400, rng);
+      return { touching, crossings, emptyRows, rowMax, thirdSpread, meanTurns: mean, endpoints: ends.length };
+    }
+
+    function scoreLayout(a) {
+      if (!isFinite(a.meanTurns)) return 1e9;
+      const fairRowMax = Math.ceil(a.endpoints / 10) + 1;
+      return Math.abs(a.meanTurns - TARGET_MEAN_TURNS)
+        + 6 * a.crossings
+        + 2 * a.touching
+        + (a.endpoints >= 12 ? 3 * a.emptyRows : 0)
+        + 1.5 * Math.max(0, a.rowMax - fairRowMax)
+        + 0.5 * a.thirdSpread;
+    }
+
+    function generateLayout(numSnakes, numLadders, rng = Math.random) {
+      for (const level of LEVELS) {
+        const cands = [];
+        for (let i = 0; i < 80 && cands.length < 10; i++) {
+          const c = buildCandidate(numSnakes, numLadders, level, rng);
+          if (c) cands.push(c);
+        }
+        if (!cands.length) continue;
+        let best = null, bestScore = Infinity;
+        for (const c of cands) {
+          const a = analyzeLayout(c.snakes, c.ladders, rng);
+          const s = scoreLayout(a);
+          if (s < bestScore) { bestScore = s; best = { snakes: c.snakes, ladders: c.ladders, stats: a, level: LEVELS.indexOf(level) }; }
+        }
+        return best;
+      }
+      return null;
+    }
+
+    // Independent validator of the hard rules (used by tests and as a
+    // safety net when a layout is loaded).
+    function validateLayout(snakes, ladders) {
+      const errors = [];
+      const used = new Set();
+      const add = (sq, what) => {
+        if (sq < 2 || sq > 99) errors.push(`${what} ${sq} outside 2..99`);
+        if (used.has(sq)) errors.push(`square ${sq} used twice`);
+        used.add(sq);
+      };
+      let topSnakes = 0, topLadders = 0;
+      for (const [h, t] of Object.entries(snakes)) {
+        const head = +h, tail = +t;
+        add(head, 'snake head'); add(tail, 'snake tail');
+        if (head - tail < MIN_SPAN) errors.push(`snake ${head}->${tail} too short`);
+        if (rowFromBottom(head) === rowFromBottom(tail)) errors.push(`snake ${head}->${tail} same row`);
+        if (head <= 10) errors.push(`snake head ${head} in first row`);
+        if (head >= 91) { topSnakes++; if (head === 99) errors.push('snake head on 99'); if (head - tail > TOP_ROW_MAX_SPAN) errors.push(`top-row snake ${head}->${tail} too long`); }
+      }
+      for (const [b, t] of Object.entries(ladders)) {
+        const bot = +b, top = +t;
+        add(bot, 'ladder bottom'); add(top, 'ladder top');
+        if (top - bot < MIN_SPAN) errors.push(`ladder ${bot}->${top} too short`);
+        if (rowFromBottom(bot) === rowFromBottom(top)) errors.push(`ladder ${bot}->${top} same row`);
+        if (top >= 91) topLadders++;
+        if (bot <= 10 && top - bot > LONG_LADDER_FROM_ROW1) errors.push(`long ladder ${bot}->${top} from first row`);
+      }
+      if (topSnakes > 1) errors.push('more than one snake head in top row');
+      if (topLadders > 1) errors.push('more than one ladder top in top row');
+      return errors;
+    }
+
+    return { squareToGrid, gridToSquare, rowFromBottom, rollDie, generateLayout, analyzeLayout,
+             validateLayout, meanTurns, jumpTable, LEVELS, BUCKETS };
+  })();
+/* @@CORE-END */
+
+  // ============ CONFIG ============
+  let SNAKES = {};
+  let LADDERS = {};
+  let snakeCount = 7;
+  let ladderCount = 7;
+
+  const COLORS = ['p1', 'p2', 'p3', 'p4'];
+  const PLAYER_NAMES = ['ORANGE', 'WHITE', 'PURPLE', 'TEAL'];
+  const PLAYER_HEX = ['#ff8a00', '#ffffff', '#c266ff', '#4dffd8'];
+
+  // Warm hues for snakes, cool hues for ladders: the colour alone tells a
+  // player whether a line is good or bad, and neighbouring lines differ so
+  // each one can be followed by eye.
+  const SNAKE_SCHEMES = [
+    { a: '#ff2bd6', b: '#7d0f9c', belly: '#ffc4f2', dark: '#33073f' },
+    { a: '#ff3d5a', b: '#8f0a33', belly: '#ffc3cd', dark: '#3a0514' },
+    { a: '#ff7a1a', b: '#9e2a08', belly: '#ffdcbf', dark: '#3a1104' },
+    { a: '#d63cff', b: '#4d0c8c', belly: '#efc6ff', dark: '#24063d' },
+    { a: '#ff5fb0', b: '#8e0f5e', belly: '#ffd3ea', dark: '#380926' },
+  ];
+  const LADDER_SCHEMES = [
+    { rail: '#39ff14', light: '#d8ffcc', dark: '#0c4d05' },
+    { rail: '#00f0ff', light: '#ccfbff', dark: '#03515a' },
+    { rail: '#b4ff3c', light: '#efffd0', dark: '#3f6a06' },
+    { rail: '#26ffb0', light: '#cdffee', dark: '#075c3e' },
+    { rail: '#7cf8ff', light: '#e6feff', dark: '#155f68' },
+  ];
+
+  // ============ STATE ============
+  let numPlayers = 0;
+  let positions = [];
+  let currentPlayer = 0;
+  let rolling = false;
+  let moving = false;
+  let gameOver = false;
+  let lastRoll = null;
+  let selectedPlayers = 2;
+
+  // ============ DOM ============
+  const $ = id => document.getElementById(id);
+  const menu = $('menu');
+  const game = $('game');
+  const boardFrame = $('boardFrame');
+  const flashEl = $('flash');
+  const toastEl = $('toast');
+  const statusEl = $('status');
+  const playersTop = $('playersTop');
+  const playersBottom = $('playersBottom');
+  const winOverlay = $('winOverlay');
+  const winTitle = $('winTitle');
+  const winSub = $('winSub');
+  const confettiCanvas = $('confetti');
+  const playBtn = $('playBtn');
+
+  // A "board context" bundles the DOM of one rendered board (menu preview or
+  // the live game board) together with its measured pixel geometry.
+  const menuCtx = { inner: $('menuInner'), board: $('menuBoard'), overlay: $('menuOverlay'), tokens: null, idPrefix: 'm', g: null };
+  const gameCtx = { inner: $('boardInner'), board: $('board'), overlay: $('overlay'), tokens: $('tokens'), idPrefix: 'g', g: null };
+
+  // ============ GEOMETRY (pixel space) ============
+  // The overlay is drawn in real pixels so nothing gets stretched when the
+  // board is not square (portrait phones). Redrawn on resize.
+  function geomOf(el) {
+    const w = el.clientWidth, h = el.clientHeight;
+    return { w, h, cw: w / 10, ch: h / 10, cell: Math.min(w, h) / 10 };
+  }
+  function centerPx(sq, g) {
+    const { row, col } = CORE.squareToGrid(sq);
+    return { x: (col + 0.5) * g.cw, y: (row + 0.5) * g.ch };
+  }
+  function centerPct(sq) {
+    const { row, col } = CORE.squareToGrid(sq);
+    return { x: col * 10 + 5, y: row * 10 + 5 };
+  }
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs, children) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    if (children) for (const c of children) el.appendChild(c);
+    return el;
+  }
+  const f1 = n => (Math.round(n * 10) / 10).toString();
+
+  // Sine-wave centerline of a snake, shared by the drawing and by the token
+  // slide animation so the token really follows the drawn body.
+  function snakeCenterline(headSq, tailSq, g, samples) {
+    const H = centerPx(headSq, g), T = centerPx(tailSq, g);
+    const dx = T.x - H.x, dy = T.y - H.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L, px = -uy, py = ux;
+    const waves = Math.max(1, Math.round(L / (g.cell * 2.7)));
+    const amp = Math.min(g.cell * 0.40, L * 0.09);
+    const pts = [];
+    for (let i = 0; i <= samples; i++) {
+      const t = i / samples;
+      const env = Math.sin(t * Math.PI);
+      const w = Math.sin(t * Math.PI * 2 * waves) * amp * env;
+      pts.push({ x: H.x + dx * t + px * w, y: H.y + dy * t + py * w, t });
+    }
+    return { pts, H, T, L };
+  }
+
+  // Closed outline of a ribbon around a polyline with variable half-width.
+  function ribbonPath(pts, widthFn) {
+    const left = [], right = [];
+    for (let i = 0; i < pts.length; i++) {
+      const p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(pts.length - 1, i + 1)];
+      let tx = p1.x - p0.x, ty = p1.y - p0.y;
+      const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+      const nx = -ty, ny = tx, w = widthFn(pts[i].t);
+      left.push(f1(pts[i].x + nx * w) + ' ' + f1(pts[i].y + ny * w));
+      right.push(f1(pts[i].x - nx * w) + ' ' + f1(pts[i].y - ny * w));
+    }
+    return 'M' + left.join('L') + 'L' + right.reverse().join('L') + 'Z';
+  }
+
+  function drawSnake(svg, defs, headSq, tailSq, scheme, g, gid) {
+    const cl = snakeCenterline(headSq, tailSq, g, 72);
+    const cell = g.cell;
+    const wMax = cell * 0.17;
+    const body = t => wMax * (0.14 + 0.86 * Math.pow(1 - t, 0.8));
+    const poly = cl.pts.map(p => f1(p.x) + ',' + f1(p.y)).join(' ');
+
+    defs.appendChild(svgEl('linearGradient', {
+      id: gid, gradientUnits: 'userSpaceOnUse', x1: cl.H.x, y1: cl.H.y, x2: cl.T.x, y2: cl.T.y,
+    }, [
+      svgEl('stop', { offset: '0', 'stop-color': scheme.a }),
+      svgEl('stop', { offset: '1', 'stop-color': scheme.b }),
+    ]));
+
+    const grp = svgEl('g', { class: 'snake' });
+    // soft glow band
+    grp.appendChild(svgEl('polyline', { points: poly, fill: 'none', stroke: scheme.a, 'stroke-width': wMax * 3.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.16 }));
+    // body
+    grp.appendChild(svgEl('path', { d: ribbonPath(cl.pts, body), fill: `url(#${gid})`, stroke: scheme.dark, 'stroke-width': 1.3, 'stroke-linejoin': 'round' }));
+    // scale pattern: dashed outline of an inner ribbon
+    grp.appendChild(svgEl('path', { d: ribbonPath(cl.pts, t => body(t) * 0.62), fill: 'none', stroke: scheme.dark, 'stroke-width': 1, 'stroke-dasharray': `${f1(cell * 0.09)} ${f1(cell * 0.13)}`, opacity: 0.45 }));
+    // belly highlight
+    grp.appendChild(svgEl('path', { d: ribbonPath(cl.pts, t => body(t) * 0.28), fill: scheme.belly, opacity: 0.30 }));
+
+    // head: oriented along the first body segment (+x points into the body)
+    const p0 = cl.pts[0], p1 = cl.pts[2];
+    const ang = Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180 / Math.PI;
+    const head = svgEl('g', { transform: `translate(${f1(p0.x)} ${f1(p0.y)}) rotate(${f1(ang)})` });
+    head.appendChild(svgEl('ellipse', { cx: cell * 0.03, cy: 0, rx: cell * 0.31, ry: cell * 0.215, fill: scheme.a, stroke: scheme.dark, 'stroke-width': 1.3 }));
+    head.appendChild(svgEl('ellipse', { cx: -cell * 0.04, cy: -cell * 0.07, rx: cell * 0.13, ry: cell * 0.055, fill: '#fff', opacity: 0.28 }));
+    for (const s of [-1, 1]) {
+      head.appendChild(svgEl('circle', { cx: -cell * 0.08, cy: s * cell * 0.10, r: cell * 0.06, fill: '#fff' }));
+      head.appendChild(svgEl('circle', { cx: -cell * 0.10, cy: s * cell * 0.10, r: cell * 0.03, fill: '#0a0420' }));
+    }
+    // forked tongue
+    const tx = -cell * 0.31;
+    head.appendChild(svgEl('path', {
+      d: `M${f1(tx)} 0 L${f1(tx - cell * 0.16)} 0 M${f1(tx - cell * 0.16)} 0 L${f1(tx - cell * 0.26)} ${f1(-cell * 0.06)} M${f1(tx - cell * 0.16)} 0 L${f1(tx - cell * 0.26)} ${f1(cell * 0.06)}`,
+      stroke: '#ff3d5a', 'stroke-width': 1.5, 'stroke-linecap': 'round', fill: 'none',
+    }));
+    grp.appendChild(head);
+    svg.appendChild(grp);
+
+    // landing ring at the tail
+    svg.appendChild(svgEl('circle', { class: 'landing', cx: cl.T.x, cy: cl.T.y, r: cell * 0.26, fill: 'none', stroke: scheme.a, 'stroke-width': 1.6, 'stroke-dasharray': '3 3' }));
+  }
+
+  function drawLadder(svg, botSq, topSq, scheme, g) {
+    const B = centerPx(botSq, g), T = centerPx(topSq, g);
+    const dx = T.x - B.x, dy = T.y - B.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L, px = -uy, py = ux;
+    const cell = g.cell;
+    const off = cell * 0.19;
+    const railW = Math.max(3, cell * 0.085);
+    const grp = svgEl('g', { class: 'ladder' });
+    const line = (x1, y1, x2, y2, stroke, w, extra) => svgEl('line', Object.assign({ x1: f1(x1), y1: f1(y1), x2: f1(x2), y2: f1(y2), stroke, 'stroke-width': f1(w), 'stroke-linecap': 'round' }, extra || {}));
+
+    // glow band
+    grp.appendChild(line(B.x, B.y, T.x, T.y, scheme.rail, cell * 0.8, { opacity: 0.13 }));
+
+    // rungs (below the rails)
+    const n = Math.max(2, Math.round(L / (cell * 0.55)));
+    for (let i = 1; i < n; i++) {
+      const t = i / n, cx = B.x + dx * t, cy = B.y + dy * t;
+      const r = off * 0.98;
+      grp.appendChild(line(cx + px * r, cy + py * r, cx - px * r, cy - py * r, scheme.dark, railW * 1.25));
+      grp.appendChild(line(cx + px * r, cy + py * r, cx - px * r, cy - py * r, scheme.rail, railW * 0.8));
+      grp.appendChild(line(cx + px * r * 0.8, cy + py * r * 0.8 - railW * 0.18, cx - px * r * 0.8, cy - py * r * 0.8 - railW * 0.18, scheme.light, railW * 0.28, { opacity: 0.8 }));
+    }
+    // rails
+    for (const s of [1, -1]) {
+      const x1 = B.x + px * off * s, y1 = B.y + py * off * s, x2 = T.x + px * off * s, y2 = T.y + py * off * s;
+      grp.appendChild(line(x1, y1, x2, y2, scheme.dark, railW * 1.5));
+      grp.appendChild(line(x1, y1, x2, y2, scheme.rail, railW));
+      grp.appendChild(line(x1 - railW * 0.22, y1 - railW * 0.22, x2 - railW * 0.22, y2 - railW * 0.22, scheme.light, railW * 0.3, { opacity: 0.85 }));
+      // end caps
+      grp.appendChild(svgEl('circle', { cx: f1(x1), cy: f1(y1), r: f1(railW * 0.85), fill: scheme.rail, stroke: scheme.dark, 'stroke-width': 1 }));
+      grp.appendChild(svgEl('circle', { cx: f1(x2), cy: f1(y2), r: f1(railW * 0.85), fill: scheme.light, stroke: scheme.dark, 'stroke-width': 1 }));
+    }
+    // small chevron above the top rung: "this way up"
+    const tipX = T.x + ux * cell * 0.30, tipY = T.y + uy * cell * 0.30;
+    const bx = T.x + ux * cell * 0.10, by = T.y + uy * cell * 0.10;
+    grp.appendChild(svgEl('path', {
+      d: `M${f1(bx + px * cell * 0.13)} ${f1(by + py * cell * 0.13)} L${f1(tipX)} ${f1(tipY)} L${f1(bx - px * cell * 0.13)} ${f1(by - py * cell * 0.13)}`,
+      fill: 'none', stroke: scheme.light, 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.9,
+    }));
+    svg.appendChild(grp);
+
+    // landing ring at the top
+    svg.appendChild(svgEl('circle', { class: 'landing', cx: T.x, cy: T.y, r: cell * 0.26, fill: 'none', stroke: scheme.rail, 'stroke-width': 1.6, 'stroke-dasharray': '3 3' }));
+  }
+
+  function drawOverlay(ctx) {
+    const svg = ctx.overlay, g = ctx.g;
+    svg.setAttribute('viewBox', `0 0 ${g.w} ${g.h}`);
+    svg.innerHTML = '';
+    const defs = svgEl('defs', {});
+    svg.appendChild(defs);
+    // Ladders first, snakes on top, sorted by square so colours are stable.
+    Object.keys(LADDERS).map(Number).sort((a, b) => a - b).forEach((bot, i) => {
+      drawLadder(svg, bot, LADDERS[bot], LADDER_SCHEMES[i % LADDER_SCHEMES.length], g);
+    });
+    Object.keys(SNAKES).map(Number).sort((a, b) => a - b).forEach((head, i) => {
+      drawSnake(svg, defs, head, SNAKES[head], SNAKE_SCHEMES[i % SNAKE_SCHEMES.length], g, `${ctx.idPrefix}-sg${i}`);
+    });
+  }
+
+  // ============ BUILD BOARD ============
+  function buildBoard(ctx) {
+    const boardEl = ctx.board;
+    boardEl.innerHTML = '';
+    const tails = new Set(Object.values(SNAKES).map(Number));
+    const tops = new Set(Object.values(LADDERS).map(Number));
+    for (let r = 0; r < 10; r++) {
+      for (let c = 0; c < 10; c++) {
+        const sq = CORE.gridToSquare(r, c);
+        const cell = document.createElement('div');
+        cell.className = 'cell ' + ((r + c) % 2 === 0 ? 'dark' : 'light');
+        cell.dataset.sq = sq;
+        const num = document.createElement('span');
+        num.className = 'num';
+        num.textContent = sq;
+        cell.appendChild(num);
+        const sym = document.createElement('span');
+        sym.className = 'sym';
+        if (sq === 1) { cell.classList.add('start'); sym.textContent = '▶'; }
+        else if (sq === 100) { cell.classList.add('finish'); sym.textContent = '★'; }
+        else if (SNAKES[sq] !== undefined) cell.classList.add('snake-head');
+        else if (tails.has(sq)) cell.classList.add('snake-tail');
+        else if (LADDERS[sq] !== undefined) cell.classList.add('ladder-bot');
+        else if (tops.has(sq)) cell.classList.add('ladder-top');
+        cell.appendChild(sym);
+        boardEl.appendChild(cell);
+      }
+    }
+    layoutBoard(ctx);
+  }
+
+  // Measure the board and (re)draw everything that depends on pixel size.
+  function layoutBoard(ctx) {
+    const g = geomOf(ctx.inner);
+    if (!g.w || !g.h) return;
+    ctx.g = g;
+    ctx.inner.style.setProperty('--cell', g.cell + 'px');
+    drawOverlay(ctx);
+  }
+
+  const ro = new ResizeObserver(entries => {
+    for (const e of entries) {
+      const ctx = e.target === menuCtx.inner ? menuCtx : gameCtx;
+      requestAnimationFrame(() => layoutBoard(ctx));
+    }
+  });
+  ro.observe(menuCtx.inner);
+  ro.observe(gameCtx.inner);
+
+  // On wide screens the board would stretch into a flat strip; cap its width
+  // to 1.35x its height so cells stay roughly square-ish.
+  const MAX_BOARD_RATIO = 1.35;
+  function fitFrame(wrapEl) {
+    const cs = getComputedStyle(wrapEl);
+    const cw = wrapEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const ch = wrapEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const frame = wrapEl.querySelector('.board-frame');
+    if (cw > 0 && ch > 0) frame.style.width = Math.min(cw, ch * MAX_BOARD_RATIO) + 'px';
+  }
+  const wrapRo = new ResizeObserver(entries => { for (const e of entries) fitFrame(e.target); });
+  document.querySelectorAll('.menu-board-wrap, .board-wrap').forEach(el => wrapRo.observe(el));
+
+  function applyLayout(layout) {
+    SNAKES = layout.snakes;
+    LADDERS = layout.ladders;
+    buildBoard(menuCtx);
+  }
+
+  function renewBoard() {
+    const result = CORE.generateLayout(snakeCount, ladderCount);
+    if (!result) {
+      alert('Could not fit that many snakes & ladders. Try fewer.');
+      return;
+    }
+    applyLayout(result);
+  }
+
+  // ============ TOKENS ============
+  let tokenEls = [];
+  const CLUSTER = [[0, 0], [-0.2, 0.12], [0.2, 0.12], [0, -0.22]]; // offsets in cells
+
+  function createTokens() {
+    gameCtx.tokens.innerHTML = '';
+    tokenEls = [];
+    for (let i = 0; i < numPlayers; i++) {
+      const t = document.createElement('div');
+      t.className = 'token ' + COLORS[i];
+      const ball = document.createElement('div');
+      ball.className = 'ball';
+      t.appendChild(ball);
+      gameCtx.tokens.appendChild(t);
+      tokenEls.push(t);
+    }
+    renderTokens(true);
+  }
+
+  // Position every token; players on the same square are spread in a small
+  // cluster so they never hide each other.
+  function renderTokens(instant) {
+    const byPos = {};
+    positions.forEach((p, i) => { (byPos[p] = byPos[p] || []).push(i); });
+    for (const [sqStr, players] of Object.entries(byPos)) {
+      const sq = Math.max(1, +sqStr);
+      const c = centerPct(sq);
+      players.forEach((pi, idx) => {
+        const [ox, oy] = CLUSTER[idx] || [0, 0];
+        const t = tokenEls[pi];
+        if (instant) t.style.transition = 'none';
+        t.style.left = (c.x + ox * 10) + '%';
+        t.style.top = (c.y + oy * 10) + '%';
+        t.classList.toggle('waiting', +sqStr === 0);
+        t.classList.toggle('active', pi === currentPlayer && !gameOver);
+        if (instant) { void t.offsetWidth; t.style.transition = ''; }
+      });
+    }
+  }
+
+  function hopToken(pi) {
+    const ball = tokenEls[pi].firstChild;
+    ball.classList.remove('hop');
+    void ball.offsetWidth;
+    ball.classList.add('hop');
+  }
+
+  async function slideTokenAlong(pi, pts, stepMs) {
+    const t = tokenEls[pi];
+    t.style.transition = `left ${stepMs}ms linear, top ${stepMs}ms linear`;
+    for (const p of pts) {
+      t.style.left = p.x + '%';
+      t.style.top = p.y + '%';
+      await sleep(stepMs);
+    }
+    t.style.transition = '';
+  }
+
+  async function slideAlongSnake(pi, headSq, tailSq) {
+    const g = gameCtx.g;
+    const cl = snakeCenterline(headSq, tailSq, g, 26);
+    const pts = cl.pts.slice(1).map(p => ({ x: p.x / g.w * 100, y: p.y / g.h * 100 }));
+    await slideTokenAlong(pi, pts, 42);
+  }
+
+  async function slideAlongLadder(pi, botSq, topSq) {
+    const a = centerPct(botSq), b = centerPct(topSq);
+    const pts = [];
+    for (let i = 1; i <= 12; i++) { const t = i / 12; pts.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }); }
+    await slideTokenAlong(pi, pts, 55);
+  }
+
+  // ============ PLAYER PANELS ============
+  // Slot indices: 0..2 top row (rotated 180°, so DOM-left renders top-RIGHT),
+  // 3..5 bottom row. Seating runs clockwise from P1 at the bottom.
+  const LAYOUT = {
+    1: [4],
+    2: [4, 1],
+    3: [4, 2, 0],
+    4: [3, 2, 0, 5],
+  };
+  let slotEls = [];
+
+  function buildPlayersPanel() {
+    playersTop.innerHTML = '';
+    playersBottom.innerHTML = '';
+    const slots = [];
+    for (let s = 0; s < 6; s++) {
+      const d = document.createElement('div');
+      d.className = 'player-slot empty';
+      slots.push(d);
+      (s < 3 ? playersTop : playersBottom).appendChild(d);
+    }
+    slotEls = [];
+    const layout = LAYOUT[numPlayers];
+    for (let i = 0; i < numPlayers; i++) {
+      const slot = slots[layout[i]];
+      slot.classList.remove('empty');
+      slot.innerHTML = `
+        <div class="player-label">PLAYER ${i + 1}</div>
+        <div class="player-box ${COLORS[i]}" data-player="${i}">
+          <div class="avatar"></div>
+          <div class="die empty" data-face="0">${'<span class="pip"></span>'.repeat(9)}<span class="q">?</span></div>
+        </div>`;
+      const box = slot.querySelector('.player-box');
+      const die = slot.querySelector('.die');
+      box.addEventListener('click', () => { if (i === currentPlayer) rollDice(); });
+      slotEls.push({ box, die });
+    }
+    updatePanel();
+  }
+
+  function updatePanel() {
+    slotEls.forEach((s, i) => {
+      const active = i === currentPlayer && !gameOver;
+      s.box.classList.toggle('active', active);
+      s.box.classList.toggle('winner', gameOver && i === currentPlayer);
+      s.die.classList.toggle('rollable', active && !rolling && !moving);
+      s.die.classList.toggle('empty', !active && !(gameOver && i === currentPlayer));
+      if (active || (gameOver && i === currentPlayer)) {
+        if (lastRoll != null) { s.die.dataset.face = lastRoll; s.die.classList.remove('unknown'); }
+        else { s.die.dataset.face = 0; s.die.classList.add('unknown'); }
+      } else {
+        s.die.dataset.face = 0;
+        s.die.classList.remove('unknown');
+      }
+    });
+  }
+
+  // ============ GAME FLOW ============
+  function setStatus(text) { statusEl.textContent = text; }
+  let toastTimer = null;
+  function showToast(text, ms) {
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
+  }
+  function flash(kind) {
+    flashEl.className = 'flash ' + kind;
+    void flashEl.offsetWidth;
+    flashEl.classList.add('go');
+  }
+  function shakeBoard() {
+    boardFrame.classList.remove('shake');
+    void boardFrame.offsetWidth;
+    boardFrame.classList.add('shake');
+  }
+  boardFrame.addEventListener('animationend', () => boardFrame.classList.remove('shake'));
+
+  function playerTag(i) { return `P${i + 1} (${PLAYER_NAMES[i]})`; }
+
+  function startGame(n) {
+    numPlayers = n;
+    positions = Array(n).fill(0);
+    // Fair start: the first player is drawn at random every game, so no seat
+    // has the first-mover advantage more often than any other.
+    currentPlayer = CORE.rollDie(n) - 1;
+    gameOver = false;
+    rolling = false;
+    moving = true; // blocked until the start toast is gone
+    lastRoll = null;
+    menu.style.display = 'none';
+    game.style.display = 'flex';
+    winOverlay.classList.remove('show');
+    buildBoard(gameCtx);
+    createTokens();
+    buildPlayersPanel();
+    setStatus(`${playerTag(currentPlayer)} — ROLL!`);
+    showToast(`🎲 ${playerTag(currentPlayer)}\nSTARTS`, 1500);
+    setTimeout(() => { moving = false; updatePanel(); }, 900);
+  }
+
+  function rollDice() {
+    if (rolling || moving || gameOver) return;
+    const s = slotEls[currentPlayer];
+    rolling = true;
+    updatePanel();
+    s.die.classList.remove('unknown');
+    s.die.classList.add('rolling');
+    let ticks = 0;
+    const iv = setInterval(() => {
+      s.die.dataset.face = 1 + Math.floor(Math.random() * 6); // visual only
+      if (++ticks >= 9) {
+        clearInterval(iv);
+        const result = CORE.rollDie(6);
+        s.die.dataset.face = result;
+        s.die.classList.remove('rolling');
+        rolling = false;
+        lastRoll = result;
+        movePlayer(result);
+      }
+    }, 70);
+  }
+
+  async function movePlayer(steps) {
+    moving = true;
+    updatePanel();
+    const start = positions[currentPlayer];
+    const target = start + steps;
+
+    if (target > 100) {
+      const need = 100 - start;
+      setStatus(`${playerTag(currentPlayer)}: TOO FAR! NEED ${need === 1 ? 'EXACTLY 1' : need + ' OR LESS'}`);
+      await sleep(700);
+      moving = false;
+      nextTurn();
+      return;
+    }
+
+    setStatus(`${playerTag(currentPlayer)} ROLLED ${steps}`);
+    for (let s = start + 1; s <= target; s++) {
+      positions[currentPlayer] = s;
+      renderTokens();
+      hopToken(currentPlayer);
+      await sleep(200);
+    }
+
+    if (SNAKES[target] !== undefined) {
+      setStatus(`🐍 SNAKE! ${target} → ${SNAKES[target]}`);
+      flash('snake');
+      shakeBoard();
+      await sleep(320);
+      await slideAlongSnake(currentPlayer, target, SNAKES[target]);
+      positions[currentPlayer] = SNAKES[target];
+      renderTokens();
+      await sleep(250);
+    } else if (LADDERS[target] !== undefined) {
+      setStatus(`⇧ LADDER! ${target} → ${LADDERS[target]}`);
+      flash('ladder');
+      await sleep(320);
+      await slideAlongLadder(currentPlayer, target, LADDERS[target]);
+      positions[currentPlayer] = LADDERS[target];
+      renderTokens();
+      await sleep(250);
+    }
+
+    if (positions[currentPlayer] === 100) {
+      winGame();
+      return;
+    }
+    moving = false;
+    nextTurn();
+  }
+
+  function nextTurn() {
+    currentPlayer = (currentPlayer + 1) % numPlayers;
+    lastRoll = null;
+    updatePanel();
+    renderTokens();
+    setStatus(`${playerTag(currentPlayer)} — ROLL!`);
+  }
+
+  function winGame() {
+    gameOver = true;
+    moving = false;
+    updatePanel();
+    renderTokens();
+    setStatus(`${playerTag(currentPlayer)} WINS!`);
+    winTitle.textContent = `${playerTag(currentPlayer)} WINS!`;
+    winTitle.style.color = PLAYER_HEX[currentPlayer];
+    winSub.textContent = numPlayers > 1 ? '★ HIGH SCORE ★' : '★ SOLO RUN COMPLETE ★';
+    winOverlay.classList.add('show');
+    startConfetti(PLAYER_HEX[currentPlayer]);
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // ============ CONFETTI ============
+  let confettiRAF = null;
+  function startConfetti(color) {
+    const c = confettiCanvas, ctx = c.getContext('2d');
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+    const colors = ['#ff2bd6', '#00f0ff', '#ffd23f', '#39ff14', '#b537f2', color, color];
+    const P = [];
+    for (let i = 0; i < 170; i++) {
+      P.push({
+        x: Math.random() * c.width, y: -20 - Math.random() * c.height * 0.6,
+        vx: (Math.random() - 0.5) * 2.4, vy: 2 + Math.random() * 3.5,
+        s: 5 + Math.random() * 8, r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.25,
+        col: colors[i % colors.length],
+      });
+    }
+    const t0 = performance.now();
+    cancelAnimationFrame(confettiRAF);
+    const step = now => {
+      ctx.clearRect(0, 0, c.width, c.height);
+      for (const p of P) {
+        p.x += p.vx; p.y += p.vy; p.r += p.vr; p.vy += 0.025;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.r);
+        ctx.fillStyle = p.col;
+        ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+        ctx.restore();
+        if (p.y > c.height + 20 && now - t0 < 4000) { p.y = -20; p.x = Math.random() * c.width; p.vy = 2 + Math.random() * 3.5; }
+      }
+      if (now - t0 < 7000 && winOverlay.classList.contains('show')) confettiRAF = requestAnimationFrame(step);
+      else ctx.clearRect(0, 0, c.width, c.height);
+    };
+    confettiRAF = requestAnimationFrame(step);
+  }
+
+  // ============ MENU EVENTS ============
+  function updatePlayerSelection() {
+    document.querySelectorAll('.p-btn').forEach(btn => {
+      btn.classList.toggle('selected', parseInt(btn.dataset.players, 10) === selectedPlayers);
+    });
+  }
+  document.querySelectorAll('.p-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedPlayers = parseInt(btn.dataset.players, 10);
+      updatePlayerSelection();
+    });
+  });
+  playBtn.addEventListener('click', () => startGame(selectedPlayers));
+
+  // ============ SETTINGS ============
+  const renewBtn = $('renewBtn');
+  const settingsBtn = $('settingsBtn');
+  const settingsModal = $('settingsModal');
+  const snakeVal = $('snakeVal');
+  const ladderVal = $('ladderVal');
+  const MIN_COUNT = 1;
+  const MAX_COUNT = 15;
+  let tempSnakes = snakeCount;
+  let tempLadders = ladderCount;
+
+  function updateModalDisplay() {
+    snakeVal.textContent = tempSnakes;
+    ladderVal.textContent = tempLadders;
+  }
+  renewBtn.addEventListener('click', renewBoard);
+  settingsBtn.addEventListener('click', () => {
+    tempSnakes = snakeCount;
+    tempLadders = ladderCount;
+    updateModalDisplay();
+    settingsModal.classList.add('show');
+  });
+  $('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('show'));
+  $('settingsApply').addEventListener('click', () => {
+    snakeCount = tempSnakes;
+    ladderCount = tempLadders;
+    settingsModal.classList.remove('show');
+    renewBoard();
+  });
+  $('snakeDec').addEventListener('click', () => { if (tempSnakes > MIN_COUNT) { tempSnakes--; updateModalDisplay(); } });
+  $('snakeInc').addEventListener('click', () => { if (tempSnakes < MAX_COUNT) { tempSnakes++; updateModalDisplay(); } });
+  $('ladderDec').addEventListener('click', () => { if (tempLadders > MIN_COUNT) { tempLadders--; updateModalDisplay(); } });
+  $('ladderInc').addEventListener('click', () => { if (tempLadders < MAX_COUNT) { tempLadders++; updateModalDisplay(); } });
+
+  // ============ EXIT / REMATCH ============
+  const exitModal = $('exitModal');
+  function returnToMenu() {
+    game.style.display = 'none';
+    menu.style.display = 'flex';
+    winOverlay.classList.remove('show');
+    exitModal.classList.remove('show');
+    cancelAnimationFrame(confettiRAF);
+    layoutBoard(menuCtx);
+  }
+  $('restartBtn').addEventListener('click', () => {
+    if (gameOver) returnToMenu();
+    else exitModal.classList.add('show');
+  });
+  $('exitCancel').addEventListener('click', () => exitModal.classList.remove('show'));
+  $('exitConfirm').addEventListener('click', returnToMenu);
+  $('winMenuBtn').addEventListener('click', returnToMenu);
+  $('rematchBtn').addEventListener('click', () => {
+    cancelAnimationFrame(confettiRAF);
+    startGame(numPlayers);
+  });
+
+  // ============ FULLSCREEN ============
+  const fsBtn = $('fsBtn');
+  const menuFsBtn = $('menuFsBtn');
+  const docEl = document.documentElement;
+  const fsSupported = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+  if (!fsSupported) {
+    fsBtn.style.display = 'none';
+    menuFsBtn.style.display = 'none';
+  }
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+  }
+  const FS_WANT_KEY = 'mg_fs_want';
+  function wantFs() { try { return sessionStorage.getItem(FS_WANT_KEY) === '1'; } catch (e) { return false; } }
+  function setWantFs(on) {
+    try { on ? sessionStorage.setItem(FS_WANT_KEY, '1') : sessionStorage.removeItem(FS_WANT_KEY); } catch (e) {}
+  }
+  function enterFs() {
+    const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+    if (req) { try { const p = req.call(docEl); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+  }
+  function toggleFullscreen() {
+    if (!isFullscreen()) {
+      setWantFs(true);
+      enterFs();
+    } else {
+      setWantFs(false);
+      const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+      if (exit) { try { const p = exit.call(document); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+    }
+  }
+  function updateFsIcon() {
+    const icon = isFullscreen() ? '❐' : '⛶';
+    fsBtn.textContent = icon;
+    menuFsBtn.textContent = icon;
+  }
+  // Pin the app to the real viewport height (dvh settles late across
+  // fullscreen transitions; innerHeight is right once resize fires).
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-vh', window.innerHeight + 'px');
+  }
+  function forceReflow() {
+    setAppHeight();
+    document.body.style.minHeight = '0';
+    void document.body.offsetHeight;
+    document.body.style.minHeight = '';
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', setAppHeight);
+  fsBtn.addEventListener('click', toggleFullscreen);
+  menuFsBtn.addEventListener('click', toggleFullscreen);
+  if (wantFs() && !isFullscreen()) {
+    const restore = () => {
+      if (wantFs() && !isFullscreen()) enterFs();
+      ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(ev => document.removeEventListener(ev, restore, true));
+    };
+    ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(ev => document.addEventListener(ev, restore, true));
+  }
+  ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(ev =>
+    document.addEventListener(ev, () => {
+      updateFsIcon();
+      setAppHeight();
+      requestAnimationFrame(() => {
+        forceReflow();
+        setTimeout(forceReflow, 250);
+        setTimeout(forceReflow, 600);
+      });
+    }));
+
+  // ============ INIT ============
+  renewBoard();
+  updatePlayerSelection();
+</script>
+</body>
+</html>
